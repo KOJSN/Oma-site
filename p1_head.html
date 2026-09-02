@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="apple-touch-icon" sizes="180x180" href="oma-icon-180.png">
+<link rel="icon" type="image/png" href="oma-icon-180.png">
+<meta name="apple-mobile-web-app-title" content="Oma">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f0518d">
+<title>Oma — nail scan &amp; booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<!-- The map on the home screen. Leaflet draws it; the tiles come from
+     OpenStreetMap, which is free and needs no key. Their policy is fine while
+     we are testing and NOT for real traffic — before launch this becomes a
+     MapTiler key and one changed URL, nothing more.
+
+     Deferred on purpose. The app's own script is inline at the end of the body
+     and runs first, so `L` is not there when the first screen paints — the map
+     waits for it (see waitForL). That keeps a slow or blocked CDN out of the
+     critical path: the app opens either way, and if Leaflet never arrives the
+     home screen falls back to the plain list instead of a blank rectangle. -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* ═══ tokens ═══════════════════════════════════════════
+   Straight out of the Oma v2 canvas. Every colour is defined on bare :root
+   first, then overridden twice — once for system dark, once for an explicit
+   toggle — so no colour has its only definition inside a media query. That
+   was a real bug in v1: the button's ink was declared only in the dark block
+   and painted one theme's text on the other's ground.                      */
+:root{
+  --bg:#eeecf2; --card:#ffffff; --ink:#181220; --sub:#736a80; --faint:#a49cae;
+  --line:rgba(24,18,32,.09); --fill:#f5f3f8; --fill2:#efecf4;
+  --pink:#f0518d; --pink2:#ff8ab8; --pinkd:#c22a66;
+  --tint:#fff0f6; --tint2:#ffe4ee; --onpink:#ffffff; --panel:#ffffff;
+  --shadow:0 18px 44px -14px rgba(24,18,32,.22),0 4px 12px -4px rgba(24,18,32,.10);
+  --card-shadow:0 2px 10px -2px rgba(24,18,32,.08),0 1px 2px rgba(24,18,32,.04);
+  --bezel:#e7e4ec; --ph1:#e9e3ee; --ph2:#dcd4e4;
+  --good:#1b9e5a; --goodbg:rgba(27,158,90,.12);
+  --warn:#b8791b; --warnbg:rgba(184,121,27,.12);
+  --grad:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a080d; --card:#17131e; --ink:#f7f4f9; --sub:#9c92a8; --faint:#6e6479;
+    --line:rgba(255,255,255,.09); --fill:#1e1927; --fill2:#241e2e;
+    --pink:#ff5f96; --pink2:#ff92bb; --pinkd:#ffa9c8;
+    --tint:#2a1622; --tint2:#371c2c; --onpink:#1a0f16; --panel:#120f18;
+    --shadow:0 22px 50px -16px rgba(0,0,0,.7),0 4px 14px -4px rgba(0,0,0,.5);
+    --card-shadow:0 2px 10px -2px rgba(0,0,0,.4);
+    --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
+    --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
+    --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0a080d; --card:#17131e; --ink:#f7f4f9; --sub:#9c92a8; --faint:#6e6479;
+  --line:rgba(255,255,255,.09); --fill:#1e1927; --fill2:#241e2e;
+  --pink:#ff5f96; --pink2:#ff92bb; --pinkd:#ffa9c8;
+  --tint:#2a1622; --tint2:#371c2c; --onpink:#1a0f16; --panel:#120f18;
+  --shadow:0 22px 50px -16px rgba(0,0,0,.7),0 4px 14px -4px rgba(0,0,0,.5);
+  --card-shadow:0 2px 10px -2px rgba(0,0,0,.4);
+  --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
+  --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
+  --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;font-size:15px;line-height:1.45;
+  overscroll-behavior-y:none;
+}
+button,input,textarea,select{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer;text-align:left}
+a{color:var(--pink);text-decoration:none}
+::selection{background:var(--tint2);color:var(--pinkd)}
+:focus-visible{outline:2px solid var(--pink);outline-offset:2px;border-radius:8px}
+
+/* ═══ shell ═══════════════════════════════════════════
+   One column, phone-width. On a wide screen the same column is centred with
+   a soft bezel so it reads as the design's device frame; on a phone it is
+   simply the page.                                                          */
+#shell{
+  position:relative;width:100%;max-width:430px;margin:0 auto;
+  /* Exactly one viewport tall, so #view is the only thing that scrolls and the
+     nav bar (absolute to this) stays put. Without the fixed height the shell
+     grows with its content, the whole page scrolls, and the nav rides away. */
+  height:100dvh;min-height:100dvh;overflow:hidden;
+  background:var(--bg);display:flex;flex-direction:column;
+}
+@media (min-width:900px){
+  body{background:var(--bezel);padding:22px 0}
+  #shell{
+    min-height:min(880px,calc(100dvh - 44px));height:min(880px,calc(100dvh - 44px));
+    border-radius:44px;overflow:hidden;box-shadow:var(--shadow);border:10px solid var(--bezel);
+  }
+}
+#view{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  padding-bottom:calc(104px + env(safe-area-inset-bottom))}
+#view.nonav{padding-bottom:32px}
+.pad{padding:0 20px}
+
+/* ═══ the map home ═══════════════════════════════════
+   The one screen that does not scroll. #view becomes a column, the map takes
+   whatever height is left under the greeting, and the sheet and the buttons
+   float on top of it. The gap below is the bottom bar's, so nothing important
+   ever hides behind it. */
+:root{--navgap:calc(94px + env(safe-area-inset-bottom))}
+#view.map{overflow:hidden;padding-bottom:0;display:flex;flex-direction:column}
+.mapwrap{position:relative;flex:1;min-height:0;background:var(--fill);
+  /* Its own stacking context, so Leaflet's panes — which climb to z-index 700
+     internally — stay underneath the bottom bar instead of over it. */
+  z-index:1;isolation:isolate}
+/* z-index:0 rather than auto, so the map becomes a stacking context of its
+   own. Without it Leaflet's panes — 200 to 700 — escape and paint over the
+   sheet and the buttons, which are its siblings. That is exactly what happened
+   the first time: a perfect map with nothing on top of it. */
+#map{position:absolute;inset:0;z-index:0;background:var(--fill)}
+.leaflet-container{font:inherit;background:var(--fill)}
+/* The credit line is a condition of using the tiles, so it goes top-left where
+   nothing covers it — the sheet owns the bottom of this screen. */
+.leaflet-control-attribution{font-size:9px;line-height:1.6;
+  background:rgba(255,255,255,.78);padding:1px 7px;border-radius:9px;
+  margin:8px 0 0 8px;color:#444}
+.leaflet-control-attribution a{color:#444}
+/* OpenStreetMap has no dark tiles, and a white map inside a dark app is a
+   torch in the face. Inverting the tiles alone gets close enough. */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .leaflet-tile{
+    filter:invert(1) hue-rotate(180deg) brightness(.86) contrast(.92)}
+}
+:root[data-theme="dark"] .leaflet-tile{
+  filter:invert(1) hue-rotate(180deg) brightness(.86) contrast(.92)}
+
+/* a pin is a tech: the squircle of her initials, with one corner pulled
+   down into a point. Named .tpin, not .pin — the schematic map on the older
+   local screens already owns .pin, and two meanings for one class name is how
+   a stylesheet starts lying. */
+.tpin{display:flex;align-items:center;justify-content:center}
+.tpin b{
+  width:36px;height:36px;border-radius:13px 13px 13px 3px;
+  background:var(--grad);color:#fff;font-size:11.5px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  border:2.5px solid #fff;box-shadow:0 6px 14px -4px rgba(24,18,32,.55);
+  transform:rotate(-45deg);transition:width .12s,height .12s}
+.tpin b span{transform:rotate(45deg);letter-spacing:-.02em}
+.tpin.on b{width:44px;height:44px;font-size:13px;
+  box-shadow:0 10px 22px -5px rgba(240,81,141,.95)}
+/* and this one is her */
+.mepin{width:16px;height:16px;border-radius:50%;background:#2f7cf6;
+  border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,124,246,.2)}
+
+.mapbtns{position:absolute;top:12px;right:14px;z-index:5;
+  display:flex;flex-direction:column;gap:10px}
+.mapbtn{width:46px;height:46px;border-radius:16px;background:var(--card);
+  border:1px solid var(--line);box-shadow:var(--card-shadow);
+  display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.mapbtn.pink{background:var(--grad);border-color:transparent;color:#fff;
+  box-shadow:0 10px 22px -8px rgba(240,81,141,.8)}
+
+/* The sheet slides. Its height is set in pixels by the drag code and snaps to
+   three positions — a peek, half the map, and most of it — so she can push it
+   out of the way to see the map, or pull it up to read the list. The handle is
+   the only thing that drags; the body below it scrolls on its own, and the two
+   would fight over the same finger otherwise. */
+.mapsheet{
+  position:absolute;left:12px;right:12px;bottom:var(--navgap);z-index:6;
+  background:var(--card);border:1px solid var(--line);border-radius:24px;
+  box-shadow:0 -12px 34px -14px rgba(24,18,32,.5),var(--card-shadow);
+  height:46%;                      /* a starting value; the drag code owns it */
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:height .22s cubic-bezier(.4,0,.2,1)}
+.mapsheet.dragging{transition:none}          /* follow the finger exactly */
+.mapgrip{
+  flex:none;width:100%;padding:14px 0 10px;background:none;border:0;
+  display:flex;align-items:center;justify-content:center;
+  cursor:grab;touch-action:none}             /* or the browser scrolls instead */
+.mapgrip:active{cursor:grabbing}
+.mapgrip i{display:block;width:38px;height:4px;border-radius:99px;
+  background:var(--line);transition:background .15s}
+.mapgrip:hover i,.mapgrip:focus-visible i{background:var(--faint)}
+.mapbody{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:0 14px 14px}
+.mapsheet .card{box-shadow:none;border-radius:16px}
+@media (prefers-reduced-motion:reduce){.mapsheet{transition:none}}
+/* the fallback: no Leaflet, so the map area becomes an ordinary scrolling list */
+.maplist{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-bottom:var(--navgap)}
+
+/* ═══ type ═══════════════════════════════════════════ */
+h1,h2,h3{margin:0;letter-spacing:-.03em;font-weight:800}
+h1{font-size:28px;line-height:1.16}
+h2{font-size:20px}
+h3{font-size:16px}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.sub{color:var(--sub);font-weight:500}
+.small{font-size:12.5px}
+.tiny{font-size:11.5px}
+.muted{color:var(--sub)}
+.faint{color:var(--faint)}
+.rowbetween{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.stack{display:flex;flex-direction:column}
+.gap8{gap:8px}.gap10{gap:10px}.gap12{gap:12px}.gap14{gap:14px}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mt20{margin-top:20px}
+.mt24{margin-top:24px}
+.seehead{padding:20px 20px 8px;display:flex;align-items:center;justify-content:space-between}
+.seehead h3{letter-spacing:-.02em}
+.seeall{font-size:12.5px;font-weight:700;color:var(--pink);cursor:pointer}
+
+/* ═══ topbar ═══════════════════════════════════════════ */
+.topbar{
+  flex:none;background:var(--card);padding:calc(14px + env(safe-area-inset-top)) 20px 18px;
+  border-radius:0 0 26px 26px;
+}
+.topbar.plain{border-radius:0;background:transparent}
+.iconbtn{
+  width:38px;height:38px;flex:none;border-radius:13px;background:var(--fill);
+  display:flex;align-items:center;justify-content:center;color:var(--ink);
+}
+.iconbtn.ghost{background:rgba(255,255,255,.22);color:#fff;backdrop-filter:blur(6px)}
+.avatar{
+  width:40px;height:40px;flex:none;border-radius:50%;background:var(--grad);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;
+}
+.avatar.sq{border-radius:16px}
+.avatar.lg{width:66px;height:66px;border-radius:22px;font-size:20px}
+.search{
+  height:46px;border-radius:15px;background:var(--fill);border:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;padding:0 14px;color:var(--faint);width:100%;
+}
+.search input{flex:1;border:0;background:none;outline:none;font-size:14px;font-weight:500;min-width:0}
+.search input::placeholder{color:var(--faint)}
+
+/* ═══ cards ═══════════════════════════════════════════ */
+.card{
+  border-radius:20px;background:var(--card);border:1px solid var(--line);
+  box-shadow:var(--card-shadow);padding:14px;width:100%;display:block;
+}
+.card.tap{cursor:pointer;transition:transform .12s ease}
+.card.tap:active{transform:scale(.985)}
+.card.sel{border:2px solid var(--pink);background:var(--tint);
+  box-shadow:0 12px 28px -16px rgba(240,81,141,.6)}
+.tile{border-radius:18px;background:var(--fill);padding:14px}
+.tile .k{font-size:11.5px;font-weight:700;color:var(--sub)}
+.tile .v{font-size:15px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+.hero{
+  position:relative;border-radius:24px;overflow:hidden;background:var(--grad);
+  padding:20px;color:#fff;box-shadow:0 18px 34px -16px rgba(240,81,141,.75);width:100%;
+  display:block;text-align:left;
+}
+.hero::after{
+  content:"";position:absolute;right:-38px;top:-38px;width:150px;height:150px;
+  border-radius:50%;background:rgba(255,255,255,.16);
+}
+.hero>*{position:relative}
+.note{
+  border-radius:16px;background:var(--fill);padding:14px;display:flex;gap:11px;
+  align-items:flex-start;font-size:12.5px;color:var(--sub);font-weight:500;line-height:1.55;
+}
+.note.pink{background:var(--tint);color:var(--ink)}
+.note.warn{background:var(--warnbg);color:var(--ink)}
+.note svg{flex:none;margin-top:1px}
+
+/* ── the marketplace screens ────────────────────────────
+   Added for sign-in, paying, the code and the wallet. Everything here reuses
+   the existing tokens; nothing introduces a new colour. */
+.spin{width:26px;height:26px;margin:0 auto;border-radius:50%;
+  border:2.5px solid var(--line);border-top-color:var(--pink);
+  animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
+
+.note.good{background:var(--goodbg,var(--tint));color:var(--ink)}
+
+.fld{display:block}
+.fld .lbl{display:block;font-size:12px;font-weight:600;color:var(--sub);
+  margin:0 0 6px 2px;letter-spacing:.01em}
+.fld input,.fld select{width:100%;box-sizing:border-box;padding:13px 14px;
+  border-radius:14px;border:1px solid var(--line);background:var(--card);
+  color:var(--ink);font:inherit;font-size:16px}
+.fld input:focus,.fld select:focus{outline:2px solid var(--pink);outline-offset:1px;
+  border-color:transparent}
+
+.or{display:flex;align-items:center;gap:12px;color:var(--sub);font-size:12px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;
+  scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:9px 14px;border-radius:999px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);font:inherit;font-size:13px;
+  font-weight:600;cursor:pointer}
+.chip.on{background:var(--pink);border-color:var(--pink);color:#fff}
+.chip:disabled{opacity:.4}
+.grid3 .chip{width:100%;text-align:center}
+
+.card.row{display:flex;align-items:center;gap:12px;width:100%;
+  font:inherit;color:var(--ink);cursor:pointer;text-align:left}
+.card.row .ttl{font-weight:700;font-size:15px;letter-spacing:-.01em}
+.card.row input[type=checkbox]{width:20px;height:20px;accent-color:var(--pink);
+  flex:none}
+
+/* The camera view is square and cropped, because a nail tech holds the phone
+   any way she likes and the code is small in the frame either way. */
+.camwrap{position:relative;aspect-ratio:1;border-radius:18px;overflow:hidden;
+  background:#000}
+.camwrap video{width:100%;height:100%;object-fit:cover}
+.camframe{position:absolute;inset:16%;border:2px solid rgba(255,255,255,.85);
+  border-radius:14px;box-shadow:0 0 0 100vmax rgba(0,0,0,.35)}
+
+
+/* ═══ buttons ═══════════════════════════════════════════ */
+.btn{
+  height:56px;width:100%;border-radius:18px;background:var(--pink);color:var(--onpink);
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  font-size:16px;font-weight:700;box-shadow:0 14px 30px -10px rgba(240,81,141,.65);
+  transition:transform .12s ease,opacity .15s;
+}
+.btn:active{transform:scale(.985)}
+.btn[disabled]{opacity:.42;box-shadow:none;pointer-events:none}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);
+  box-shadow:var(--card-shadow)}
+.btn.white{background:#fff;color:var(--pinkd);box-shadow:0 10px 26px -8px rgba(0,0,0,.35)}
+.btn.sm{height:46px;font-size:14px;border-radius:15px}
+.btn.xs{height:44px;font-size:13.5px;border-radius:14px;box-shadow:0 10px 20px -10px rgba(240,81,141,.8)}
+.btnrow{display:flex;gap:10px}
+.btnrow>*{flex:1}
+.pill{
+  font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:99px;
+  background:var(--card);color:var(--sub);border:1px solid var(--line);white-space:nowrap;
+}
+.pill.on{background:var(--pink);color:var(--onpink);border-color:transparent;
+  box-shadow:0 8px 18px -8px rgba(240,81,141,.8)}
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+.pills.scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.pills.scroll::-webkit-scrollbar{display:none}
+.tag{font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:99px;
+  background:var(--tint);color:var(--pinkd)}
+.tag.good{background:var(--goodbg);color:var(--good)}
+.tag.grey{background:var(--fill);color:var(--sub)}
+.tag.warn{background:var(--warnbg);color:var(--warn)}
+
+/* ═══ forms ═══════════════════════════════════════════ */
+.field{display:block;margin-bottom:16px}
+.field>.lab{font-size:12.5px;font-weight:700;color:var(--sub);margin-bottom:7px;display:block}
+.inp{
+  min-height:54px;border-radius:16px;background:var(--fill);border:1px solid var(--line);
+  display:flex;align-items:center;gap:11px;padding:0 15px;width:100%;
+  transition:border-color .15s,background .15s;
+}
+.inp:focus-within{border:2px solid var(--pink);background:var(--card);padding:0 14px;
+  box-shadow:0 8px 22px -12px rgba(240,81,141,.6)}
+.inp input,.inp textarea,.inp select{
+  flex:1;min-width:0;border:0;background:none;outline:none;
+  font-size:15px;font-weight:600;padding:0;
+}
+.inp textarea{padding:15px 0;resize:vertical;min-height:76px;font-weight:500;line-height:1.5}
+.inp.area{align-items:flex-start;padding:0 15px}
+.inp input::placeholder,.inp textarea::placeholder{color:var(--faint);font-weight:500}
+.inp .pre{font-size:15px;font-weight:600;color:var(--sub);flex:none}
+.inp .bar{width:1px;height:20px;background:var(--line);flex:none}
+.inp .act{flex:none;font-size:11.5px;font-weight:700;color:var(--pink);
+  background:var(--tint);padding:5px 9px;border-radius:99px;cursor:pointer}
+.inp select{appearance:none;cursor:pointer}
+.dots{display:flex;gap:6px}
+.dots i{flex:1;height:4px;border-radius:9px;background:var(--fill2)}
+.dots i.on{background:var(--pink)}
+
+/* option cards, e.g. choosing customer or nail tech */
+.opt{
+  border-radius:22px;border:1px solid var(--line);background:var(--card);padding:20px;
+  box-shadow:var(--card-shadow);display:flex;align-items:flex-start;gap:14px;width:100%;
+}
+.opt.on{border:2px solid var(--pink);background:var(--tint);padding:19px;
+  box-shadow:0 12px 30px -14px rgba(240,81,141,.5)}
+.opt .ic{
+  width:46px;height:46px;flex:none;border-radius:15px;background:var(--fill2);
+  display:flex;align-items:center;justify-content:center;color:var(--sub);
+}
+.opt.on .ic{background:var(--grad);color:#fff;box-shadow:0 8px 16px -6px rgba(240,81,141,.7)}
+.opt .tt{display:block;font-size:17.5px;font-weight:700;letter-spacing:-.02em}
+.opt .hh{display:block;font-size:13.5px;color:var(--sub);font-weight:500;line-height:1.5;margin-top:4px}
+.opt .rd{width:24px;height:24px;flex:none;border-radius:50%;border:2px solid var(--line);
+  display:flex;align-items:center;justify-content:center;color:transparent}
+.opt.on .rd{background:var(--pink);border-color:transparent;color:#fff}
+.check{width:26px;height:26px;flex:none;border-radius:9px;border:2px solid var(--line);
+  display:flex;align-items:center;justify-content:center;color:transparent}
+.card.sel .check{background:var(--pink);border-color:transparent;color:#fff}
+
+/* ═══ bottom bar and nav ═══════════════════════════════ */
+.dock{
+  flex:none;padding:14px 20px calc(18px + env(safe-area-inset-bottom));
+  background:var(--card);border-radius:26px 26px 0 0;
+  box-shadow:0 -12px 30px -18px rgba(24,18,32,.4);
+}
+.dock.clear{background:transparent;box-shadow:none;border-radius:0}
+#nav{
+  position:absolute;left:14px;right:14px;bottom:calc(12px + env(safe-area-inset-bottom));
+  height:70px;border-radius:26px;background:var(--card);border:1px solid var(--line);
+  box-shadow:0 -6px 24px -10px rgba(24,18,32,.28),var(--card-shadow);
+  display:flex;align-items:center;padding:0 6px;z-index:20;
+}
+/* On a phone the bar is pinned to the VIEWPORT, not to the shell. Absolute
+   positioning was leaving it wherever the shell happened to end, which on iOS
+   — where the visible height changes as the toolbar hides — put it partway up
+   the screen. Fixed keeps it on the glass. The desktop rule above still wins
+   at >=900px, where it has to stay inside the drawn device frame. */
+@media (max-width:899px){
+  #nav{
+    position:fixed;
+    left:max(14px, calc(50% - 201px));
+    right:max(14px, calc(50% - 201px));
+    bottom:calc(12px + env(safe-area-inset-bottom));
+  }
+}
+#nav button{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--faint);
+  font-size:10px;font-weight:700;padding:0;
+}
+#nav button.on{color:var(--pink)}
+#nav .fab{flex:none;width:58px;display:flex;justify-content:center}
+#nav .fab i{
+  width:56px;height:56px;border-radius:20px;background:var(--grad);
+  display:flex;align-items:center;justify-content:center;color:#fff;
+  box-shadow:0 12px 24px -8px rgba(240,81,141,.85);margin-top:-22px;
+  border:4px solid var(--card);
+}
+
+/* ═══ list rows ═══════════════════════════════════════ */
+.thumb{
+  width:56px;height:56px;flex:none;border-radius:16px;
+  background:linear-gradient(150deg,var(--ph1),var(--ph2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:800;color:var(--sub);
+}
+.thumb.b{width:64px;height:64px}
+.thumb.pink{background:var(--tint);color:var(--pinkd)}
+.menu{border-radius:20px;background:var(--card);border:1px solid var(--line);
+  box-shadow:var(--card-shadow);overflow:hidden}
+.menu button,.menu .r{
+  width:100%;padding:14px 16px;display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid var(--line);font-size:14.5px;font-weight:600;
+}
+.menu button:last-child,.menu .r:last-child{border-bottom:0}
+.menu .ic{width:34px;height:34px;flex:none;border-radius:11px;background:var(--fill);
+  display:flex;align-items:center;justify-content:center}
+.switch{width:46px;height:27px;flex:none;border-radius:99px;background:var(--fill2);
+  padding:3px;display:flex;justify-content:flex-start;transition:background .2s}
+.switch i{width:21px;height:21px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.switch.on{background:var(--pink)}
+.switch.on i{transform:translateX(19px)}
+
+/* ═══ empty states ═══════════════════════════════════════ */
+/* ═══ the live lists ══════════════════════════════════
+   A section heading inside a list, and the two status colours a booking row
+   needs. .lbl already existed but only inside .fld, where it labels an input;
+   this is the standalone one. */
+.lbl{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--sub);margin:2px 0 2px 2px}
+.tiny.ok{color:var(--good)}
+.tiny.warn{color:var(--warn)}
+
+.empty{
+  border-radius:22px;border:1.5px dashed var(--line);padding:26px 20px;text-align:center;
+  color:var(--sub);font-size:13.5px;font-weight:500;line-height:1.55;
+}
+.empty .ic{width:52px;height:52px;border-radius:18px;background:var(--fill);margin:0 auto 12px;
+  display:flex;align-items:center;justify-content:center;color:var(--faint)}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:5px}
+
+/* ═══ the schematic map ════════════════════════════════
+   No tiles, no street data, nothing fetched. Every tech that has a pin is
+   plotted at its true bearing and true distance from wherever you are, on a
+   ring scale that is labelled. It shows what it actually knows.            */
+.mapbox{
+  position:relative;height:214px;border-radius:22px;overflow:hidden;
+  background:linear-gradient(150deg,var(--ph1),var(--ph2));border:1px solid var(--line);
+}
+.mapbox .ring{position:absolute;border-radius:50%;border:1px dashed var(--line);
+  left:50%;top:50%;transform:translate(-50%,-50%)}
+.mapbox .me{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:14px;height:14px;border-radius:50%;background:#4a7dff;border:2.5px solid #fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.mapbox .pin{position:absolute;transform:translate(-50%,-100%);display:flex;
+  flex-direction:column;align-items:center;cursor:pointer}
+.mapbox .pin span{padding:5px 9px;border-radius:99px;background:var(--card);
+  color:var(--ink);font-size:11px;font-weight:800;box-shadow:var(--card-shadow);
+  white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.mapbox .pin.hot span{background:var(--pink);color:var(--onpink);
+  box-shadow:0 8px 16px -6px rgba(240,81,141,.8)}
+.mapbox .pin i{width:2px;height:9px;background:var(--card)}
+.mapbox .pin.hot i{background:var(--pink)}
+.mapbox .scale{position:absolute;left:12px;bottom:10px;font-size:10.5px;font-weight:700;
+  color:var(--sub);background:var(--card);padding:5px 9px;border-radius:99px;
+  box-shadow:var(--card-shadow)}
+
+/* ═══ time picker ═══════════════════════════════════════ */
+.days{display:flex;gap:8px}
+.day{flex:1;border-radius:16px;background:var(--fill);padding:11px 0;text-align:center}
+.day .d{font-size:11px;font-weight:700;color:var(--sub)}
+.day .n{font-size:17px;font-weight:800;margin-top:2px}
+.day.on{background:var(--pink);color:var(--onpink);box-shadow:0 12px 24px -10px rgba(240,81,141,.8)}
+.day.on .d{color:var(--onpink);opacity:.85}
+.slot{border-radius:14px;border:1px solid var(--line);padding:12px 0;text-align:center;
+  font-size:14px;font-weight:700;width:100%}
+.slot.on{background:var(--pink);color:var(--onpink);border-color:transparent;font-weight:800;
+  box-shadow:0 12px 24px -10px rgba(240,81,141,.8)}
+.slot.off{background:var(--fill);color:var(--faint);border-color:transparent;
+  text-decoration:line-through;pointer-events:none}
+
+/* ═══ ticket ═══════════════════════════════════════════ */
+.ticket{border-radius:24px;background:var(--card);border:1px solid var(--line);
+  box-shadow:0 18px 40px -20px rgba(24,18,32,.4),var(--card-shadow);overflow:hidden}
+.ticket .perf{position:relative;height:1px;
+  background:repeating-linear-gradient(90deg,var(--line) 0 8px,transparent 8px 15px)}
+.ticket .perf span{position:absolute;top:-9px;width:18px;height:18px;border-radius:50%;
+  background:var(--bg)}
+.ticket .perf span.l{left:-9px}
+.ticket .perf span.r{right:-9px}
+.kv{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.kv .k{font-size:13px;color:var(--sub);font-weight:600}
+.kv .v{font-size:13.5px;font-weight:700;text-align:right}
+
+/* ═══ history bars ═══════════════════════════════════════ */
+.bars{display:flex;align-items:flex-end;gap:12px;height:78px;margin-top:14px}
+.bars .b{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;
+  justify-content:flex-end}
+.bars .b i{width:100%;border-radius:8px 8px 4px 4px;background:var(--tint2);display:block}
+.bars .b.now i{background:linear-gradient(180deg,var(--pink2),var(--pink))}
+.bars .b span{font-size:10px;font-weight:700;color:var(--sub)}
+.bars .b.now span{font-weight:800;color:var(--pinkd)}
+
+/* ═══ the scan, which owns the whole screen ═════════════ */
+#scan{
+  position:fixed;inset:0;z-index:60;background:#14101a;color:#fff;
+  display:none;flex-direction:column;
+}
+#scan.live{display:flex}
+@media (min-width:900px){
+  #scan{position:absolute;inset:0;border-radius:34px}
+}
+#scan::before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 70% at 50% 28%,#2f2638 0%,#14101a 72%);
+}
+.scanhead{position:relative;flex:none;display:flex;align-items:center;
+  justify-content:space-between;gap:12px;
+  padding:calc(14px + env(safe-area-inset-top)) 20px 4px}
+.scanhead .t{font-size:14.5px;font-weight:700}
+.scanhead .iconbtn{background:rgba(255,255,255,.12);color:#fff}
+.step{display:none;position:relative;flex:1;min-height:0;flex-direction:column}
+.step.live{display:flex}
+.scanbody{flex:1;min-height:0;overflow-y:auto;padding:0 20px}
+.scanfoot{position:relative;flex:none;padding:14px 20px calc(20px + env(safe-area-inset-bottom))}
+.scanfoot .btn.ghost{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18);
+  box-shadow:none}
+#scan .sub,#scan .muted{color:rgba(255,255,255,.62)}
+#scan .faint{color:rgba(255,255,255,.45)}
+
+/* the framing box on the capture step */
+.frame{
+  position:relative;flex:1;min-height:170px;margin:16px 0 0;border-radius:28px;
+  background:linear-gradient(160deg,#3a2f42,#221b2c);overflow:hidden;
+  border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;
+}
+.frame .dash{position:absolute;inset:24px;border-radius:20px;border:2px dashed rgba(255,255,255,.28)}
+.frame .c{position:absolute;width:34px;height:34px}
+.frame .c.tl{left:24px;top:24px;border-left:3px solid #ff7fae;border-top:3px solid #ff7fae;border-radius:14px 0 0 0}
+.frame .c.tr{right:24px;top:24px;border-right:3px solid #ff7fae;border-top:3px solid #ff7fae;border-radius:0 14px 0 0}
+.frame .c.bl{left:24px;bottom:24px;border-left:3px solid #ff7fae;border-bottom:3px solid #ff7fae;border-radius:0 0 0 14px}
+.frame .c.br{right:24px;bottom:24px;border-right:3px solid #ff7fae;border-bottom:3px solid #ff7fae;border-radius:0 0 14px 0}
+.frame .mid{position:relative;text-align:center;padding:40px 30px;color:rgba(255,255,255,.68);
+  font-size:13.5px;font-weight:600;line-height:1.5;display:flex;flex-direction:column;
+  align-items:center;gap:12px}
+.hint{position:absolute;left:0;right:0;bottom:14px;display:flex;justify-content:center}
+.hint span{background:rgba(0,0,0,.5);color:#fff;font-size:11.5px;font-weight:600;
+  padding:7px 13px;border-radius:99px}
+
+/* the photo you tap on */
+.stagewrap{position:relative;margin-top:14px;border-radius:24px;overflow:hidden;
+  border:1px solid rgba(255,255,255,.12);background:#0e0b13;touch-action:none}
+.stagewrap img{display:block;width:100%;height:auto}
+.stagewrap svg{position:absolute;inset:0;width:100%;height:100%}
+.bx{fill:rgba(255,127,174,.16);stroke:#ff7fae;stroke-width:.35%;vector-effect:non-scaling-stroke}
+.bx.ghosted{fill:rgba(255,255,255,.06);stroke:rgba(255,255,255,.42)}
+.bx.unread{fill:rgba(224,169,68,.14);stroke:#e0a944;stroke-dasharray:6 5}
+.cross{stroke:rgba(255,255,255,.85);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.hd{fill:#fff;stroke:#f0518d;stroke-width:2;vector-effect:non-scaling-stroke}
+.lineseg{stroke:#ff7fae;stroke-width:3;vector-effect:non-scaling-stroke;stroke-linecap:round}
+#loupe{position:absolute;width:132px;height:132px;border-radius:50%;overflow:hidden;
+  border:3px solid #fff;box-shadow:0 10px 26px rgba(0,0,0,.55);pointer-events:none;
+  opacity:0;transition:opacity .12s;z-index:5}
+#loupe.on{opacity:1}
+#loupe canvas{display:block;width:132px;height:132px}
+.ftabs{display:flex;gap:7px;margin-top:14px}
+.ftabs button{
+  flex:1;padding:9px 0;border-radius:12px;text-align:center;font-size:12px;font-weight:700;
+  background:rgba(255,255,255,.09);color:rgba(255,255,255,.62);text-transform:capitalize;
+}
+.ftabs button.has{color:#fff}
+.ftabs button.has::after{content:" ●";color:#63dc9a;font-size:9px;vertical-align:1px}
+.ftabs button.on{background:#fff;color:#1a0f16}
+.ftabs button.on.has::after{color:#1b9e5a}
+.glass{
+  position:relative;margin-top:14px;border-radius:22px;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.12);padding:16px 18px;
+}
+.glass .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.14);margin-top:10px;
+  overflow:hidden}
+.glass .bar i{display:block;height:100%;border-radius:99px;
+  background:linear-gradient(90deg,#ff8fba,#f0518d);transition:width .25s}
+.tick{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.72);
+  font-size:13px;font-weight:600}
+#readList .tick{text-transform:capitalize}
+.tick i{width:20px;height:20px;flex:none;border-radius:50%;background:rgba(255,255,255,.12);
+  display:flex;align-items:center;justify-content:center}
+.tick.done{color:#fff}
+.tick.done i{background:rgba(120,220,160,.2);color:#63dc9a}
+.tick.miss i{background:rgba(224,169,68,.2);color:#e0a944}
+.choice{
+  display:flex;gap:13px;align-items:flex-start;padding:15px;border-radius:18px;
+  background:rgba(255,255,255,.06);border:1.5px solid transparent;margin-bottom:10px;
+  cursor:pointer;
+}
+.choice.on{border-color:#ff7fae;background:rgba(255,127,174,.12)}
+.choice .rd{width:22px;height:22px;flex:none;border-radius:50%;
+  border:2px solid rgba(255,255,255,.35);margin-top:1px;display:flex;
+  align-items:center;justify-content:center;color:transparent}
+.choice.on .rd{background:#ff7fae;border-color:transparent;color:#1a0f16}
+.choice b{font-size:15px;font-weight:700;display:block}
+.choice em{font-style:normal;font-size:12.5px;color:rgba(255,255,255,.6);font-weight:500;
+  display:block;margin-top:3px;line-height:1.45}
+.filebtn{position:relative;overflow:hidden}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:200px}
+
+/* ═══ result ═══════════════════════════════════════════
+   This step paints a light sheet inside the dark scan screen, so it restates
+   its own ink. Inheriting #scan's white put white text on a white card — the
+   same class of bug as the theme toggle in v1.                            */
+#resultHost{color:var(--ink);background:var(--card)}
+#resultHost .sub,#resultHost .muted{color:var(--sub)}
+#resultHost .faint{color:var(--faint)}
+#resultHost .resulthead{color:#fff}
+.resulthead{
+  position:relative;background:var(--grad);color:#fff;
+  padding:calc(14px + env(safe-area-inset-top)) 20px 34px;
+}
+.shapeart{width:96px;height:96px;flex:none;border-radius:32px;background:rgba(255,255,255,.2);
+  border:1px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center}
+.sheet{position:relative;margin-top:-22px;background:var(--card);border-radius:30px 30px 0 0;
+  padding:20px 20px 0;min-height:60vh}
+.band{display:flex;align-items:center;gap:8px;margin-top:8px;background:rgba(255,255,255,.2);
+  padding:6px 12px;border-radius:99px;font-size:12.5px;font-weight:700;align-self:flex-start}
+
+/* ═══ the update bar ═══════════════════════════════════
+   An installed web app serves the copy it already has and downloads the new
+   one behind your back, so without this a person sees the old version, is
+   told it is fixed, and reasonably concludes it is not. */
+#updbar{
+  position:fixed;left:14px;right:14px;bottom:calc(92px + env(safe-area-inset-bottom));
+  max-width:402px;margin:0 auto;z-index:95;
+  background:var(--grad);color:#fff;border-radius:20px;padding:13px 14px;
+  box-shadow:0 16px 34px -12px rgba(240,81,141,.75);
+  display:flex;align-items:center;gap:12px;
+  transform:translateY(18px);opacity:0;transition:opacity .22s,transform .22s;
+}
+#updbar.on{opacity:1;transform:translateY(0)}
+#updbar.nonav{bottom:calc(20px + env(safe-area-inset-bottom))}
+#updbar .t{flex:1;min-width:0;font-size:13.5px;font-weight:700;line-height:1.35}
+#updbar .t span{display:block;font-size:11.5px;font-weight:500;opacity:.85;margin-top:1px}
+#updbar button{
+  flex:none;background:#fff;color:var(--pinkd);font-size:13px;font-weight:800;
+  padding:9px 14px;border-radius:99px;
+}
+#updbar .x{background:transparent;color:#fff;opacity:.75;padding:9px 4px;font-weight:600}
+@media (prefers-reduced-motion:reduce){#updbar{transition:none}}
+
+/* ═══ toast ═══════════════════════════════════════════ */
+#toast{
+  position:fixed;left:50%;bottom:110px;transform:translate(-50%,14px);z-index:90;
+  background:var(--ink);color:var(--bg);font-size:13px;font-weight:700;
+  padding:11px 18px;border-radius:99px;box-shadow:var(--shadow);
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:88vw;
+  text-align:center;
+}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+.hidden,[hidden]{display:none !important}
+</style>
+</head>
