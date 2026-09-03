@@ -1,24 +1,19 @@
 name: Build the app
 
-# Edit any file in src/, commit, and this rebuilds app.html AND sw.js and
-# commits them both back. GitHub Pages serves the new version about a minute
-# later. Nothing to download, nothing to re-upload, and no chance of the two
-# files being from different builds.
-
 on:
   push:
     paths:
       - "src/**"
       - "build.py"
       - ".github/workflows/build.yml"
-  workflow_dispatch:        # a "Run workflow" button, for rebuilding by hand
+  workflow_dispatch:
 
 permissions:
-  contents: write           # it commits the built files back to this repository
+  contents: write
 
 concurrency:
   group: build-app
-  cancel-in-progress: true  # a quick second edit supersedes the first build
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -30,9 +25,6 @@ jobs:
         run: python3 build.py
 
       - name: Check it is a whole page
-        # A truncated or empty build would deploy a blank app over a working
-        # one, and Pages would serve it happily. Refuse instead — a red cross
-        # here means the old app keeps running, which is the point.
         run: |
           test -s app.html
           test -s sw.js
@@ -41,10 +33,6 @@ jobs:
           echo "app.html is $(wc -c < app.html) bytes"
 
       - name: Check the two files are the same build
-        # The failure this exists for: app.html updated, sw.js not, and the
-        # stale worker serves a cached old app while a fixed bug looks unfixed.
-        # There is no way to see that by looking at the site, so it is checked
-        # here, where it can stop the deploy.
         run: |
           app=$(grep -o 'BUILD_ID = "[0-9a-f]\{10\}"' app.html | grep -o '[0-9a-f]\{10\}')
           sw=$(head -1 sw.js | grep -o 'build [0-9a-f]\{10\}' | cut -d' ' -f2)
@@ -58,6 +46,5 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app.html sw.js
-          # Nothing to do when the sources produced identical files.
           git diff --staged --quiet || git commit -m "Build app.html and sw.js"
           git push
