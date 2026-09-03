@@ -1014,7 +1014,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "2f9a1d2e16";
+const BUILD_ID = "e3e02667ff";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -4650,8 +4650,10 @@ function vSetup(edit) {
 
     <div class="note mt16">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8.2v.1"/></svg>
-      <div>Everything here travels inside the link you share. There is no Oma directory to be
-        listed in — a customer sees you because you sent them the link.</div>
+      <div><b>Oma charges ₦250 for each completed service</b>, plus 2% of anything
+        a service costs above ₦30,000. It comes off when you scan the client's
+        code — if an appointment is refunded because you never scanned, you are
+        charged nothing. The card fee shown above is Paystack's, not ours.</div>
     </div>
     <div style="margin-top:auto;padding-top:22px">
       <button class="btn" data-a="saveBiz">${edit ? "Save changes" : "Publish my listing"} ${I.arrow()}</button>
@@ -4675,6 +4677,7 @@ function svcEditor(list, cur) {
         <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
         <span class="tiny faint">min</span></span>
     </div>
+    <div class="tiny" data-keep="${i}" style="margin-top:8px;min-height:15px"></div>
     <div class="pills mt12">${SERVICE_SHAPES.map(sh =>
       `<button class="pill ${(s.sh || []).includes(sh) ? "on" : ""}" data-a="svcShape" data-i="${i}" data-sh="${sh}"
         style="text-transform:capitalize">${sh}</button>`).join("")}</div>
@@ -6047,6 +6050,9 @@ const LEDGER_WORDS = {
   payout: "Withdrawn",
   refund: "Refunded to client",
   auto_refund_no_scan: "Auto-refunded — never scanned",
+  // Named, not hidden. A deduction a tech cannot point at is a deduction she
+  // assumes is bigger than it is.
+  oma_fee: "Oma's fee",
 };
 const ledgerWords = (k) => LEDGER_WORDS[k] || k.replace(/_/g, " ");
 
@@ -7384,6 +7390,78 @@ async function reviewNudge() {
     </button>`;
 }
 
+/* ══ what Oma charges, shown before it is charged ═════
+   ₦250 for every completed service, plus 2% of whatever a sale is ABOVE
+   ₦30,000. The tech pays it, and she pays the card fee too.
+
+   The database is the authority — api/fee.sql owns the rate, charges it with a
+   trigger when the QR is scanned, and records it. This file is a QUOTE: it
+   does the same arithmetic in the app so a tech typing a price sees what she
+   keeps as she types, without a round trip per keystroke.
+
+   Two copies of a pricing rule is a real risk and it is taken deliberately.
+   t_fee.py pins the two together — the numbers here are checked against the
+   values api_fee_quote returns, so the day the rate changes in SQL and not
+   here, a test fails instead of a tech being quoted the wrong figure. */
+
+const OMA_FLAT_KOBO = 25000;        // ₦250
+const OMA_TIER_KOBO = 3000000;      // ₦30,000 — 2% applies above this
+const OMA_TIER_RATE = 0.02;
+
+/* Integer kobo, and rounded the same way the SQL rounds, or the app and the
+   database disagree about somebody's money by one kobo — which is a support
+   conversation nobody wants to have. */
+function omaFeeKobo(total) {
+  const t = Math.max(0, Math.round(Number(total) || 0));
+  let fee = OMA_FLAT_KOBO;
+  if (t > OMA_TIER_KOBO) {
+    fee += Math.round((t - OMA_TIER_KOBO) * OMA_TIER_RATE);
+  }
+  return Math.min(t, fee);          // never more than the sale itself
+}
+
+/* Paystack: 1.5% + ₦100, the ₦100 waived under ₦2,500, capped at ₦2,000.
+   Shown because the tech bears it. Hiding it would make Oma's ₦250 look like
+   the whole cost, and the difference turns up in her bank account instead. */
+function paystackFeeKobo(total) {
+  const t = Math.max(0, Math.round(Number(total) || 0));
+  const f = Math.round(t * 0.015) + (t >= 250000 ? 10000 : 0);
+  return Math.min(200000, f);
+}
+
+/* The one line a nail tech actually cares about, under the price she typed. */
+function keepLine(totalKobo) {
+  const t = Math.round(Number(totalKobo) || 0);
+  if (!t) return "";
+  const oma = omaFeeKobo(t), ps = paystackFeeKobo(t);
+  const net = t - oma - ps;
+  return `<b>You keep ${kobo(net)}</b> · Oma ${kobo(oma)} · card fee ${kobo(ps)}`;
+}
+
+/* Live as she types. Delegated on the document rather than bound when the
+   editor paints, because the service list is re-rendered whenever she adds or
+   removes a row and re-bound listeners would be lost or doubled. */
+document.addEventListener("input", (e) => {
+  const el = e.target;
+  if (!el || el.dataset == null || el.dataset.s !== "p") return;
+  const slot = document.querySelector(`[data-keep="${el.dataset.i}"]`);
+  if (!slot) return;
+  // The editor holds naira, because that is what a person types. Everything
+  // below this line is kobo, because everything about money in Oma is kobo.
+  const naira = Number(String(el.value).replace(/[^0-9.]/g, ""));
+  slot.innerHTML = naira > 0 ? keepLine(Math.round(naira * 100)) : "";
+});
+
+/* Called after the listing editor paints, so the lines are right before she
+   touches anything. */
+function drawKeepLines() {
+  document.querySelectorAll("[data-keep]").forEach((slot) => {
+    const inp = document.querySelector(`[data-s="p"][data-i="${slot.dataset.keep}"]`);
+    const naira = inp ? Number(String(inp.value).replace(/[^0-9.]/g, "")) : 0;
+    slot.innerHTML = naira > 0 ? keepLine(Math.round(naira * 100)) : "";
+  });
+}
+
 /* ══ being told something happened ═══════════════════
    Kamsy: "oma is not gonna be a web app forever i am just using it as a
    physical model and when we are done i publish it on playstore and app store
@@ -7683,8 +7761,11 @@ function paint() {
     case "welcome": html = vWelcome(); break;
     case "role": html = vRole(); break;
     case "signup": html = vSignup(); break;
-    case "setup": html = vSetup(false); break;
-    case "editbiz": html = vSetup(true); break;
+    // The listing EDITOR is where a tech sets her prices, so it is where she
+    // is told what Oma and Paystack take. The lines are filled after the paint
+    // because they are computed from the values the paint just wrote.
+    case "setup": html = vSetup(false); setTimeout(drawKeepLines, 0); break;
+    case "editbiz": html = vSetup(true); setTimeout(drawKeepLines, 0); break;
     // The bottom bar used to lead to a second, device-only app. Every one
     // of these now reads the database instead. See oma-two-apps.md.
     case "home": html = vHomeLive(); break;
