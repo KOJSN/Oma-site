@@ -211,6 +211,16 @@ const API = (() => {
     setListed:     (on)                     => live() ? rpc("api_set_listed", { p_listed: !!on }) : MOCK.setListed(!!on),
     scan:          (code)                   => live() ? rpc("api_scan", { p_code: code })   : MOCK.scan(code),
     scanShort:     (bookingId, code)        => live() ? rpc("api_scan_short", { p_booking: bookingId, p_code: code }) : MOCK.scanShort(bookingId, code),
+    /* Reviews. api_search and api_nearby deliberately do NOT carry the score:
+       adding it would have meant redefining their return types in a second
+       SQL file, and whichever file ran last would win. One extra call for a
+       whole screen of results is the cheaper mistake. */
+    ratings:       (ids)                    => live() ? rpc("api_ratings", { p_techs: ids || [] }) : MOCK.ratings(ids),
+    techReviews:   (techId, limit)          => live() ? rpc("api_tech_reviews", { p_tech: techId, p_limit: limit || 20 }) : MOCK.techReviews(techId),
+    leaveReview:   (bookingId, stars, words) => live() ? rpc("api_leave_review", { p_booking: bookingId, p_stars: stars, p_words: words || null }) : MOCK.leaveReview(bookingId, stars, words),
+    myReview:      (bookingId)              => live() ? rpc("api_my_review", { p_booking: bookingId }) : MOCK.myReview(bookingId),
+    reviewable:    ()                       => live() ? rpc("api_reviewable") : MOCK.reviewable(),
+
     wallet:        ()                       => live() ? rpc("api_wallet")          : MOCK.wallet(),
     requestPayout: (kobo)                   => live() ? rpc("api_request_payout", { p_amount: kobo }) : MOCK.requestPayout(kobo),
 
@@ -301,7 +311,10 @@ const API = (() => {
       RAW = cur;
       try { S = JSON.parse(cur); } catch { S = null; }
       if (!S) S = { user: null, techs: [], services: [], bookings: [], ledger: [],
-                    attempts: {}, seeded: false };
+                    reviews: [], attempts: {}, seeded: false };
+      // A store written before reviews existed has no array to push into, and
+      // the first rating would throw rather than save.
+      if (!S.reviews) S.reviews = [];
       seed();
       return S;
     };
@@ -701,6 +714,75 @@ const API = (() => {
         save();
         return { ok: true, ...release(b) };
       },
+      /* ── reviews ──────────────────────────────────────────────
+         The same rule the database enforces, enforced here too, so the
+         screens behave identically against the mock: only the customer, only
+         on a released appointment, one review per appointment. A mock that is
+         more permissive than the server teaches the UI to do things the
+         server will refuse. */
+      leaveReview: async (bookingId, stars, words) => {
+        const s = load();
+        if (!(stars >= 1 && stars <= 5)) fail("a review is one to five stars");
+        const b = s.bookings.find((x) => x.id === bookingId);
+        if (!b) fail("no such appointment");
+        if (b.status !== "released") {
+          fail("you can review an appointment once it has been completed");
+        }
+        const w = (words || "").trim() || null;
+        if (w && w.length > 600) fail("that review is too long");
+        const had = s.reviews.find((r) => r.booking_id === bookingId);
+        if (had) {
+          had.stars = stars; had.words = w; had.edited_at = new Date().toISOString();
+        } else {
+          s.reviews.push({ booking_id: bookingId, tech_id: b.tech_id,
+                           customer_id: (s.user && s.user.id) || "me",
+                           stars, words: w, created_at: new Date().toISOString(),
+                           edited_at: null });
+        }
+        save();
+        return s.reviews.find((r) => r.booking_id === bookingId);
+      },
+      myReview: async (bookingId) =>
+        load().reviews.find((r) => r.booking_id === bookingId) || null,
+      reviewable: async () => {
+        const s = load();
+        return s.bookings
+          .filter((b) => b.status === "released" &&
+                         !s.reviews.some((r) => r.booking_id === b.id))
+          .map((b) => ({ booking_id: b.id, tech_id: b.tech_id,
+                         business_name: (s.techs.find((t) => t.id === b.tech_id) || {}).business_name,
+                         // Stored bookings keep a millisecond stamp; shape()
+                         // is what turns it into the ISO string the app sees.
+                         starts_at: new Date(b.starts_at_ms).toISOString() }));
+      },
+      ratings: async (ids) => {
+        const s = load(), want = ids || [];
+        const out = [];
+        want.forEach((id) => {
+          const mine = s.reviews.filter((r) => r.tech_id === id);
+          // No row rather than a zero, exactly as the SQL does — "not rated
+          // yet" and "rated zero" must not look the same to a screen.
+          if (!mine.length) return;
+          const avg = mine.reduce((a, r) => a + r.stars, 0) / mine.length;
+          out.push({ tech_id: id, stars: Math.round(avg * 10) / 10, reviews: mine.length });
+        });
+        return out;
+      },
+      techReviews: async (techId) => {
+        const s = load();
+        const who = (id) => {
+          const n = ((id === ((s.user && s.user.id) || "me")
+                       ? (s.user && s.user.full_name) : null) || "").trim();
+          if (!n) return "Someone";
+          const p = n.split(/\s+/);
+          return p.length < 2 ? p[0] : p[0] + " " + p[1][0] + ".";
+        };
+        return s.reviews.filter((r) => r.tech_id === techId)
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+          .map((r) => ({ stars: r.stars, words: r.words,
+                         who: who(r.customer_id), created_at: r.created_at }));
+      },
+
       wallet: async () => {
         const s = load(), t = myTech();
         return {

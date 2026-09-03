@@ -100,11 +100,15 @@ function vBookingsLive() {
     const up = upcoming(all), old = earlier(all);
     fillHost(`
       <div class="pad stack gap12">
+        <div id="rateNudge"></div>
         ${up.length ? `<div class="lbl">Coming up</div>${up.map(bookingRow).join("")}`
                     : emptyCard("Nothing booked yet",
                         "Find a tech under Salons and pick a time.")}
         ${old.length ? `<div class="lbl mt16">Earlier</div>${old.map(bookingRow).join("")}` : ""}
       </div>`);
+    // Filled in afterwards and quietly: an appointment waiting to be rated is
+    // worth offering, and never worth delaying the list she came to see.
+    reviewNudge();
   });
   return head("Bookings", "Everything you have booked") + host();
 }

@@ -21,6 +21,10 @@ import pathlib
 import sys
 
 HERE = pathlib.Path(__file__).parent
+# Sources live in src/ when there is one, and beside this file when there
+# is not. The repository is flat today because a web upload flattened it;
+# both layouts are tested and produce byte-identical output, so tidying
+# up later is a file move rather than a code change.
 SRC = HERE / "src" if (HERE / "src" / "p3_core.js").exists() else HERE
 
 read = lambda n: (SRC / n).read_text(encoding="utf-8")
@@ -52,7 +56,7 @@ js = "\n".join([
     read("p9_sheet.js"), read("p10_sheetpage.js"), read("p11_qr.js"),
     read("p12_api.js"), read("p4_result.js"), read("p5_views.js"),
     read("p6_views2.js"), read("p7_views3.js"), read("p13_money.js"),
-    read("p14_live.js"), read("p15_chat.js"), read("p16_find.js"),
+    read("p14_live.js"), read("p15_chat.js"), read("p16_find.js"), read("p18_review.js"),
     push, read("p8_wire.js"),
 ])
 

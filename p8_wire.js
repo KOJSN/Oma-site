@@ -45,6 +45,7 @@ function paint() {
     case "backend": html = vBackend(); break;
     case "job": html = vJob(ROUTE.a); break;
     case "chat": html = vChat(ROUTE.a); break;
+    case "review": html = vReview(ROUTE.a); break;
     default: html = DB.role === "tech" ? vRequestsLive() : vFind();
   }
   if (typeof stopCamera === "function") stopCamera();
@@ -164,6 +165,11 @@ document.getElementById("shell").addEventListener("click", e => {
     return nav("techlive", el.dataset.id);
   }
   // The map: tapping Close puts the short list back, and the arrow re-centres.
+  /* reviews */
+  if (a === "rate-open") return nav("review", el.dataset.id);
+  if (a === "rate-star") return setStars(el.dataset.n);
+  if (a === "rate-save") return saveReview();
+
   if (a === "send-msg") return sendMessage(el.dataset.id);
   if (a === "map-clear") return choosePin(null);
   if (a === "map-me") return recentreMap();

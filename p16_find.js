@@ -53,6 +53,7 @@ function findRow(t) {
     <div style="flex:1;min-width:0;text-align:left">
       <div class="ttl">${esc(t.business_name)}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
+      <div style="margin-top:5px">${ratingSlot(t.id)}</div>
       ${bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : ""}
       ${matchTag(t.matched)}
     </div>
@@ -113,6 +114,11 @@ async function runFind() {
     <div class="tiny faint" style="padding:2px 2px 10px">${head}${
       !FPOS && q ? " · turn on location to see how far away they are" : ""}</div>
     <div class="stack gap12">${list.map(findRow).join("")}</div>`);
+
+  // After the list, never before it. Waiting on scores to show results would
+  // make every search slower for something that is decoration until she is
+  // actually choosing between two people.
+  fillRatings(list.map((t) => t.id));
 }
 
 function vFind() {

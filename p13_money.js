@@ -145,11 +145,22 @@ let PICKED = { techId: null, name: "", ids: [], at: null };
 
 function vTechLive(id) {
   load(async () => {
-    const list = await API.services(id);
+    // The reviews are asked for beside the services rather than after them:
+    // this is the screen where somebody decides whether to book, so the score
+    // should arrive with the prices, not a beat later.
+    const [list, revs, rate] = await Promise.all([
+      API.services(id),
+      API.techReviews(id, 8).catch(() => []),
+      API.ratings([id]).catch(() => []),
+    ]);
+    const r = (rate || []).find((x) => x.tech_id === id);
     PICKED = { techId: id, name: PICKED.name, ids: [], at: null };
     fillHost(`
       <div class="pad stack gap12">
-        <div class="tiny sub">Choose what you want done.</div>
+        <div class="rowbetween">
+          <div class="tiny sub">Choose what you want done.</div>
+          <div>${ratingLine(r)}</div>
+        </div>
         ${list.map((s) => `
           <label class="card row" style="cursor:pointer">
             <input type="checkbox" class="svc" value="${esc(s.id)}"
@@ -162,6 +173,7 @@ function vTechLive(id) {
           </label>`).join("")}
         <div id="svcTotal" class="tiny sub" style="text-align:right"></div>
         <button class="btn" data-a="pick-time" disabled id="toTime">Choose a time</button>
+        ${reviewsBlock(revs, r)}
       </div>`);
     wireServicePicker();
   });
