@@ -138,6 +138,17 @@ document.getElementById("shell").addEventListener("click", e => {
     return API.sendOtp(email).then(() => { SIGNIN.sent = true; paint(); })
       .catch(err => toast(err.message));
   }
+  if (a === "signin-mode") {
+    // The screen is about to be repainted from SIGNIN, so anything already
+    // typed has to be carried into it first. Being made to type your address
+    // again because you tapped the wrong door is a small insult, and the sort
+    // that makes people give up on a sign-up.
+    const typed = document.getElementById("fSignEmail");
+    if (typed) SIGNIN.email = typed.value;
+    SIGNIN.mode = el.dataset.v || null;
+    SIGNIN.sent = false;
+    return paint();
+  }
   if (a === "otp-again") { SIGNIN.sent = false; return paint(); }
   if (a === "otp-check") {
     const n = document.getElementById("fOtp");

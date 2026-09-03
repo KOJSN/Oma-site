@@ -399,16 +399,16 @@ function vSetup(edit) {
       <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
         <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span></span></label>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1"><span class="lab">Currency</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Currency</span>
         <span class="inp"><select id="bCur">${["₦", "R", "$", "£", "€", "GH₵", "KSh"].map(c =>
           `<option ${(b.cur || DB.cur) === c ? "selected" : ""}>${c}</option>`).join("")}</select></span></label>
-      <label class="field" style="flex:1"><span class="lab">Years doing nails</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Years doing nails</span>
         <span class="inp"><input id="bYears" value="${esc(b.years || "")}" inputmode="numeric" placeholder="6"></span></label>
     </div>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1"><span class="lab">Opens</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Opens</span>
         <span class="inp"><input id="bOpen" type="time" value="${esc(b.opens || "09:00")}"></span></label>
-      <label class="field" style="flex:1"><span class="lab">Closes</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Closes</span>
         <span class="inp"><input id="bClose" type="time" value="${esc(b.closes || "18:00")}"></span></label>
     </div>
 
@@ -436,16 +436,25 @@ function svcEditor(list, cur) {
       when they book.</div>`;
   return list.map((s, i) => `<div class="card">
     <div style="display:flex;gap:10px;align-items:center">
-      <span class="inp" style="flex:1;min-height:46px"><input data-s="n" data-i="${i}" value="${esc(s.n || "")}" placeholder="Gel overlay"></span>
+      <span class="inp" style="flex:1;min-width:0;min-height:46px"><input data-s="n" data-i="${i}" value="${esc(s.n || "")}" placeholder="Gel overlay"></span>
       <button class="iconbtn" data-a="delSvc" data-i="${i}" aria-label="Remove">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></button>
     </div>
-    <div style="display:flex;gap:10px;margin-top:9px">
-      <span class="inp" style="flex:1;min-height:46px"><span class="pre">${esc(cur)}</span>
-        <input data-s="p" data-i="${i}" value="${esc(s.p || "")}" inputmode="numeric" placeholder="3500"></span>
-      <span class="inp" style="flex:1;min-height:46px">
-        <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
-        <span class="tiny faint">min</span></span>
+    <div style="display:flex;gap:10px;margin-top:9px;align-items:flex-end">
+      <!-- min-width:0 is what stops these two boxes running off the edge. A
+           flex child will not shrink below the intrinsic width of the input
+           inside it unless it is told it may, and on a 320px phone the second
+           box — and the "min" after it — was simply clipped away. -->
+      <label class="field" style="flex:1;min-width:0;margin:0"><span class="lab">Price</span>
+        <span class="inp" style="min-height:46px"><span class="pre">${esc(cur)}</span>
+          <input data-s="p" data-i="${i}" value="${esc(s.p || "")}" inputmode="numeric" placeholder="3500"></span></label>
+      <!-- This box was just a number and a "min" that fell off the edge of a
+           narrow screen. Nobody should have to guess whether it means minutes
+           or a minimum price. -->
+      <label class="field" style="flex:1;min-width:0;margin:0"><span class="lab">How long</span>
+        <span class="inp" style="min-height:46px">
+          <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
+          <span class="tiny faint">min</span></span></label>
     </div>
     <div class="tiny" data-keep="${i}" style="margin-top:8px;min-height:15px"></div>
     <div class="pills mt12">${SERVICE_SHAPES.map(sh =>

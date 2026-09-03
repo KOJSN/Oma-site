@@ -221,6 +221,8 @@ const API = (() => {
     myReview:      (bookingId)              => live() ? rpc("api_my_review", { p_booking: bookingId }) : MOCK.myReview(bookingId),
     reviewable:    ()                       => live() ? rpc("api_reviewable") : MOCK.reviewable(),
 
+    earnings:      (limit)                  => live() ? rpc("api_earnings", { p_limit: limit || 30 }) : MOCK.earnings(limit),
+
     wallet:        ()                       => live() ? rpc("api_wallet")          : MOCK.wallet(),
     requestPayout: (kobo)                   => live() ? rpc("api_request_payout", { p_amount: kobo }) : MOCK.requestPayout(kobo),
 
@@ -783,6 +785,23 @@ const API = (() => {
                          who: who(r.customer_id), created_at: r.created_at }));
       },
 
+      /* Her record of what she was actually paid, appointment by appointment,
+         with the deductions set out. Mirrors api_earnings in fee.sql. */
+      earnings: async (limit) => {
+        const s = load();
+        return (s.fees || [])
+          .slice()
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+          .slice(0, limit || 30)
+          .map((f) => {
+            const ps = paystackFeeKobo(f.total_kobo);
+            return { booking_id: f.booking_id, paid_at: f.created_at,
+                     total_kobo: f.total_kobo, oma_kobo: f.fee_kobo,
+                     paystack_kobo: ps,
+                     net_kobo: f.total_kobo - f.fee_kobo - ps };
+          });
+      },
+
       wallet: async () => {
         const s = load(), t = myTech();
         return {
@@ -816,6 +835,20 @@ const API = (() => {
                       delta_kobo: -b.total_kobo, kind: "release_out", at: Date.now() });
       s.ledger.push({ tech_id: b.tech_id, booking_id: b.id, bucket: "available",
                       delta_kobo: b.total_kobo, kind: "release_in", at: Date.now() });
+      // Oma's fee, charged at the scan exactly as the trigger in fee.sql
+      // charges it. A mock that released the whole amount would show a tech a
+      // balance the real system will never pay her.
+      const fee = omaFeeKobo(b.total_kobo);
+      if (fee > 0) {
+        s.fees = s.fees || [];
+        if (!s.fees.some((f) => f.booking_id === b.id)) {
+          s.fees.push({ booking_id: b.id, tech_id: b.tech_id,
+                        total_kobo: b.total_kobo, fee_kobo: fee,
+                        created_at: new Date().toISOString() });
+          s.ledger.push({ tech_id: b.tech_id, booking_id: b.id, bucket: "available",
+                          delta_kobo: -fee, kind: "oma_fee", at: Date.now() });
+        }
+      }
       save();
       return { booking: shape(b), released_kobo: b.total_kobo,
                customer_name: (s.user || {}).full_name || "your client" };

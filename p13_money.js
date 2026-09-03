@@ -59,25 +59,47 @@ function afterPaint() {
 const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
 
 /* ── 20 sign in ───────────────────────────────────────── */
-let SIGNIN = { email: "", sent: false };
+/* mode: null until she picks a door, then "up" (new account) or "in".
+
+   Under the surface these are the SAME thing — an email, a six-digit code, and
+   Supabase makes the account if there is not one. One button would work, and
+   it is what was built first.
+
+   It is still wrong. Somebody arriving at a screen that says only "Sign in"
+   with no account does not think "I expect this will register me"; she thinks
+   she is in the wrong place and leaves. Two doors cost one tap and remove that
+   doubt. Nothing here pretends the mechanism differs — the words change, the
+   code path does not. */
+let SIGNIN = { email: "", sent: false, mode: null };
 
 function vSignIn() {
   const s = SIGNIN;
+  const up = s.mode === "up";
+  const title = !s.mode ? "Your account" : up ? "Create an account" : "Sign in";
   return `
-  ${head("Sign in", "So your bookings follow you, not this phone")}
+  ${head(title, "So your bookings follow you, not this phone")}
   <div class="pad stack gap12">
     ${API.isMock() ? `<div class="note">
       <div>No backend is configured, so this is the practice version. Any
       six-digit code will let you in and no message is sent.</div></div>` : ""}
 
-    ${!s.sent ? `
+    ${!s.mode ? `
+      <button class="btn" data-a="signin-mode" data-v="up">Create an account</button>
+      <button class="btn ghost" data-a="signin-mode" data-v="in">I already have one</button>
+      <div class="tiny sub" style="text-align:center;line-height:1.55;margin-top:4px">
+        Either way it is your email and a six-digit code — no password to
+        forget, and nothing else to fill in.</div>
+    ` : !s.sent ? `
       <label class="fld">
         <span class="lbl">Email address</span>
         <input id="fSignEmail" type="email" inputmode="email" autocomplete="email"
                autocapitalize="none" spellcheck="false"
                placeholder="you@example.com" value="${esc(s.email)}">
       </label>
-      <button class="btn" data-a="otp-send">Send me a code</button>
+      <button class="btn" data-a="otp-send">${
+        up ? "Create my account" : "Send me a code"}</button>
+      <button class="btn ghost sm" data-a="signin-mode" data-v="${up ? "in" : "up"}">${
+        up ? "I already have an account" : "I need to create one"}</button>
       <div class="tiny sub" style="text-align:center">
         We only ever use this to know it is you.</div>
     ` : `
@@ -88,7 +110,8 @@ function vSignIn() {
         <input id="fOtp" type="text" inputmode="numeric" autocomplete="one-time-code"
                maxlength="6" placeholder="000000" style="letter-spacing:.4em;font-size:22px">
       </label>
-      <button class="btn" data-a="otp-check">Sign in</button>
+      <button class="btn" data-a="otp-check">${
+        up ? "Create my account" : "Sign in"}</button>
       <button class="btn ghost sm" data-a="otp-again">Use a different email</button>
     `}
   </div>`;
@@ -444,8 +467,10 @@ function vWallet() {
         <button class="btn" data-a="payout" ${w.available <= 0 ? "disabled" : ""}>
           Withdraw ${kobo(w.available)}</button>
 
+        <div id="paidList"></div>
+
         ${!w.recent.length ? "" : `
-          <div class="tiny sub mt16">Recent</div>
+          <div class="tiny sub mt16">Every movement</div>
           <div class="menu">
             ${w.recent.slice(0, 12).map((l) => `
               <div style="display:flex;gap:10px;align-items:center;padding:12px 14px">
@@ -455,6 +480,9 @@ function vWallet() {
               </div>`).join("")}
           </div>`}
       </div>`);
+    // The bill for each completed appointment, filled in after the balances so
+    // the numbers she came for are on screen first.
+    drawEarnings();
   });
   return head("Earnings", "Held, and yours") + host();
 }
