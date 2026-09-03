@@ -1014,7 +1014,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "e3e02667ff";
+const BUILD_ID = "b443b97f00";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -3414,6 +3414,8 @@ const API = (() => {
     myReview:      (bookingId)              => live() ? rpc("api_my_review", { p_booking: bookingId }) : MOCK.myReview(bookingId),
     reviewable:    ()                       => live() ? rpc("api_reviewable") : MOCK.reviewable(),
 
+    earnings:      (limit)                  => live() ? rpc("api_earnings", { p_limit: limit || 30 }) : MOCK.earnings(limit),
+
     wallet:        ()                       => live() ? rpc("api_wallet")          : MOCK.wallet(),
     requestPayout: (kobo)                   => live() ? rpc("api_request_payout", { p_amount: kobo }) : MOCK.requestPayout(kobo),
 
@@ -3976,6 +3978,23 @@ const API = (() => {
                          who: who(r.customer_id), created_at: r.created_at }));
       },
 
+      /* Her record of what she was actually paid, appointment by appointment,
+         with the deductions set out. Mirrors api_earnings in fee.sql. */
+      earnings: async (limit) => {
+        const s = load();
+        return (s.fees || [])
+          .slice()
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+          .slice(0, limit || 30)
+          .map((f) => {
+            const ps = paystackFeeKobo(f.total_kobo);
+            return { booking_id: f.booking_id, paid_at: f.created_at,
+                     total_kobo: f.total_kobo, oma_kobo: f.fee_kobo,
+                     paystack_kobo: ps,
+                     net_kobo: f.total_kobo - f.fee_kobo - ps };
+          });
+      },
+
       wallet: async () => {
         const s = load(), t = myTech();
         return {
@@ -4009,6 +4028,20 @@ const API = (() => {
                       delta_kobo: -b.total_kobo, kind: "release_out", at: Date.now() });
       s.ledger.push({ tech_id: b.tech_id, booking_id: b.id, bucket: "available",
                       delta_kobo: b.total_kobo, kind: "release_in", at: Date.now() });
+      // Oma's fee, charged at the scan exactly as the trigger in fee.sql
+      // charges it. A mock that released the whole amount would show a tech a
+      // balance the real system will never pay her.
+      const fee = omaFeeKobo(b.total_kobo);
+      if (fee > 0) {
+        s.fees = s.fees || [];
+        if (!s.fees.some((f) => f.booking_id === b.id)) {
+          s.fees.push({ booking_id: b.id, tech_id: b.tech_id,
+                        total_kobo: b.total_kobo, fee_kobo: fee,
+                        created_at: new Date().toISOString() });
+          s.ledger.push({ tech_id: b.tech_id, booking_id: b.id, bucket: "available",
+                          delta_kobo: -fee, kind: "oma_fee", at: Date.now() });
+        }
+      }
       save();
       return { booking: shape(b), released_kobo: b.total_kobo,
                customer_name: (s.user || {}).full_name || "your client" };
@@ -4629,16 +4662,16 @@ function vSetup(edit) {
       <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
         <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span></span></label>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1"><span class="lab">Currency</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Currency</span>
         <span class="inp"><select id="bCur">${["₦", "R", "$", "£", "€", "GH₵", "KSh"].map(c =>
           `<option ${(b.cur || DB.cur) === c ? "selected" : ""}>${c}</option>`).join("")}</select></span></label>
-      <label class="field" style="flex:1"><span class="lab">Years doing nails</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Years doing nails</span>
         <span class="inp"><input id="bYears" value="${esc(b.years || "")}" inputmode="numeric" placeholder="6"></span></label>
     </div>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1"><span class="lab">Opens</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Opens</span>
         <span class="inp"><input id="bOpen" type="time" value="${esc(b.opens || "09:00")}"></span></label>
-      <label class="field" style="flex:1"><span class="lab">Closes</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Closes</span>
         <span class="inp"><input id="bClose" type="time" value="${esc(b.closes || "18:00")}"></span></label>
     </div>
 
@@ -4666,16 +4699,25 @@ function svcEditor(list, cur) {
       when they book.</div>`;
   return list.map((s, i) => `<div class="card">
     <div style="display:flex;gap:10px;align-items:center">
-      <span class="inp" style="flex:1;min-height:46px"><input data-s="n" data-i="${i}" value="${esc(s.n || "")}" placeholder="Gel overlay"></span>
+      <span class="inp" style="flex:1;min-width:0;min-height:46px"><input data-s="n" data-i="${i}" value="${esc(s.n || "")}" placeholder="Gel overlay"></span>
       <button class="iconbtn" data-a="delSvc" data-i="${i}" aria-label="Remove">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></button>
     </div>
-    <div style="display:flex;gap:10px;margin-top:9px">
-      <span class="inp" style="flex:1;min-height:46px"><span class="pre">${esc(cur)}</span>
-        <input data-s="p" data-i="${i}" value="${esc(s.p || "")}" inputmode="numeric" placeholder="3500"></span>
-      <span class="inp" style="flex:1;min-height:46px">
-        <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
-        <span class="tiny faint">min</span></span>
+    <div style="display:flex;gap:10px;margin-top:9px;align-items:flex-end">
+      <!-- min-width:0 is what stops these two boxes running off the edge. A
+           flex child will not shrink below the intrinsic width of the input
+           inside it unless it is told it may, and on a 320px phone the second
+           box — and the "min" after it — was simply clipped away. -->
+      <label class="field" style="flex:1;min-width:0;margin:0"><span class="lab">Price</span>
+        <span class="inp" style="min-height:46px"><span class="pre">${esc(cur)}</span>
+          <input data-s="p" data-i="${i}" value="${esc(s.p || "")}" inputmode="numeric" placeholder="3500"></span></label>
+      <!-- This box was just a number and a "min" that fell off the edge of a
+           narrow screen. Nobody should have to guess whether it means minutes
+           or a minimum price. -->
+      <label class="field" style="flex:1;min-width:0;margin:0"><span class="lab">How long</span>
+        <span class="inp" style="min-height:46px">
+          <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
+          <span class="tiny faint">min</span></span></label>
     </div>
     <div class="tiny" data-keep="${i}" style="margin-top:8px;min-height:15px"></div>
     <div class="pills mt12">${SERVICE_SHAPES.map(sh =>
@@ -5643,25 +5685,47 @@ function afterPaint() {
 const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
 
 /* ── 20 sign in ───────────────────────────────────────── */
-let SIGNIN = { email: "", sent: false };
+/* mode: null until she picks a door, then "up" (new account) or "in".
+
+   Under the surface these are the SAME thing — an email, a six-digit code, and
+   Supabase makes the account if there is not one. One button would work, and
+   it is what was built first.
+
+   It is still wrong. Somebody arriving at a screen that says only "Sign in"
+   with no account does not think "I expect this will register me"; she thinks
+   she is in the wrong place and leaves. Two doors cost one tap and remove that
+   doubt. Nothing here pretends the mechanism differs — the words change, the
+   code path does not. */
+let SIGNIN = { email: "", sent: false, mode: null };
 
 function vSignIn() {
   const s = SIGNIN;
+  const up = s.mode === "up";
+  const title = !s.mode ? "Your account" : up ? "Create an account" : "Sign in";
   return `
-  ${head("Sign in", "So your bookings follow you, not this phone")}
+  ${head(title, "So your bookings follow you, not this phone")}
   <div class="pad stack gap12">
     ${API.isMock() ? `<div class="note">
       <div>No backend is configured, so this is the practice version. Any
       six-digit code will let you in and no message is sent.</div></div>` : ""}
 
-    ${!s.sent ? `
+    ${!s.mode ? `
+      <button class="btn" data-a="signin-mode" data-v="up">Create an account</button>
+      <button class="btn ghost" data-a="signin-mode" data-v="in">I already have one</button>
+      <div class="tiny sub" style="text-align:center;line-height:1.55;margin-top:4px">
+        Either way it is your email and a six-digit code — no password to
+        forget, and nothing else to fill in.</div>
+    ` : !s.sent ? `
       <label class="fld">
         <span class="lbl">Email address</span>
         <input id="fSignEmail" type="email" inputmode="email" autocomplete="email"
                autocapitalize="none" spellcheck="false"
                placeholder="you@example.com" value="${esc(s.email)}">
       </label>
-      <button class="btn" data-a="otp-send">Send me a code</button>
+      <button class="btn" data-a="otp-send">${
+        up ? "Create my account" : "Send me a code"}</button>
+      <button class="btn ghost sm" data-a="signin-mode" data-v="${up ? "in" : "up"}">${
+        up ? "I already have an account" : "I need to create one"}</button>
       <div class="tiny sub" style="text-align:center">
         We only ever use this to know it is you.</div>
     ` : `
@@ -5672,7 +5736,8 @@ function vSignIn() {
         <input id="fOtp" type="text" inputmode="numeric" autocomplete="one-time-code"
                maxlength="6" placeholder="000000" style="letter-spacing:.4em;font-size:22px">
       </label>
-      <button class="btn" data-a="otp-check">Sign in</button>
+      <button class="btn" data-a="otp-check">${
+        up ? "Create my account" : "Sign in"}</button>
       <button class="btn ghost sm" data-a="otp-again">Use a different email</button>
     `}
   </div>`;
@@ -6028,8 +6093,10 @@ function vWallet() {
         <button class="btn" data-a="payout" ${w.available <= 0 ? "disabled" : ""}>
           Withdraw ${kobo(w.available)}</button>
 
+        <div id="paidList"></div>
+
         ${!w.recent.length ? "" : `
-          <div class="tiny sub mt16">Recent</div>
+          <div class="tiny sub mt16">Every movement</div>
           <div class="menu">
             ${w.recent.slice(0, 12).map((l) => `
               <div style="display:flex;gap:10px;align-items:center;padding:12px 14px">
@@ -6039,6 +6106,9 @@ function vWallet() {
               </div>`).join("")}
           </div>`}
       </div>`);
+    // The bill for each completed appointment, filled in after the balances so
+    // the numbers she came for are on screen first.
+    drawEarnings();
   });
   return head("Earnings", "Held, and yours") + host();
 }
@@ -7429,13 +7499,88 @@ function paystackFeeKobo(total) {
   return Math.min(200000, f);
 }
 
-/* The one line a nail tech actually cares about, under the price she typed. */
-function keepLine(totalKobo) {
+/* A bill, not a sentence.
+
+   This was one line — "You keep ₦8,515 · Oma ₦250 · card fee ₦235" — and
+   Kamsy was right that it is the wrong shape. A tech reading that has to do
+   the subtraction herself to believe it. Set out as a receipt, the arithmetic
+   is visible and it adds up in front of her:
+
+       ₦9,000     Price
+        −₦250     Oma's fee
+        −₦235     Paystack
+       ₦8,515     You get
+
+   Deductions are written with a real minus sign, not a hyphen, and the amounts
+   are right-aligned in a tabular font so the columns line up down the page
+   however many digits each number has. */
+function keepBill(totalKobo) {
   const t = Math.round(Number(totalKobo) || 0);
   if (!t) return "";
   const oma = omaFeeKobo(t), ps = paystackFeeKobo(t);
   const net = t - oma - ps;
-  return `<b>You keep ${kobo(net)}</b> · Oma ${kobo(oma)} · card fee ${kobo(ps)}`;
+  const row = (label, amount, opts) => `
+    <div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0${
+      opts && opts.rule ? ";margin-top:4px;padding-top:6px;border-top:1px solid var(--line)" : ""}">
+      <span${opts && opts.strong ? ' style="font-weight:800"' : ' class="faint"'}>${label}</span>
+      <span style="font-variant-numeric:tabular-nums${
+        opts && opts.strong ? ";font-weight:800" : ""}">${amount}</span>
+    </div>`;
+  return `<div>
+    ${row("Price", kobo(t))}
+    ${row("Oma's fee", "−" + kobo(oma))}
+    ${row("Paystack", "−" + kobo(ps))}
+    ${row("You get", kobo(net), { strong: true, rule: true })}
+  </div>`;
+}
+
+/* ── the same bill, afterwards, in her earnings ──────
+   Kamsy: "it would be shown in their diary of past payments". The quote in the
+   price editor is a promise; this is the receipt. Same four lines, same order,
+   so the number she was shown before she listed is the number she can check
+   against her bank afterwards.
+
+   Paystack's share is computed rather than recorded, because Paystack takes it
+   at settlement and it never passes through Oma's ledger. It is labelled below
+   as what it is. */
+function paidBill(row) {
+  const line = (label, amount, opts) => `
+    <div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0${
+      opts && opts.rule ? ";margin-top:4px;padding-top:6px;border-top:1px solid var(--line)" : ""}">
+      <span${opts && opts.strong ? ' style="font-weight:800"' : ' class="faint"'}>${label}</span>
+      <span style="font-variant-numeric:tabular-nums${
+        opts && opts.strong ? ";font-weight:800" : ""}">${amount}</span>
+    </div>`;
+  return `
+    <div class="card" style="display:block">
+      <div class="tiny faint" style="margin-bottom:8px">${esc(whenShort(row.paid_at))}</div>
+      ${line("Price", kobo(row.total_kobo))}
+      ${line("Oma's fee", "−" + kobo(row.oma_kobo))}
+      ${line("Paystack", "−" + kobo(row.paystack_kobo))}
+      ${line("You got", kobo(row.net_kobo), { strong: true, rule: true })}
+    </div>`;
+}
+
+/* Filled in after the wallet paints, like everything else that needs the
+   network. A tech with no completed appointments yet is told so plainly. */
+async function drawEarnings() {
+  const slot = document.getElementById("paidList");
+  if (!slot) return;
+  let rows;
+  try { rows = await API.earnings(30); } catch (e) { return; }
+  if (!rows || !rows.length) {
+    slot.innerHTML = `<div class="empty"><b>No completed appointments yet</b>
+      Once you scan a client's code, what she paid and what you kept appears
+      here, appointment by appointment.</div>`;
+    return;
+  }
+  const took = rows.reduce((a, r) => a + Number(r.oma_kobo || 0), 0);
+  const got = rows.reduce((a, r) => a + Number(r.net_kobo || 0), 0);
+  slot.innerHTML = `
+    <div class="lbl mt16">Past payments</div>
+    <div class="tiny faint" style="margin:-4px 0 10px">${rows.length} appointment${
+      rows.length === 1 ? "" : "s"} · you kept ${kobo(got)} · Oma ${kobo(took)}</div>
+    <div class="stack gap12">${rows.map(paidBill).join("")}</div>`;
 }
 
 /* Live as she types. Delegated on the document rather than bound when the
@@ -7449,7 +7594,7 @@ document.addEventListener("input", (e) => {
   // The editor holds naira, because that is what a person types. Everything
   // below this line is kobo, because everything about money in Oma is kobo.
   const naira = Number(String(el.value).replace(/[^0-9.]/g, ""));
-  slot.innerHTML = naira > 0 ? keepLine(Math.round(naira * 100)) : "";
+  slot.innerHTML = naira > 0 ? keepBill(Math.round(naira * 100)) : "";
 });
 
 /* Called after the listing editor paints, so the lines are right before she
@@ -7458,7 +7603,7 @@ function drawKeepLines() {
   document.querySelectorAll("[data-keep]").forEach((slot) => {
     const inp = document.querySelector(`[data-s="p"][data-i="${slot.dataset.keep}"]`);
     const naira = inp ? Number(String(inp.value).replace(/[^0-9.]/g, "")) : 0;
-    slot.innerHTML = naira > 0 ? keepLine(Math.round(naira * 100)) : "";
+    slot.innerHTML = naira > 0 ? keepBill(Math.round(naira * 100)) : "";
   });
 }
 
@@ -7889,6 +8034,17 @@ document.getElementById("shell").addEventListener("click", e => {
     SIGNIN.email = email;
     return API.sendOtp(email).then(() => { SIGNIN.sent = true; paint(); })
       .catch(err => toast(err.message));
+  }
+  if (a === "signin-mode") {
+    // The screen is about to be repainted from SIGNIN, so anything already
+    // typed has to be carried into it first. Being made to type your address
+    // again because you tapped the wrong door is a small insult, and the sort
+    // that makes people give up on a sign-up.
+    const typed = document.getElementById("fSignEmail");
+    if (typed) SIGNIN.email = typed.value;
+    SIGNIN.mode = el.dataset.v || null;
+    SIGNIN.sent = false;
+    return paint();
   }
   if (a === "otp-again") { SIGNIN.sent = false; return paint(); }
   if (a === "otp-check") {
