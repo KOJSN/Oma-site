@@ -21,7 +21,7 @@ import pathlib
 import sys
 
 HERE = pathlib.Path(__file__).parent
-SRC = HERE / "src"
+SRC = HERE / "src" if (HERE / "src" / "p3_core.js").exists() else HERE
 
 read = lambda n: (SRC / n).read_text(encoding="utf-8")
 
