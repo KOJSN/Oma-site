@@ -115,16 +115,49 @@ const API = (() => {
   const rpc = (fn, args) => call(`/rest/v1/rpc/${fn}`, args || {});
   const edge = (fn, body) => call(`/functions/v1/${fn}`, body || {});
 
-  /* ── signing in ───────────────────────────────────────── */
-  async function sendOtp(phone) {
-    if (!live()) return MOCK.sendOtp(phone);
-    await call("/auth/v1/otp", { phone }, { auth: false });
+  /* ── signing in ───────────────────────────────────────────
+     By EMAIL, with a six-digit code. It used to be a phone number and an SMS,
+     which needs a Termii sender ID, which needs CAC — so nobody could sign in
+     at all while that was pending. Supabase sends the email itself.
+
+     Supabase sends a magic LINK by default; it sends a code instead only if
+     the Magic Link email template contains {{ .Token }}. If somebody gets a
+     link rather than a six-digit code, that template is the thing to fix, not
+     this code. */
+  async function sendOtp(email) {
+    if (!live()) return MOCK.sendOtp(email);
+    await call("/auth/v1/otp", { email }, { auth: false });
     return { sent: true };
   }
 
-  async function verifyOtp(phone, token) {
-    if (!live()) return MOCK.verifyOtp(phone, token);
-    const s = stamp(await call("/auth/v1/verify", { type: "sms", phone, token }, { auth: false }));
+  async function verifyOtp(email, token) {
+    if (!live()) return MOCK.verifyOtp(email, token);
+    // "email", not "sms" — the verify endpoint keys off this and answers
+    // "Token has expired or is invalid" for the wrong one, which reads like a
+    // typed code being wrong rather than a mismatched type.
+    //
+    // And a FIRST sign-in is a different case again. Supabase sends a brand
+    // new account its code from the "Confirm signup" template, not "Magic
+    // Link", and there are reports of that code refusing to verify as "email"
+    // while verifying happily as "signup". Which one a given project wants is
+    // not something worth being confident about from documentation, so both
+    // are tried. The cost is one extra request on a first sign-in only; the
+    // alternative is somebody staring at "token has expired or is invalid"
+    // while holding a code that is neither expired nor invalid.
+    let s;
+    try {
+      s = stamp(await call("/auth/v1/verify",
+                           { type: "email", email, token }, { auth: false }));
+    } catch (first) {
+      try {
+        s = stamp(await call("/auth/v1/verify",
+                             { type: "signup", email, token }, { auth: false }));
+      } catch (second) {
+        // Report the FIRST failure: for a genuinely wrong code both say the
+        // same thing, and the first is the ordinary path.
+        throw first;
+      }
+    }
     setSession(s);
     return s;
   }
@@ -161,6 +194,12 @@ const API = (() => {
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
     nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.nearby(lat, lng, km),
+    search:        (q, lat, lng)            => live() ? rpc("api_search", { p_q: q || "", p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng }) : MOCK.search(q, lat, lng),
+    // A device, not a subscription. The database is deliberately incurious
+    // about which kind of token this is; see push.sql.
+    registerDevice:(platform, token, label)  => live() ? rpc("api_register_device", { p_platform: platform, p_token: token, p_label: label || null }) : MOCK.registerDevice(platform, token, label),
+    forgetDevice:  (token)                  => live() ? rpc("api_forget_device", { p_token: token }) : MOCK.forgetDevice(token),
+    myDevices:     ()                       => live() ? rpc("api_my_devices", {}) : MOCK.myDevices(),
     services:      (techId)                 => live() ? rpc("api_services", { p_tech: techId }) : MOCK.services(techId),
     book:          (techId, startsAt, ids, note, shape) => live() ? rpc("api_book", { p_tech: techId, p_starts: new Date(startsAt).toISOString(), p_service_ids: ids, p_note: note, p_shape: shape }) : MOCK.book(techId, startsAt, ids, note, shape),
     bookings:      (past)                   => live() ? rpc("api_my_bookings", { p_past: !!past }) : MOCK.bookings(!!past),
@@ -174,6 +213,12 @@ const API = (() => {
     scanShort:     (bookingId, code)        => live() ? rpc("api_scan_short", { p_booking: bookingId, p_code: code }) : MOCK.scanShort(bookingId, code),
     wallet:        ()                       => live() ? rpc("api_wallet")          : MOCK.wallet(),
     requestPayout: (kobo)                   => live() ? rpc("api_request_payout", { p_amount: kobo }) : MOCK.requestPayout(kobo),
+
+    // Messages. A thread is a booking; see chat.sql for why.
+    messages:      (bookingId)              => live() ? rpc("api_messages", { p_booking: bookingId }) : MOCK.messages(bookingId),
+    send:          (bookingId, body)        => live() ? rpc("api_send", { p_booking: bookingId, p_body: body }) : MOCK.send(bookingId, body),
+    threads:       ()                       => live() ? rpc("api_threads") : MOCK.threads(),
+    readThread:    (bookingId)              => live() ? rpc("api_read", { p_booking: bookingId }) : MOCK.readThread(bookingId),
 
     // These two go to edge functions, because they talk to somebody else's API.
     payInit:       (bookingId)              => live() ? edge("pay-init", { booking_id: bookingId }) : MOCK.payInit(bookingId),
@@ -240,15 +285,27 @@ const API = (() => {
   const MOCK = (() => {
     const KEY = "oma-mock-v1";
     let S = null;
+    /* The exact text we last read or wrote. Holding it lets load() tell "this
+       is our own copy" from "somebody else has written since", which matters
+       for two reasons. Caching S for ever meant a second tab never saw the
+       first one's bookings — the stand-in was pretending to be a server while
+       behaving like a private variable. But re-parsing on EVERY call is worse:
+       a function that does `const s = load(); ...; save()` with another load()
+       in between would end up writing a different object than it edited, and
+       silently drop the row it just added. Comparing the raw text gives a
+       stable S inside one call and a fresh one across them. */
+    let RAW = null;
     const load = () => {
-      if (S) return S;
-      try { S = JSON.parse(localStorage.getItem(KEY)); } catch { S = null; }
+      const cur = localStorage.getItem(KEY);
+      if (S && cur === RAW) return S;
+      RAW = cur;
+      try { S = JSON.parse(cur); } catch { S = null; }
       if (!S) S = { user: null, techs: [], services: [], bookings: [], ledger: [],
                     attempts: {}, seeded: false };
       seed();
       return S;
     };
-    const save = () => localStorage.setItem(KEY, JSON.stringify(S));
+    const save = () => { RAW = JSON.stringify(S); localStorage.setItem(KEY, RAW); };
     const uid = () => "mm" + Math.random().toString(36).slice(2, 10);
     const fail = (m) => { throw new Error(m); };
 
@@ -292,6 +349,11 @@ const API = (() => {
       });
       save();
     }
+
+    // Which side of a booking this device is on. The stand-in has one person
+    // who may be both, so "me" is the user id and "my tech" is her listing.
+    const myTechId = () => (load().user || {}).tech_id || null;
+    const whoAmI = () => (load().user || {}).id || "me";
 
     const meRow = () => {
       const s = load();
@@ -354,11 +416,11 @@ const API = (() => {
 
     return {
       sendOtp: async () => ({ sent: true, mock: true }),
-      verifyOtp: async (phone, token) => {
+      verifyOtp: async (email, token) => {
         if (String(token).replace(/\D/g, "").length !== 6) fail("that code is six digits");
         const s = load();
         s.user = s.user || {};
-        Object.assign(s.user, { id: s.user.id || "me", phone, full_name: s.user.full_name || "" });
+        Object.assign(s.user, { id: s.user.id || "me", email, full_name: s.user.full_name || "" });
         save();
         setSession({ access_token: "mock", refresh_token: "mock", user: { id: s.user.id } });
         return { mock: true };
@@ -389,7 +451,124 @@ const API = (() => {
           .filter((t) => t.km <= (radius || 10))
           .sort((a, b) => a.km - b.km);
       },
+      /* The same search as api_search in search.sql, close enough that the
+         practice app and the real one behave alike: every word has to land
+         somewhere, the best kind of match ranks first, and being far away is
+         not a reason to be missing. */
+      search: async (q, lat, lng) => {
+        const s = load();
+        const query = String(q || "").trim().toLowerCase();
+        const toks = query ? query.split(/\s+/) : null;
+        const out = [];
+        for (const t of s.techs) {
+          if (!t.listed) continue;
+          const svcs = s.services.filter((x) => x.tech_id === t.id && x.active);
+          const n = (t.business_name || "").toLowerCase();
+          const a = (t.area || "").toLowerCase();
+          const sv = svcs.map((x) => x.name.toLowerCase()).join(" ");
+          const sh = svcs.map((x) => (x.shapes || []).join(" ").toLowerCase()).join(" ");
+          const hay = [n, a, sv, sh].join(" ");
+          if (toks && !toks.every((w) => hay.includes(w))) continue;
+          let rank = 9, matched = null;
+          if (toks) {
+            if (n.startsWith(query)) { rank = 1; matched = "name"; }
+            else if (n.includes(query)) { rank = 2; matched = "name"; }
+            else if (a.includes(query)) { rank = 3; matched = "area"; }
+            else if (sv.includes(query)) { rank = 4; matched = "service"; }
+            else if (sh.includes(query)) { rank = 5; matched = "shape"; }
+            else { rank = 6; matched = "match"; }
+          }
+          const pin = HEX.snap(t.lat, t.lng);
+          out.push({ ...t, address: null, rank, matched,
+                     km: lat == null || lng == null ? null : km(lat, lng, t.lat, t.lng),
+                     lat: pin.lat, lng: pin.lng, cell: pin.cell, boundary: pin.boundary,
+                     from_kobo: svcs.length ? Math.min(...svcs.map((x) => x.price_kobo)) : null });
+        }
+        return out.sort((x, y) => x.rank - y.rank ||
+          (x.km == null ? 1 : y.km == null ? -1 : x.km - y.km) ||
+          String(x.business_name).localeCompare(String(y.business_name))).slice(0, 50);
+      },
+      registerDevice: async (platform, token, label) => {
+        const s = load();
+        s.devices = s.devices || [];
+        const at = s.devices.findIndex((d) => d.token === token);
+        if (at >= 0) s.devices[at].last_seen = Date.now();
+        else s.devices.push({ id: s.devices.length + 1, platform, token, label,
+                              last_seen: Date.now() });
+        save();
+        return s.devices.length;
+      },
+      forgetDevice: async (token) => {
+        const s = load();
+        s.devices = (s.devices || []).filter((d) => d.token !== token);
+        save();
+      },
+      myDevices: async () => (load().devices || []).map((d) =>
+        ({ id: d.id, platform: d.platform, label: d.label, last_seen: d.last_seen })),
       services: async (techId) => load().services.filter((s) => s.tech_id === techId && s.active),
+
+      /* ── messages ──────────────────────────────────────────
+         Same rules as chat.sql: only the two people on the booking, no sender
+         the caller can name, nothing to say once the appointment is off. */
+      messages: async (bookingId) => {
+        const s = load();
+        const b = s.bookings.find((x) => x.id === bookingId);
+        if (!b || (b.customer_id !== meRow().id && b.tech_id !== myTechId()))
+          fail("no such conversation");
+        return (s.messages || []).filter((m) => m.booking_id === bookingId)
+          .map((m) => ({ id: m.id, body: m.body, at: new Date(m.at).toISOString(),
+                         mine: m.sender === whoAmI() }));
+      },
+      send: async (bookingId, body) => {
+        const s = load();
+        const b = s.bookings.find((x) => x.id === bookingId);
+        if (!b || (b.customer_id !== meRow().id && b.tech_id !== myTechId()))
+          fail("no such conversation");
+        if (["cancelled", "expired", "refunded"].includes(b.status) ||
+            b.starts_at_ms < Date.now() - 30 * 864e5)
+          fail("this appointment is closed, so the conversation is too");
+        const text = String(body || "").trim();
+        if (!text) fail("write something first");
+        s.messages = s.messages || [];
+        const m = { id: uid(), booking_id: bookingId, sender: whoAmI(),
+                    body: text.slice(0, 2000), at: Date.now() };
+        s.messages.push(m); save();
+        return { id: m.id, body: m.body, at: new Date(m.at).toISOString(), mine: true };
+      },
+      threads: async () => {
+        const s = load();
+        const reads = s.reads || {};
+        return s.bookings
+          .filter((b) => b.customer_id === meRow().id || b.tech_id === myTechId())
+          .map((b) => {
+            const ms = (s.messages || []).filter((m) => m.booking_id === b.id)
+              .sort((x, y) => x.at - y.at);
+            if (!ms.length) return null;
+            const last = ms[ms.length - 1];
+            const t = s.techs.find((x) => x.id === b.tech_id) || {};
+            const mine = b.customer_id === meRow().id;
+            return {
+              booking_id: b.id, starts_at: new Date(b.starts_at_ms).toISOString(),
+              status: b.status, role: mine ? "customer" : "tech",
+              who: mine ? t.business_name : (meRow().full_name || "A customer"),
+              last: last.body, last_at: new Date(last.at).toISOString(),
+              last_mine: last.sender === whoAmI(),
+              unread: ms.filter((m) => m.sender !== whoAmI() &&
+                                       m.at > (reads[whoAmI() + "|" + b.id] || 0)).length,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => new Date(b.last_at) - new Date(a.last_at));
+      },
+      readThread: async (bookingId) => {
+        const s = load();
+        s.reads = s.reads || {};
+        // Keyed by person as well as booking, exactly like message_read: one
+        // browser is one person, but the store is shared and the tech reading
+        // a thread must not clear the customer's badge.
+        s.reads[whoAmI() + "|" + bookingId] = Date.now();
+        save();
+      },
       book: async (techId, startsAt, ids, note, shapeName) => {
         const s = load(); expire();
         const at = new Date(startsAt).getTime();

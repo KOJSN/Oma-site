@@ -40,6 +40,11 @@ function statusWords(b, asTech) {
   }
 }
 
+/* Filled by the list screens from API.threads(), read by bookingRow. Kept as a
+   module value rather than threaded through every caller, because the row is
+   rendered from four places. */
+let UNREAD = {};
+
 function bookingRow(b) {
   const asTech = b.role === "tech";
   const at = new Date(b.starts_at).getTime();
@@ -56,9 +61,10 @@ function bookingRow(b) {
       <div class="tiny ${tone === "good" ? "ok" : tone === "warn" ? "warn" : "sub"}"
            style="margin-top:3px;font-weight:700">${esc(words)}</div>
     </div>
-    <div style="text-align:right">
+    <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
       <div style="font-weight:700">${kobo(b.total_kobo)}</div>
-      ${I.chev()}
+      ${UNREAD[b.id] ? `<span class="unread">${UNREAD[b.id] > 9 ? "9+" : UNREAD[b.id]}</span>`
+                     : I.chev()}
     </div>
   </button>`;
 }
@@ -86,7 +92,11 @@ function askToSignIn(what) {
 function vBookingsLive() {
   load(async () => {
     if (!API.signedIn()) return askToSignIn("your bookings");
-    const all = await API.bookings(true);
+    const [all, threads] = await Promise.all([
+      API.bookings(true), API.threads().catch(() => []),
+    ]);
+    UNREAD = {};
+    threads.forEach((t) => { if (t.unread) UNREAD[t.booking_id] = t.unread; });
     const up = upcoming(all), old = earlier(all);
     fillHost(`
       <div class="pad stack gap12">
@@ -105,7 +115,12 @@ function vBookingsLive() {
 function vRequestsLive() {
   load(async () => {
     if (!API.signedIn()) return askToSignIn("your requests");
-    const all = (await API.bookings(true)).filter((b) => b.role === "tech");
+    const [rows, threads] = await Promise.all([
+      API.bookings(true), API.threads().catch(() => []),
+    ]);
+    UNREAD = {};
+    threads.forEach((t) => { if (t.unread) UNREAD[t.booking_id] = t.unread; });
+    const all = rows.filter((b) => b.role === "tech");
     const up = upcoming(all);
     const waiting = up.filter((b) => b.status === "awaiting_payment");
     const ready = up.filter((b) => b.status === "paid");
@@ -198,6 +213,12 @@ function vJob(bookingId) {
           <div class="kv"><span class="k">Status</span><span class="v">${esc(words)}</span></div>
         </div></div>
 
+        ${["cancelled", "expired", "refunded"].includes(b.status) ? "" : `
+          <button class="btn ghost" data-a="go" data-v="chat" data-id="${esc(b.id)}"
+                  style="display:flex;align-items:center;justify-content:center;gap:9px">
+            ${I.chat()} Message ${esc(asTech ? (b.customer_name || "her")
+                                             : b.tech.business_name)}</button>`}
+
         ${!asTech && b.status === "awaiting_payment"
           ? `<button class="btn" data-a="go-pay" data-id="${esc(b.id)}">Pay now</button>` : ""}
         ${!asTech && b.status === "paid"
@@ -282,6 +303,8 @@ function vHomeLive() {
       <div class="mapbtns">
         <button class="mapbtn" data-a="map-me" aria-label="Centre the map on me">${I.pin()}</button>
         <button class="mapbtn pink" data-a="startscan" aria-label="Scan your hands">${I.scan()}</button>
+        <button class="mapbtn" data-a="paste-tech"
+                aria-label="Paste a nail tech's link">${I.clip()}</button>
       </div>
       <div class="mapsheet" id="msheet">
         <button class="mapgrip" id="mgrip" type="button"
@@ -414,9 +437,9 @@ function choosePin(id) {
 function recentreMap() {
   if (!MAP) return;
   whereAmI().then((p) => {
+    if (p.guessed) return askLocation();     // explain, do not silently guess
     HOMEPOS = p;
     if (MAP) MAP.setView([p.lat, p.lng], 15, { animate: true });
-    if (p.guessed) toast("Location is off, so this is Lagos Island.");
   });
 }
 
@@ -526,9 +549,21 @@ function sheetMany() {
         : "Nail techs near you"}</div>
       ${n > 3 ? `<span class="seeall" data-a="go" data-v="salons">See all</span>` : ""}
     </div>
-    ${HOMEPOS && HOMEPOS.guessed ? `<div class="note tiny" style="margin-bottom:10px"><div>
-      Showing Lagos Island — turn location on to see who is actually near you.
+    ${HOMEPOS && HOMEPOS.guessed ? `<div class="note warn" style="margin-bottom:10px"><div>
+      <b>These are not distances from you.</b> Oma could not tell where you are,
+      so it is showing Lagos Island.
+      <button class="lnk" data-a="ask-loc">Use my location</button>
     </div></div>` : ""}
+    ${HOMEPOS && !HOMEPOS.guessed ? `
+      <div class="locline ${HOMEPOS.acc > 150 ? "rough" : ""}">
+        ${I.pin(true)}
+        <span>${HOMEPOS.acc
+          ? `Using your location, to about ${HOMEPOS.acc < 1000
+               ? Math.round(HOMEPOS.acc) + " m"
+               : (HOMEPOS.acc / 1000).toFixed(1) + " km"}`
+          : "Using your location"}</span>
+        <button class="lnk" data-a="ask-loc">Refresh</button>
+      </div>` : ""}
     ${n ? NEAR.slice(0, 3).map(techRowLive).join("")
         : `<div class="empty" style="padding:18px 12px"><div class="ic">${I.pin()}</div>
              <b>No nail techs near you yet</b>
@@ -580,15 +615,58 @@ function homeAsList() {
     </div>`);
 }
 
-/* Her position, or Lagos Island, so a screen is never empty merely because a
-   browser would not say where it is. */
+/* Her position, or Lagos Island so a screen is never empty merely because a
+   browser would not say where she is. High accuracy is asked for on purpose:
+   the question this screen answers is "which of these two streets", and a
+   network-derived fix in Lagos can be a kilometre out — which is exactly the
+   confusion this is meant to remove. It costs a few seconds, so the timeout is
+   generous rather than the eight seconds it was. */
 function whereAmI() {
+  const LAGOS = { lat: 6.4478, lng: 3.4723, guessed: true, why: "unavailable" };
   return new Promise((res) => {
-    if (!navigator.geolocation) return res({ lat: 6.4478, lng: 3.4723, guessed: true });
+    if (!navigator.geolocation) return res(LAGOS);
     navigator.geolocation.getCurrentPosition(
-      (p) => res({ lat: p.coords.latitude, lng: p.coords.longitude, guessed: false }),
-      () => res({ lat: 6.4478, lng: 3.4723, guessed: true }),
-      { timeout: 8000, maximumAge: 300000 },
+      (p) => res({
+        lat: p.coords.latitude, lng: p.coords.longitude, guessed: false,
+        // Metres. Worth showing when it is bad: a 900 m fix makes "400 m away"
+        // a lie, and she should be able to see that rather than trust it.
+        acc: Math.round(p.coords.accuracy || 0),
+      }),
+      (err) => res(Object.assign({}, LAGOS, {
+        why: err && err.code === 1 ? "denied"
+           : err && err.code === 3 ? "timeout" : "unavailable",
+      })),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
   });
+}
+
+/* granted | prompt | denied | unknown. Worth knowing before offering a button:
+   once a browser has been told no, asking again does nothing at all, and a
+   button that silently does nothing is worse than no button. */
+function locState() {
+  return new Promise((res) => {
+    try {
+      if (!navigator.permissions || !navigator.permissions.query) return res("unknown");
+      navigator.permissions.query({ name: "geolocation" })
+        .then((p) => res(p.state)).catch(() => res("unknown"));
+    } catch (e) { res("unknown"); }
+  });
+}
+
+/* The button on the "Showing Lagos Island" note, and the arrow on the map. */
+async function askLocation() {
+  if (await locState() === "denied") {
+    return toast("Location is blocked for Oma. Turn it back on in your browser's "
+               + "settings for this site, then try again.");
+  }
+  toast("Looking for you\u2026");
+  const p = await whereAmI();
+  if (p.guessed) {
+    return toast(p.why === "denied"
+      ? "Without your location Oma has to guess, and it is guessing Lagos Island."
+      : "Could not get a fix. Outdoors, or with Wi-Fi on, usually does it.");
+  }
+  HOMEPOS = p;
+  paint();                       // redraw home around where she actually is
 }

@@ -1,0 +1,166 @@
+<body>
+<div id="shell">
+  <div id="view"></div>
+  <nav id="nav" class="hidden"></nav>
+</div>
+
+<!-- ═══ the scan, five steps, its own screen ═══════════════════════════ -->
+<div id="scan">
+  <div class="scanhead">
+    <button class="iconbtn" id="scanClose" aria-label="Close the scan">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <div class="t" id="scanTitle">Hand scan</div>
+    <button class="iconbtn" id="scanHelp" aria-label="How to take the photo">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.8-.9 1.4v.3M12 16.6v.1"/></svg>
+    </button>
+  </div>
+
+  <!-- 0 · the photo ------------------------------------------------- -->
+  <section class="step live" data-step="0">
+    <div class="scanbody" style="display:flex;flex-direction:column">
+      <div class="frame">
+        <div class="dash"></div><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>
+        <div class="mid">
+          <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.5" stroke-linecap="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12m0-.5V4.2a1.5 1.5 0 0 1 3 0V12m0-.2V6a1.5 1.5 0 0 1 3 0v7m-9 0V9.5a1.5 1.5 0 0 0-3 0V15a7 7 0 0 0 7 7h1.5a6.5 6.5 0 0 0 6.5-6.5V13"/></svg>
+          <div>Lay your hand flat, palm down,<br>fingers slightly apart</div>
+        </div>
+        <div class="hint"><span id="capBusy" hidden></span></div>
+      </div>
+      <div id="capErr" class="note warn" hidden style="margin-top:14px"></div>
+      <div class="glass">
+        <div style="font-size:13.5px;font-weight:700">What makes a photo readable</div>
+        <div class="stack gap10 mt12">
+          <div class="tick done"><i><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg></i>Shot straight down, not at an angle</div>
+          <div class="tick done"><i><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg></i>Even light, no hard shadow across the nails</div>
+          <div class="tick done"><i><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg></i>Plain background, bare or lightly polished nails</div>
+        </div>
+      </div>
+    </div>
+    <div class="scanfoot">
+      <div class="btnrow">
+        <label class="btn filebtn">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.2l1.1-2h6.4l1.1 2h1.2A2.5 2.5 0 0 1 20 8.5v8A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-8Z"/><circle cx="12" cy="12.5" r="3.4"/></svg>
+          Take a photo
+          <input type="file" id="camIn" accept="image/*" capture="environment">
+        </label>
+        <label class="btn ghost filebtn">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="m4 16 4.2-4 3.3 3 3-2.6L20 16"/></svg>
+          Choose one
+          <input type="file" id="fileIn" accept="image/*,.heic,.HEIC,.heif,.avif">
+        </label>
+      </div>
+      <button class="btn ghost sm" id="sheetLink" style="margin-top:10px">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9V4h12v5M6 18h12v-5H6v5ZM6 13H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/></svg>
+        Use the guide sheet — corrects tilt, measures in mm
+      </button>
+      <div class="small faint" style="text-align:center;margin-top:12px">Your photo is measured on this device and never uploaded.</div>
+    </div>
+  </section>
+
+  <!-- 1 · the automatic read ---------------------------------------- -->
+  <section class="step" data-step="1">
+    <div class="scanbody">
+      <div style="font-size:22px;font-weight:800;letter-spacing:-.035em">Nothing to tap</div>
+      <div class="small sub" style="margin-top:6px">Oma finds your nails itself. It takes a
+        few seconds, and your photo never leaves this phone.</div>
+      <div class="stagewrap" id="stage3">
+        <img id="photo3" alt="Your hand">
+        <svg id="ov3" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="glass" id="autoWork">
+        <div class="rowbetween">
+          <span style="font-size:13.5px;font-weight:700" id="autoSay">Getting ready</span>
+        </div>
+        <div class="bar"><i id="autoBar" style="width:0%"></i></div>
+        <div class="small faint" style="margin-top:12px">The first scan downloads the
+          reader — about 9 MB, once. Your phone keeps it, so later scans start
+          straight away.</div>
+      </div>
+      <div class="small faint" style="margin-top:12px;line-height:1.5">The outlines
+        cover the <b>pink part</b> of each nail — the white tip is not measured, because
+        it is length you can file off, not the shape of the nail bed.</div>
+      <div id="autoNote" class="hidden" style="margin-top:14px"></div>
+      <!-- Off unless somebody opens the app with ?timing=1. Nobody using Oma
+           ever sees this; it exists so a scan on a real phone on real mobile
+           data produces numbers instead of "it felt slow". -->
+      <div id="autoTiming" class="hidden"></div>
+    </div>
+    <div class="scanfoot hidden" id="autoFoot">
+      <div class="btnrow">
+        <button class="btn ghost" id="autoFix">Check them myself</button>
+        <button class="btn" id="autoGo">Continue</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · check the outlines (only if she wants to) ------------------ -->
+  <section class="step" data-step="2">
+    <div class="scanbody">
+      <div style="font-size:19px;font-weight:800;letter-spacing:-.03em" id="markTitle">Tap the index nail</div>
+      <div class="small sub" style="margin-top:4px;line-height:1.5" id="markHelp"></div>
+      <div id="sheetChip" class="hidden" style="margin-top:12px"></div>
+      <div class="stagewrap" id="stage">
+        <img id="photo" alt="Your hand">
+        <svg id="ov" preserveAspectRatio="none"></svg>
+        <div id="loupe"><canvas id="loupeC" width="132" height="132"></canvas></div>
+      </div>
+      <div class="ftabs" id="fingerTabs"></div>
+      <div class="glass">
+        <div class="rowbetween">
+          <span style="font-size:13.5px;font-weight:700">Nails read</span>
+          <span style="font-size:13.5px;font-weight:800;color:#ff9dc2" id="readCount">0 of 4</span>
+        </div>
+        <div class="bar"><i id="readBar" style="width:0%"></i></div>
+        <div class="stack gap10 mt16" id="readList"></div>
+      </div>
+    </div>
+    <div class="scanfoot">
+      <div class="btnrow">
+        <button class="btn ghost" id="markBack">Back</button>
+        <button class="btn" id="markNext" disabled>0 of 4 tapped</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Proportions is gone. It asked people to drag a line up the middle
+       finger and another across the palm, to produce finger_to_palm. The
+       hand model measures both from the skeleton — knuckle to tip, and
+       across the knuckles — so the step had nothing left to ask for. -->
+
+  <!-- 3 · two questions --------------------------------------------- -->
+  <section class="step" data-step="3">
+    <div class="scanbody">
+      <div style="font-size:22px;font-weight:800;letter-spacing:-.035em">Two things the photo cannot see</div>
+      <div class="small sub" style="margin-top:6px">They decide whether a shape is one you can wear now, or one that needs an appointment first.</div>
+      <div class="eyebrow" style="color:rgba(255,255,255,.45);margin:22px 0 10px">Your nails right now</div>
+      <div id="qNatural"></div>
+      <div class="eyebrow" style="color:rgba(255,255,255,.45);margin:22px 0 10px">Their length</div>
+      <div id="qLength"></div>
+    </div>
+    <div class="scanfoot">
+      <button class="btn" id="finish">
+        See my shape
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- 4 · the answer ------------------------------------------------- -->
+  <section class="step" data-step="4">
+    <div class="scanbody" style="padding:0" id="resultHost"></div>
+    <div class="scanfoot">
+      <button class="btn" id="saveScan">
+        Save this scan
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </section>
+</div>
+
+<div id="updbar" class="hidden" role="status">
+  <div class="t">A new version is ready<span>Nothing you have saved is affected.</span></div>
+  <button id="updGo">Update</button>
+  <button id="updNo" class="x" aria-label="Not now">Later</button>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>

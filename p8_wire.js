@@ -14,7 +14,9 @@ function paint() {
     // The bottom bar used to lead to a second, device-only app. Every one
     // of these now reads the database instead. See oma-two-apps.md.
     case "home": html = vHomeLive(); break;
-    case "salons": html = vNearby(); break;
+    // Searching, not just standing near somebody. Nearby is what it shows
+    // before anything is typed; see p16_find.js.
+    case "salons": html = vFind(); break;
     case "tech": html = vTechLive(ROUTE.a); break;
     case "pick": html = vTechLive(ROUTE.a); break;
     case "time": html = vTimeLive(); break;
@@ -32,7 +34,7 @@ function paint() {
     case "earnings": html = vWallet(); break;
     case "listing": html = vListing(); break;
     case "signin": html = vSignIn(); break;
-    case "nearby": html = vNearby(); break;
+    case "nearby": html = vFind(); break;
     case "techlive": html = vTechLive(ROUTE.a); break;
     case "timelive": html = vTimeLive(); break;
     case "pay": html = vPay(ROUTE.a); break;
@@ -42,17 +44,21 @@ function paint() {
     case "kyc": html = vKyc(); break;
     case "backend": html = vBackend(); break;
     case "job": html = vJob(ROUTE.a); break;
-    default: html = DB.role === "tech" ? vRequestsLive() : vNearby();
+    case "chat": html = vChat(ROUTE.a); break;
+    default: html = DB.role === "tech" ? vRequestsLive() : vFind();
   }
   if (typeof stopCamera === "function") stopCamera();
   // The map holds listeners on window and an animation frame of its own, so it
   // has to be dismantled before its container is thrown away.
   if (typeof stopMap === "function") stopMap();
+  if (typeof stopChat === "function") stopChat();
+  if (typeof stopFind === "function") stopFind();
   v.innerHTML = html;
-  const bare = ["welcome", "role", "signup", "setup", "signin"].includes(ROUTE.v);
+  const bare = ["welcome", "role", "signup", "setup", "signin", "chat"].includes(ROUTE.v);
   v.classList.toggle("nonav", bare || !DB.role);
   // Home is the one screen that fills its height instead of scrolling.
   v.classList.toggle("map", ROUTE.v === "home");
+  v.classList.toggle("chat", ROUTE.v === "chat");
   bottomNav();
   if (ROUTE.v === "sheet") paintSheetPreview();
   // Async screens fill themselves in after their frame is on the page.
@@ -72,7 +78,7 @@ document.getElementById("shell").addEventListener("click", e => {
   const a = el.dataset.a;
   const id = el.dataset.id;
   const fields = {};
-  ["fName", "fPhone", "fArea", "fDial"].forEach(k => {
+  ["fName", "fArea"].forEach(k => {
     const n = document.getElementById(k); if (n) fields[k] = n.value.trim();
   });
 
@@ -117,18 +123,31 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "otp-send") {
-    const n = document.getElementById("fSignPhone");
-    const phone = (n ? n.value : "").trim();
-    if (phone.replace(/\D/g, "").length < 7) return toast("That does not look like a phone number.");
-    SIGNIN.phone = phone;
-    return API.sendOtp(phone).then(() => { SIGNIN.sent = true; paint(); })
+    const n = document.getElementById("fSignEmail");
+    // Lower-cased and trimmed: a phone keyboard loves to capitalise the first
+    // letter, and Supabase treats Amaka@ and amaka@ as two different accounts.
+    const email = (n ? n.value : "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      return toast("That does not look like an email address.");
+    }
+    SIGNIN.email = email;
+    return API.sendOtp(email).then(() => { SIGNIN.sent = true; paint(); })
       .catch(err => toast(err.message));
   }
   if (a === "otp-again") { SIGNIN.sent = false; return paint(); }
   if (a === "otp-check") {
     const n = document.getElementById("fOtp");
-    return API.verifyOtp(SIGNIN.phone, (n ? n.value : "").trim())
-      .then(() => { toast("Signed in."); nav("nearby"); })
+    return API.verifyOtp(SIGNIN.email, (n ? n.value : "").trim())
+      .then(() => {
+        // She has just proved she owns this address, so it is the one thing
+        // about her identity this device can state without asking the server.
+        // Settings shows it, and without this the row read "Sign out" with
+        // nothing after it.
+        DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
+        dbSave();
+        toast("Signed in.");
+        nav("nearby");
+      })
       .catch(err => toast(err.message));
   }
   if (a === "google") {
@@ -145,8 +164,10 @@ document.getElementById("shell").addEventListener("click", e => {
     return nav("techlive", el.dataset.id);
   }
   // The map: tapping Close puts the short list back, and the arrow re-centres.
+  if (a === "send-msg") return sendMessage(el.dataset.id);
   if (a === "map-clear") return choosePin(null);
   if (a === "map-me") return recentreMap();
+  if (a === "ask-loc") return askLocation();
   if (a === "pick-time") return nav("timelive");
   // "day" and "slot" belong to the local booking flow in p6. These two are the
   // marketplace equivalents and must not shadow them.
@@ -169,13 +190,22 @@ document.getElementById("shell").addEventListener("click", e => {
 
   if (a === "copy-acct") return copy(el.dataset.v, "Account number copied.");
   if (a === "pretend") {
-    return API.pretendPaid(id).then(() => { toast("Payment received."); nav("ticket", id); })
-      .catch(err => toast(err.message));
+    return API.pretendPaid(id).then(() => {
+      toast("Payment received."); nav("ticket", id);
+      // The one place notifications are ever asked for. Asking on startup is
+      // how an app gets told no permanently; asking here, the reason is
+      // already on the screen.
+      if (typeof offerPushAfterBooking === "function") offerPushAfterBooking();
+    }).catch(err => toast(err.message));
   }
   if (a === "check-paid") {
     return API.bookings(true).then(list => {
       const b = list.find(x => x.id === id);
-      if (b && b.status === "paid") return nav("ticket", id);
+      if (b && b.status === "paid") {
+        nav("ticket", id);
+        if (typeof offerPushAfterBooking === "function") offerPushAfterBooking();
+        return;
+      }
       toast("Not landed yet — bank transfers can take a minute.");
     }).catch(err => toast(err.message));
   }
@@ -219,7 +249,11 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "back") return back();
-  if (a === "go") return nav(el.dataset.v);
+  // The id matters: bookingRow, the ticket button and the message button all
+  // say data-a="go" data-v="job" data-id="…". Dropping the id here sent every
+  // one of them to a screen with nothing to show, which read as "That
+  // appointment is gone." A tab has no id and passes undefined, as before.
+  if (a === "go") return nav(el.dataset.v, el.dataset.id);
   if (a === "tab") return nav(el.dataset.v);
   if (a === "startscan") return openScan();
   if (a === "theme") return toggleTheme();
@@ -241,15 +275,14 @@ document.getElementById("shell").addEventListener("click", e => {
     return locate(ll => {
       if (!ll) return;
       if (t === "biz") { DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll }); }
-      else { DB.me = Object.assign({}, DB.me, { name: fields.fName, phone: fields.fPhone, area: fields.fArea, ll }); }
+      else { DB.me = Object.assign({}, DB.me, { name: fields.fName, area: fields.fArea, ll }); }
       dbSave(); toast("Location pinned."); paint();
     });
   }
   if (a === "saveMe") {
     if (!fields.fName) return toast("Your name, at least — techs need something to call you.");
-    DB.dial = (fields.fDial || DB.dial).replace(/\D/g, "") || DB.dial;
     DB.me = Object.assign({}, DB.me, {
-      name: fields.fName, phone: fields.fPhone, area: fields.fArea,
+      name: fields.fName, area: fields.fArea,
       ll: (DB.me && DB.me.ll) || null
     });
     dbSave();
@@ -276,26 +309,53 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "saveBiz") {
     const b = Object.assign({ services: [] }, DB.biz, readBiz());
     if (!b.name) return toast("Your business needs a name.");
-    if (!b.phone) return toast("Add a WhatsApp number — that is how customers reach you.");
+    // There WAS a check here demanding a WhatsApp number. The field it guarded
+    // was removed when sign-in moved to email, and nothing removed the check —
+    // so every nail tech who tried to publish was told to fill in a box that is
+    // not on the screen, with no way past it. Customers reach her through the
+    // conversation in the app now, so there is nothing to replace it with.
     b.services = (b.services || []).filter(s => (s.n || "").trim());
     DB.biz = b; DB.cur = b.cur || DB.cur; dbSave();
     toast("Listing saved.");
     return nav("listing");
   }
   if (a === "shareMine" || a === "copyLink") {
-    const link = shareLink(DB.biz || {});
-    const txt = `${DB.biz.name} on Oma — my services, prices and hours:\n${link}`;
-    if (a === "shareMine" && navigator.share) {
-      navigator.share({ title: DB.biz.name, text: txt }).catch(() => {});
-      return;
-    }
-    return copy(link, "Link copied — paste it into WhatsApp.");
+    // Her id, not her details. Asking the backend for it also means the link
+    // cannot be handed out before she has actually listed herself.
+    return API.me().then((m) => {
+      const id = m && m.tech && m.tech.id;
+      if (!id) return toast("List yourself first — the link comes with the listing.");
+      const link = techLink(id);
+      const name = (m.tech.business_name || "My nails") + " on Oma";
+      if (a === "shareMine" && navigator.share) {
+        return navigator.share({ title: name, text: name + "\n" + link }).catch(() => {});
+      }
+      return copy(link, "Link copied — send it to anyone.");
+    }).catch((e) => toast(e.message));
   }
   if (a === "shareTech") {
     const t = DB.techs.find(x => x.id === id); if (!t) return;
     const link = location.origin + location.pathname + "#t=" +
       b64e(JSON.stringify({ n: t.n, a: t.a, ad: t.ad, p: t.p, d: t.d, y: t.y, c: t.c, ll: t.ll, o: t.o, cl: t.cl, s: t.s }));
     return copy(link, "Her link is copied — send it on.");
+  }
+  if (a === "push-toggle") return togglePush();
+  if (a === "push-why") return toast(el.dataset.v || "Notifications are not available here.");
+  if (a === "find-clear") { FQ = ""; paint(); const el = document.getElementById("qFind"); if (el) el.focus(); return; }
+  // The bridge from a scan result to somebody who does that shape.
+  if (a === "find-for") return findFor(el.dataset.v);
+  if (a === "paste-tech") {
+    const s = prompt("Paste the Oma link a nail tech sent you:");
+    if (!s) return;
+    const hit = s.match(UUID);
+    if (hit) return nav("techlive", hit[0]);
+    // Links made before the marketplace carried the whole listing in the URL.
+    // They point at a tech who exists only on the phone that made the link, so
+    // say that rather than opening a screen that cannot load.
+    if (/[#&]t=/.test(s)) {
+      return toast("That is an older link. Ask her to send a new one from My listing.");
+    }
+    return toast("That does not look like an Oma tech link.");
   }
   if (a === "paste") {
     const s = prompt("Paste the Oma link a nail tech sent you:");
@@ -383,29 +443,22 @@ document.getElementById("shell").addEventListener("click", e => {
 
 /* live search, typed rather than clicked */
 document.getElementById("shell").addEventListener("input", e => {
-  if (e.target.id === "qHome" || e.target.id === "qSalons") {
-    Q = e.target.value;
-    if (e.target.id === "qHome" && Q) { nav("salons"); const n = document.getElementById("qSalons"); if (n) { n.focus(); n.setSelectionRange(Q.length, Q.length); } }
-    else if (e.target.id === "qSalons") {
-      // repaint only the list, so the caret stays where it is
-      const host = document.querySelector("#view .pad.stack");
-      if (host) {
-        const list = sortedTechs().filter(t => (t.n + " " + t.a + " " + (t.s || []).map(s => s.n).join(" "))
-          .toLowerCase().includes(Q.toLowerCase()));
-        host.innerHTML = list.length ? list.map(t => techRow(t, true)).join("")
-          : `<div class="empty"><b>Nothing matched</b>Try a shorter search.</div>`;
-      }
-    }
-  }
-  if (e.target.id === "cartNote") CART.note = e.target.value;
+  if (e.target.id !== "qFind") return;
+  FQ = e.target.value;
+  // A search a keystroke behind is worse than one a quarter-second late, and
+  // firing on every letter would put four requests in the air for "gel ".
+  if (FTIMER) clearTimeout(FTIMER);
+  FTIMER = setTimeout(runFind, 260);
 });
 
 /* ══ actions ═════════════════════════════════════════ */
 function readBiz() {
   const g = k => { const n = document.getElementById(k); return n ? n.value.trim() : undefined; };
   const out = {};
-  const map = { bName: "name", bAddr: "address", bArea: "area", bPhone: "phone",
-                bDial: "dial", bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes" };
+  // No phone or dial any more: signing in is by email and techs are reached
+  // through the in-app conversation, not WhatsApp.
+  const map = { bName: "name", bAddr: "address", bArea: "area",
+                bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes" };
   for (const k in map) { const v = g(k); if (v !== undefined) out[map[k]] = v; }
   const svc = [];
   document.querySelectorAll("#svcList [data-s]").forEach(n => {
@@ -565,6 +618,41 @@ addEventListener("hashchange", () => {
   toast(t.n + " added.");
 });
 
+/* Someone tapped a tech's link. Straight to her page — no local copy, no
+   "added to your list": she is on the server and always was. */
+/* A tapped notification. The service worker put "#go=chat:<booking>" on the
+   URL, or messaged an already-open copy of the app. Neither knows what a
+   route is — this is the only place that turns one into the other. */
+function openFromNotification() {
+  const m = /[#&]go=([a-z]+)(?::([^&\s]+))?/i.exec(location.hash || "");
+  if (!m) return false;
+  const view = m[1], id = m[2] || null;
+  history.replaceState(null, "", location.pathname + location.search);
+  if (!DB.role) return false;          // nothing to open into yet
+  nav(view, id);
+  return true;
+}
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (!e.data || e.data.oma !== "open") return;
+    location.hash = (e.data.to || "").replace(/^#/, "");
+    openFromNotification();
+  });
+}
+
+function openTechLink() {
+  const id = techIdFromHash();
+  if (!id) return false;
+  if (!DB.role) { DB.role = "customer"; dbSave(); }
+  try { history.replaceState(null, "", location.pathname + location.search); }
+  catch (e) { /* file:// */ }
+  STACK.length = 0;
+  ROUTE = { v: "techlive", a: id };
+  paint();
+  return true;
+}
+addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink(); });
+
 (function boot() {
   // Google sends the session back in the URL fragment. Take it before anything
   // else looks at the hash, and before the address bar can be screenshotted
@@ -575,6 +663,9 @@ addEventListener("hashchange", () => {
     toast("Signed in.");
     return;
   }
+
+  if (openFromNotification()) return;
+  if (openTechLink()) return;
 
   const t = techFromHash();
   if (t) {

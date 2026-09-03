@@ -9,6 +9,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#f0518d">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Oma — nail scan &amp; booking</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -210,6 +214,89 @@ a{color:var(--pink);text-decoration:none}
   padding:0 14px 14px}
 .mapsheet .card{box-shadow:none;border-radius:16px}
 @media (prefers-reduced-motion:reduce){.mapsheet{transition:none}}
+/* Where the app thinks she is. Present whether the news is good or bad: a
+   screen that only speaks up when it has failed leaves her unable to tell a
+   real distance from a guessed one, which was the confusion. */
+.locline{display:flex;align-items:center;gap:7px;margin-bottom:10px;
+  padding:7px 11px;border-radius:12px;background:var(--goodbg);
+  color:var(--good);font-size:12px;font-weight:700}
+.locline svg{width:15px;height:15px;flex:none}
+.locline span{flex:1;min-width:0}
+.locline.rough{background:var(--warnbg);color:var(--warn)}
+.locline .lnk{color:inherit}
+
+/* an inline "do something about it" inside a note */
+.lnk{display:inline;padding:0;margin-left:4px;font:inherit;font-size:inherit;
+  font-weight:800;color:var(--pinkd);text-decoration:underline;
+  text-underline-offset:2px;background:none;border:0;cursor:pointer}
+
+/* ═══ how each shape fits ══════════════════════════════
+   One row per shape: the mark, the name, a bar, the number. The bar is the
+   quick read and the number is there for anyone who wants it. */
+.fitlist{display:flex;flex-direction:column;gap:2px;
+  border:1px solid var(--line);border-radius:18px;overflow:hidden;
+  background:var(--card)}
+.fitrow{display:flex;align-items:center;gap:11px;padding:10px 14px;
+  border-bottom:1px solid var(--line)}
+.fitrow:last-child{border-bottom:0}
+.fitrow.top{background:var(--tint)}
+.fitrow .fs{flex:none;width:24px;display:flex;justify-content:center}
+.fitrow .fn{flex:none;width:74px;font-size:13.5px;font-weight:700;
+  letter-spacing:-.01em}
+.fitrow.top .fn{color:var(--pinkd)}
+.fitrow .fb{flex:1;height:7px;border-radius:99px;background:var(--fill2);
+  overflow:hidden}
+.fitrow .fb i{display:block;height:100%;border-radius:99px;background:var(--pink);
+  min-width:3px}
+.fitrow.top .fb i{background:var(--grad)}
+.fitrow .fp{flex:none;width:40px;text-align:right;font-size:13px;
+  font-variant-numeric:tabular-nums;color:var(--sub)}
+.fitrow.top .fp{color:var(--pinkd)}
+.fitrow.out{opacity:.55}
+.fitrow.out .fx{flex:1;font-size:12px;color:var(--faint);text-align:right}
+
+/* ═══ a conversation ══════════════════════════════════
+   Its own full screen with no bottom bar: the composer needs the bottom edge,
+   and a tab bar under a keyboard is somewhere nobody wants to tap anyway. */
+#view.chat{overflow:hidden;padding-bottom:0;display:flex;flex-direction:column}
+/* The screen is painted inside the async host, so the host is the flex child
+   that has to grow — without this the whole conversation sizes to its content
+   and leaves a dead band under the composer. */
+#view.chat > #ahost{flex:1;min-height:0;display:flex;flex-direction:column}
+.chathead{flex:none;display:flex;align-items:center;gap:10px;
+  padding:calc(12px + env(safe-area-inset-top)) 14px 12px;
+  background:var(--card);border-bottom:1px solid var(--line)}
+.chatlog{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:10px 16px 14px;display:flex;flex-direction:column;gap:7px}
+.bub{max-width:78%;padding:9px 13px 7px;border-radius:18px;font-size:14.5px;
+  line-height:1.42;overflow-wrap:anywhere;white-space:pre-wrap}
+.bub.me{align-self:flex-end;background:var(--pink);color:var(--onpink);
+  border-bottom-right-radius:6px}
+.bub.them{align-self:flex-start;background:var(--fill);color:var(--ink);
+  border:1px solid var(--line);border-bottom-left-radius:6px}
+.bub .when{display:block;font-size:10.5px;margin-top:3px;opacity:.72;
+  text-align:right}
+.daysep{align-self:center;font-size:10.5px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--faint);margin:10px 0 2px}
+.composer{flex:none;display:flex;gap:9px;align-items:flex-end;
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--line);background:var(--card)}
+.composer textarea{
+  flex:1;min-height:44px;max-height:120px;resize:none;overflow-y:auto;
+  border:1px solid var(--line);border-radius:16px;padding:11px 14px;
+  background:var(--fill);color:var(--ink);line-height:1.35;
+  /* 16px exactly: anything smaller and iOS zooms the page on focus. */
+  font-size:16px}
+.composer textarea:focus{outline:2px solid var(--pink);outline-offset:1px}
+.composer .send{flex:none;width:44px;height:44px;border-radius:14px;
+  background:var(--grad);display:flex;align-items:center;justify-content:center}
+.composer .send:disabled{opacity:.45}
+/* how many she has not read, on a booking row */
+.unread{flex:none;min-width:20px;height:20px;padding:0 6px;border-radius:99px;
+  background:var(--pink);color:var(--onpink);font-size:11px;font-weight:800;
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-left:auto}
+
 /* the fallback: no Leaflet, so the map area becomes an ordinary scrolling list */
 .maplist{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
   padding-bottom:var(--navgap)}
@@ -618,6 +705,11 @@ h3{font-size:16px}
 .bx{fill:rgba(255,127,174,.16);stroke:#ff7fae;stroke-width:.35%;vector-effect:non-scaling-stroke}
 .bx.ghosted{fill:rgba(255,255,255,.06);stroke:rgba(255,255,255,.42)}
 .bx.unread{fill:rgba(224,169,68,.14);stroke:#e0a944;stroke-dasharray:6 5}
+/* On the reading screen the whole hand is in frame, so a nail is only a few
+   dozen pixels across and the marking screen's stroke turns each outline
+   into a solid pink blob. Thin enough to read as an outline. */
+#ov3 .bx{stroke-width:2}
+#ov3 .bx.unread{stroke-dasharray:4 3}
 .cross{stroke:rgba(255,255,255,.85);stroke-width:1.5;vector-effect:non-scaling-stroke}
 .hd{fill:#fff;stroke:#f0518d;stroke-width:2;vector-effect:non-scaling-stroke}
 .lineseg{stroke:#ff7fae;stroke-width:3;vector-effect:non-scaling-stroke;stroke-linecap:round}

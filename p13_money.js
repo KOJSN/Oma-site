@@ -59,7 +59,7 @@ function afterPaint() {
 const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
 
 /* ── 20 sign in ───────────────────────────────────────── */
-let SIGNIN = { phone: "", sent: false };
+let SIGNIN = { email: "", sent: false };
 
 function vSignIn() {
   const s = SIGNIN;
@@ -72,25 +72,24 @@ function vSignIn() {
 
     ${!s.sent ? `
       <label class="fld">
-        <span class="lbl">Phone number</span>
-        <input id="fSignPhone" type="tel" inputmode="tel" autocomplete="tel"
-               placeholder="0801 234 5678" value="${esc(s.phone)}">
+        <span class="lbl">Email address</span>
+        <input id="fSignEmail" type="email" inputmode="email" autocomplete="email"
+               autocapitalize="none" spellcheck="false"
+               placeholder="you@example.com" value="${esc(s.email)}">
       </label>
       <button class="btn" data-a="otp-send">Send me a code</button>
-      <div class="or"><span>or</span></div>
-      <button class="btn ghost" data-a="google">Continue with Google</button>
       <div class="tiny sub" style="text-align:center">
         We only ever use this to know it is you.</div>
     ` : `
       <div class="note"><div>We sent a six-digit code to
-        <b>${esc(s.phone)}</b>.</div></div>
+        <b>${esc(s.email)}</b>. It can take a minute, and it may land in spam.</div></div>
       <label class="fld">
         <span class="lbl">The code</span>
         <input id="fOtp" type="text" inputmode="numeric" autocomplete="one-time-code"
                maxlength="6" placeholder="000000" style="letter-spacing:.4em;font-size:22px">
       </label>
       <button class="btn" data-a="otp-check">Sign in</button>
-      <button class="btn ghost sm" data-a="otp-again">Use a different number</button>
+      <button class="btn ghost sm" data-a="otp-again">Use a different email</button>
     `}
   </div>`;
 }
