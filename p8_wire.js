@@ -9,8 +9,11 @@ function paint() {
     case "welcome": html = vWelcome(); break;
     case "role": html = vRole(); break;
     case "signup": html = vSignup(); break;
-    case "setup": html = vSetup(false); break;
-    case "editbiz": html = vSetup(true); break;
+    // The listing EDITOR is where a tech sets her prices, so it is where she
+    // is told what Oma and Paystack take. The lines are filled after the paint
+    // because they are computed from the values the paint just wrote.
+    case "setup": html = vSetup(false); setTimeout(drawKeepLines, 0); break;
+    case "editbiz": html = vSetup(true); setTimeout(drawKeepLines, 0); break;
     // The bottom bar used to lead to a second, device-only app. Every one
     // of these now reads the database instead. See oma-two-apps.md.
     case "home": html = vHomeLive(); break;

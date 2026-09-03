@@ -420,8 +420,10 @@ function vSetup(edit) {
 
     <div class="note mt16">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8.2v.1"/></svg>
-      <div>Everything here travels inside the link you share. There is no Oma directory to be
-        listed in — a customer sees you because you sent them the link.</div>
+      <div><b>Oma charges ₦250 for each completed service</b>, plus 2% of anything
+        a service costs above ₦30,000. It comes off when you scan the client's
+        code — if an appointment is refunded because you never scanned, you are
+        charged nothing. The card fee shown above is Paystack's, not ours.</div>
     </div>
     <div style="margin-top:auto;padding-top:22px">
       <button class="btn" data-a="saveBiz">${edit ? "Save changes" : "Publish my listing"} ${I.arrow()}</button>
@@ -445,6 +447,7 @@ function svcEditor(list, cur) {
         <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
         <span class="tiny faint">min</span></span>
     </div>
+    <div class="tiny" data-keep="${i}" style="margin-top:8px;min-height:15px"></div>
     <div class="pills mt12">${SERVICE_SHAPES.map(sh =>
       `<button class="pill ${(s.sh || []).includes(sh) ? "on" : ""}" data-a="svcShape" data-i="${i}" data-sh="${sh}"
         style="text-transform:capitalize">${sh}</button>`).join("")}</div>

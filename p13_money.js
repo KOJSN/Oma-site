@@ -466,6 +466,9 @@ const LEDGER_WORDS = {
   payout: "Withdrawn",
   refund: "Refunded to client",
   auto_refund_no_scan: "Auto-refunded — never scanned",
+  // Named, not hidden. A deduction a tech cannot point at is a deduction she
+  // assumes is bigger than it is.
+  oma_fee: "Oma's fee",
 };
 const ledgerWords = (k) => LEDGER_WORDS[k] || k.replace(/_/g, " ");
 
