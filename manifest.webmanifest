@@ -1,0 +1,16 @@
+{
+  "name": "Oma — nail scan & booking",
+  "short_name": "Oma",
+  "description": "Find a nail tech, scan your hands, book and pay in the app.",
+  "start_url": "/app.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#120e17",
+  "theme_color": "#120e17",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
