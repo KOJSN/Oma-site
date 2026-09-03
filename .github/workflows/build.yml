@@ -3,6 +3,13 @@ name: Build the app
 on:
   push:
     paths:
+      - "p*.js"
+      - "p*.html"
+      - "core_*.js"
+      - "rules.min.json"
+      - "libheif-bundle.js"
+      - "sw.js.template"
+      - "vapid_public.txt"
       - "src/**"
       - "build.py"
       - ".github/workflows/build.yml"
@@ -21,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build app.html and sw.js from src/
+      - name: Build app.html and sw.js
         run: python3 build.py
 
       - name: Check it is a whole page
