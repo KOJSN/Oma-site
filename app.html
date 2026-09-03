@@ -47,6 +47,14 @@
   --good:#1b9e5a; --goodbg:rgba(27,158,90,.12);
   --warn:#b8791b; --warnbg:rgba(184,121,27,.12);
   --grad:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
+  /* The welcome screen. It had its colours written into the markup — a dark
+     ground and white ink, whatever the phone was set to — so somebody in
+     light mode met a black screen before they had seen anything else. These
+     are tokens like everything else now, defined light-first and overridden
+     for dark twice, so the very first screen follows the phone. */
+  --wel-bg:#fdf6fa; --wel-ink:#181220; --wel-sub:#6c6377;
+  --wel-glow1:rgba(240,81,141,.26); --wel-glow2:rgba(255,138,184,.20);
+  --wel-dot:#181220; --wel-dot-off:rgba(24,18,32,.22);
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -59,6 +67,9 @@
     --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
     --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
     --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+    --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
+    --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
+    --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
   }
 }
 :root[data-theme="dark"]{
@@ -71,6 +82,9 @@
   --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
   --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
   --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+  --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
+  --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
+  --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
 }
 
 *,*::before,*::after{box-sizing:border-box}
@@ -1014,7 +1028,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "b443b97f00";
+const BUILD_ID = "70a94ccb8c";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -4289,6 +4303,10 @@ function dbLoad() {
   }
   d.scans = d.scans || []; d.techs = d.techs || [];
   d.bookings = d.bookings || []; d.jobs = d.jobs || [];
+  // A customer's pinned coordinates, from before distance was asked live.
+  // Dropped rather than migrated: a stale pin is exactly the thing that made
+  // "2 km away" wrong for anybody who had moved since tapping GPS.
+  if (d.me && d.me.ll) delete d.me.ll;
   return d;
 }
 function dbSave() {
@@ -4327,7 +4345,11 @@ function bearing(a, b) {
     Math.sin(a[0] * r) * Math.cos(b[0] * r) * Math.cos((b[1] - a[1]) * r);
   return Math.atan2(y, x);
 }
-function myPos() { return (DB.me && DB.me.ll) || (DB.biz && DB.biz.ll) || null; }
+/* A TECH has a pin, because a salon is a place. A customer does not: she
+   moves, so her distance is asked of the phone each time it is needed rather
+   than remembered from whenever she last tapped GPS. DB.me.ll is no longer
+   read anywhere, and dbLoad drops it. */
+function myPos() { return (DB.biz && DB.biz.ll) || null; }
 function locate(cb) {
   if (!navigator.geolocation) { cb(null); return; }
   toast("Asking your browser for your location…");
@@ -4551,28 +4573,31 @@ function bottomNav() {
 
 /* ══ 01 welcome ══════════════════════════════════════ */
 function vWelcome() {
-  // The mark is a pink tile. On the pink ground this screen used to have, it
-  // disappeared into its own background — so the ground goes dark and the
-  // brand colour is spent on the mark and the button instead.
-  return `<div style="min-height:100dvh;background:#120e17;
-      color:#fff;display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
-    <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(240,81,141,.55),transparent 68%)"></div>
-    <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,143,186,.28),transparent 70%)"></div>
+  // The mark is a pink tile, so the ground cannot also be pink or it vanishes
+  // into its own background. It used to be a hard-coded dark ground with white
+  // ink, which meant somebody whose phone is in light mode met a black screen
+  // as the very first thing Oma showed them. Every colour here is a token now
+  // — see --wel-* in p1_head.html — so this screen follows the phone like the
+  // rest of the app.
+  return `<div style="min-height:100dvh;background:var(--wel-bg);
+      color:var(--wel-ink);display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
+    <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow1),transparent 68%)"></div>
+    <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow2),transparent 70%)"></div>
     <div style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-top:calc(60px + env(safe-area-inset-top))">
       <div style="margin-bottom:auto">${logoMark(78)}</div>
       <div style="font-size:56px;font-weight:800;letter-spacing:-.05em;line-height:.9;margin-top:36px">oma</div>
-      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;opacity:.72;max-width:300px">
+      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;color:var(--wel-sub);max-width:300px">
         Scan your hands, find the nail shape that actually suits them, and book the tech who does it.
       </div>
       <div class="dots" style="margin:26px 0 22px;max-width:60px">
-        <i style="background:#fff;flex:none;width:22px"></i>
-        <i style="background:rgba(255,255,255,.45);flex:none;width:5px"></i>
-        <i style="background:rgba(255,255,255,.45);flex:none;width:5px"></i>
+        <i style="background:var(--wel-dot);flex:none;width:22px"></i>
+        <i style="background:var(--wel-dot-off);flex:none;width:5px"></i>
+        <i style="background:var(--wel-dot-off);flex:none;width:5px"></i>
       </div>
       <button class="btn" style="background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#e0447f);color:#fff"
         data-a="go" data-v="role">Get started ${I.arrow()}</button>
-      <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;opacity:.7;line-height:1.5">
-        No account, no sign-in. Everything stays on this phone.
+      <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;color:var(--wel-sub);line-height:1.5">
+        Your photos are measured on this phone and never leave it.
       </div>
     </div>
   </div>`;
@@ -4629,12 +4654,13 @@ function vSignup() {
         <input id="fName" value="${esc(m.name || "")}" placeholder="What should techs call you?"></span></label>
     <label class="field"><span class="lab">Your area</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-        <input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos">
-        <span class="act" data-a="gps" data-t="me">${myPos() ? "Pinned" : "GPS"}</span></span></label>
+        <input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
     <div class="note pink">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>
-      <div>Your area only sorts nail techs by distance. Nothing reaches a tech until you send
-        them a booking yourself.</div>
+      <div>This is just a label for your bookings. <b>Distance comes from your
+        phone, fresh, each time you search</b> — so it is right wherever you
+        happen to be, not wherever you were when you filled this in. Nothing
+        reaches a tech until you send them a booking yourself.</div>
     </div>
     <div style="margin-top:auto;padding-top:24px">
       <button class="btn" data-a="saveMe">Save and continue ${I.arrow()}</button>
@@ -5382,8 +5408,9 @@ function vEditMe() {
     <label class="field"><span class="lab">Your name</span>
       <span class="inp"><input id="fName" value="${esc(m.name || "")}" placeholder="Your name"></span></label>
     <label class="field"><span class="lab">Your area</span>
-      <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos">
-        <span class="act" data-a="gps" data-t="me">${myPos() ? "Pinned" : "GPS"}</span></span></label>
+      <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
+    <div class="tiny faint" style="margin:-8px 0 16px">A label for your bookings.
+      How far away a tech is comes from your phone each time you search.</div>
     <button class="btn" data-a="saveMe" data-back="1">Save</button>
   </div>`;
 }
@@ -6849,7 +6876,13 @@ function whereAmI() {
         why: err && err.code === 1 ? "denied"
            : err && err.code === 3 ? "timeout" : "unavailable",
       })),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+      // maximumAge was a minute, so the browser could hand back a fix from
+      // wherever she was a minute ago. Zero means this really does ask the
+      // phone. Spamming the GPS is prevented one level up instead — the
+      // search screen reuses its answer for two minutes — which is the right
+      // place for it, because that layer knows whether a distance is even
+      // being shown.
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   });
 }
@@ -7061,7 +7094,23 @@ async function sendMessage(bookingId) {
    result screen's button lands here with the shape already typed.           */
 
 let FQ = "";              // what she has typed, kept across screens
-let FPOS = null;          // where she is, asked once
+/* Where she is, and WHEN we asked.
+
+   Kamsy: "customer locations should not be pinned, they are not shops, they
+   move around". She is right, and this was the worst offender — it asked the
+   phone once and reused that answer for the whole session, so somebody who
+   searched in Yaba and then drove to Lekki was still being sorted by where
+   she had been an hour ago.
+
+   Worth being straight about the limit: a web page cannot follow anybody
+   around in the background, and should not try. What it can do is take a
+   FRESH fix whenever a screen actually needs a distance, and that is what
+   this does — the answer is reused for two minutes, which is short enough
+   that a journey moves it and long enough that typing four letters does not
+   wake the GPS four times. */
+let FPOS = null;
+let FPOSAT = 0;
+const POS_STALE_MS = 120000;
 let FSEQ = 0;             // which search is the current one
 let FTIMER = null;
 
@@ -7129,10 +7178,12 @@ async function runFind() {
 
   // Asked once per session, and never blocking: without it search still works,
   // it just cannot say how far anything is.
-  if (FPOS === null && typeof whereAmI === "function") {
+  if ((FPOS === null || Date.now() - FPOSAT > POS_STALE_MS) &&
+      typeof whereAmI === "function") {
     const p = await whereAmI();
     if (mine !== FSEQ) return;
     FPOS = p && !p.guessed ? p : false;
+    FPOSAT = Date.now();
   }
 
   let list;
@@ -8188,20 +8239,22 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "gps") {
-    const t = el.dataset.t;
+    // Techs only. A salon is a place and stays where it is; a customer moves,
+    // so her distance is asked of the phone when a screen needs it rather than
+    // pinned once and trusted for ever.
+    if (el.dataset.t !== "biz") return;
     return locate(ll => {
       if (!ll) return;
-      if (t === "biz") { DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll }); }
-      else { DB.me = Object.assign({}, DB.me, { name: fields.fName, area: fields.fArea, ll }); }
-      dbSave(); toast("Location pinned."); paint();
+      DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll });
+      dbSave(); toast("Shop location pinned."); paint();
     });
   }
   if (a === "saveMe") {
     if (!fields.fName) return toast("Your name, at least — techs need something to call you.");
     DB.me = Object.assign({}, DB.me, {
       name: fields.fName, area: fields.fArea,
-      ll: (DB.me && DB.me.ll) || null
     });
+    delete DB.me.ll;      // a customer has no pin; see myPos()
     dbSave();
     return el.dataset.back ? (toast("Saved."), back()) : nav("home");
   }
