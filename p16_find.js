@@ -14,7 +14,23 @@
    result screen's button lands here with the shape already typed.           */
 
 let FQ = "";              // what she has typed, kept across screens
-let FPOS = null;          // where she is, asked once
+/* Where she is, and WHEN we asked.
+
+   Kamsy: "customer locations should not be pinned, they are not shops, they
+   move around". She is right, and this was the worst offender — it asked the
+   phone once and reused that answer for the whole session, so somebody who
+   searched in Yaba and then drove to Lekki was still being sorted by where
+   she had been an hour ago.
+
+   Worth being straight about the limit: a web page cannot follow anybody
+   around in the background, and should not try. What it can do is take a
+   FRESH fix whenever a screen actually needs a distance, and that is what
+   this does — the answer is reused for two minutes, which is short enough
+   that a journey moves it and long enough that typing four letters does not
+   wake the GPS four times. */
+let FPOS = null;
+let FPOSAT = 0;
+const POS_STALE_MS = 120000;
 let FSEQ = 0;             // which search is the current one
 let FTIMER = null;
 
@@ -82,10 +98,12 @@ async function runFind() {
 
   // Asked once per session, and never blocking: without it search still works,
   // it just cannot say how far anything is.
-  if (FPOS === null && typeof whereAmI === "function") {
+  if ((FPOS === null || Date.now() - FPOSAT > POS_STALE_MS) &&
+      typeof whereAmI === "function") {
     const p = await whereAmI();
     if (mine !== FSEQ) return;
     FPOS = p && !p.guessed ? p : false;
+    FPOSAT = Date.now();
   }
 
   let list;

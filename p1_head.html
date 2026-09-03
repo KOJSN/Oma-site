@@ -47,6 +47,14 @@
   --good:#1b9e5a; --goodbg:rgba(27,158,90,.12);
   --warn:#b8791b; --warnbg:rgba(184,121,27,.12);
   --grad:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
+  /* The welcome screen. It had its colours written into the markup — a dark
+     ground and white ink, whatever the phone was set to — so somebody in
+     light mode met a black screen before they had seen anything else. These
+     are tokens like everything else now, defined light-first and overridden
+     for dark twice, so the very first screen follows the phone. */
+  --wel-bg:#fdf6fa; --wel-ink:#181220; --wel-sub:#6c6377;
+  --wel-glow1:rgba(240,81,141,.26); --wel-glow2:rgba(255,138,184,.20);
+  --wel-dot:#181220; --wel-dot-off:rgba(24,18,32,.22);
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -59,6 +67,9 @@
     --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
     --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
     --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+    --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
+    --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
+    --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
   }
 }
 :root[data-theme="dark"]{
@@ -71,6 +82,9 @@
   --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
   --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
   --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+  --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
+  --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
+  --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
 }
 
 *,*::before,*::after{box-sizing:border-box}

@@ -26,6 +26,10 @@ function dbLoad() {
   }
   d.scans = d.scans || []; d.techs = d.techs || [];
   d.bookings = d.bookings || []; d.jobs = d.jobs || [];
+  // A customer's pinned coordinates, from before distance was asked live.
+  // Dropped rather than migrated: a stale pin is exactly the thing that made
+  // "2 km away" wrong for anybody who had moved since tapping GPS.
+  if (d.me && d.me.ll) delete d.me.ll;
   return d;
 }
 function dbSave() {
@@ -64,7 +68,11 @@ function bearing(a, b) {
     Math.sin(a[0] * r) * Math.cos(b[0] * r) * Math.cos((b[1] - a[1]) * r);
   return Math.atan2(y, x);
 }
-function myPos() { return (DB.me && DB.me.ll) || (DB.biz && DB.biz.ll) || null; }
+/* A TECH has a pin, because a salon is a place. A customer does not: she
+   moves, so her distance is asked of the phone each time it is needed rather
+   than remembered from whenever she last tapped GPS. DB.me.ll is no longer
+   read anywhere, and dbLoad drops it. */
+function myPos() { return (DB.biz && DB.biz.ll) || null; }
 function locate(cb) {
   if (!navigator.geolocation) { cb(null); return; }
   toast("Asking your browser for your location…");
@@ -288,28 +296,31 @@ function bottomNav() {
 
 /* ══ 01 welcome ══════════════════════════════════════ */
 function vWelcome() {
-  // The mark is a pink tile. On the pink ground this screen used to have, it
-  // disappeared into its own background — so the ground goes dark and the
-  // brand colour is spent on the mark and the button instead.
-  return `<div style="min-height:100dvh;background:#120e17;
-      color:#fff;display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
-    <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(240,81,141,.55),transparent 68%)"></div>
-    <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,143,186,.28),transparent 70%)"></div>
+  // The mark is a pink tile, so the ground cannot also be pink or it vanishes
+  // into its own background. It used to be a hard-coded dark ground with white
+  // ink, which meant somebody whose phone is in light mode met a black screen
+  // as the very first thing Oma showed them. Every colour here is a token now
+  // — see --wel-* in p1_head.html — so this screen follows the phone like the
+  // rest of the app.
+  return `<div style="min-height:100dvh;background:var(--wel-bg);
+      color:var(--wel-ink);display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
+    <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow1),transparent 68%)"></div>
+    <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow2),transparent 70%)"></div>
     <div style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-top:calc(60px + env(safe-area-inset-top))">
       <div style="margin-bottom:auto">${logoMark(78)}</div>
       <div style="font-size:56px;font-weight:800;letter-spacing:-.05em;line-height:.9;margin-top:36px">oma</div>
-      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;opacity:.72;max-width:300px">
+      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;color:var(--wel-sub);max-width:300px">
         Scan your hands, find the nail shape that actually suits them, and book the tech who does it.
       </div>
       <div class="dots" style="margin:26px 0 22px;max-width:60px">
-        <i style="background:#fff;flex:none;width:22px"></i>
-        <i style="background:rgba(255,255,255,.45);flex:none;width:5px"></i>
-        <i style="background:rgba(255,255,255,.45);flex:none;width:5px"></i>
+        <i style="background:var(--wel-dot);flex:none;width:22px"></i>
+        <i style="background:var(--wel-dot-off);flex:none;width:5px"></i>
+        <i style="background:var(--wel-dot-off);flex:none;width:5px"></i>
       </div>
       <button class="btn" style="background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#e0447f);color:#fff"
         data-a="go" data-v="role">Get started ${I.arrow()}</button>
-      <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;opacity:.7;line-height:1.5">
-        No account, no sign-in. Everything stays on this phone.
+      <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;color:var(--wel-sub);line-height:1.5">
+        Your photos are measured on this phone and never leave it.
       </div>
     </div>
   </div>`;
@@ -366,12 +377,13 @@ function vSignup() {
         <input id="fName" value="${esc(m.name || "")}" placeholder="What should techs call you?"></span></label>
     <label class="field"><span class="lab">Your area</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-        <input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos">
-        <span class="act" data-a="gps" data-t="me">${myPos() ? "Pinned" : "GPS"}</span></span></label>
+        <input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
     <div class="note pink">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>
-      <div>Your area only sorts nail techs by distance. Nothing reaches a tech until you send
-        them a booking yourself.</div>
+      <div>This is just a label for your bookings. <b>Distance comes from your
+        phone, fresh, each time you search</b> — so it is right wherever you
+        happen to be, not wherever you were when you filled this in. Nothing
+        reaches a tech until you send them a booking yourself.</div>
     </div>
     <div style="margin-top:auto;padding-top:24px">
       <button class="btn" data-a="saveMe">Save and continue ${I.arrow()}</button>

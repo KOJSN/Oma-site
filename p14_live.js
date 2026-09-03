@@ -640,7 +640,13 @@ function whereAmI() {
         why: err && err.code === 1 ? "denied"
            : err && err.code === 3 ? "timeout" : "unavailable",
       })),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+      // maximumAge was a minute, so the browser could hand back a fix from
+      // wherever she was a minute ago. Zero means this really does ask the
+      // phone. Spamming the GPS is prevented one level up instead — the
+      // search screen reuses its answer for two minutes — which is the right
+      // place for it, because that layer knows whether a distance is even
+      // being shown.
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   });
 }

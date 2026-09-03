@@ -189,8 +189,9 @@ function vEditMe() {
     <label class="field"><span class="lab">Your name</span>
       <span class="inp"><input id="fName" value="${esc(m.name || "")}" placeholder="Your name"></span></label>
     <label class="field"><span class="lab">Your area</span>
-      <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos">
-        <span class="act" data-a="gps" data-t="me">${myPos() ? "Pinned" : "GPS"}</span></span></label>
+      <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
+    <div class="tiny faint" style="margin:-8px 0 16px">A label for your bookings.
+      How far away a tech is comes from your phone each time you search.</div>
     <button class="btn" data-a="saveMe" data-back="1">Save</button>
   </div>`;
 }

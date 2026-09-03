@@ -291,20 +291,22 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "gps") {
-    const t = el.dataset.t;
+    // Techs only. A salon is a place and stays where it is; a customer moves,
+    // so her distance is asked of the phone when a screen needs it rather than
+    // pinned once and trusted for ever.
+    if (el.dataset.t !== "biz") return;
     return locate(ll => {
       if (!ll) return;
-      if (t === "biz") { DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll }); }
-      else { DB.me = Object.assign({}, DB.me, { name: fields.fName, area: fields.fArea, ll }); }
-      dbSave(); toast("Location pinned."); paint();
+      DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll });
+      dbSave(); toast("Shop location pinned."); paint();
     });
   }
   if (a === "saveMe") {
     if (!fields.fName) return toast("Your name, at least — techs need something to call you.");
     DB.me = Object.assign({}, DB.me, {
       name: fields.fName, area: fields.fArea,
-      ll: (DB.me && DB.me.ll) || null
     });
+    delete DB.me.ll;      // a customer has no pin; see myPos()
     dbSave();
     return el.dataset.back ? (toast("Saved."), back()) : nav("home");
   }
