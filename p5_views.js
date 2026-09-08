@@ -393,8 +393,22 @@ function vSignup() {
 
 /* ══ 04 the tech's listing ═══════════════════════════ */
 const SERVICE_SHAPES = ["oval", "round", "square", "squoval", "almond", "coffin", "stiletto"];
+
+/* The state is what the whole-state map is drawn from — "show me everyone in
+   Lagos", not only everyone within 15 km. All 36 and the FCT, because Oma is
+   not only a Lagos app and a list that stops at six states tells a tech in
+   Enugu she is not wanted. */
+const NG_STATES = ["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa",
+  "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu",
+  "FCT — Abuja", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi",
+  "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo",
+  "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"];
 function vSetup(edit) {
   const b = DB.biz || { services: [] };
+  // Default true: a listing made before this question existed described a
+  // shop, and quietly turning those techs into travelling ones would take
+  // every one of them off the map until she found this screen again.
+  const shop = b.hasSalon !== false;
   return `<div class="pad" style="min-height:100dvh;display:flex;flex-direction:column;
       padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(30px + env(safe-area-inset-bottom))">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
@@ -402,14 +416,46 @@ function vSetup(edit) {
       <div style="font-size:15px;font-weight:700">${edit ? "Edit your listing" : "Set up your listing"}</div>
     </div>
     ${edit ? "" : `<h2 style="font-size:24px;line-height:1.2;margin-bottom:18px">Tell customers where to find you</h2>`}
+
+    <!-- Asked FIRST, because the answer changes the rest of the form. A salon
+         is a place with an address; a tech who travels is not a place at all,
+         and giving her an address box to fill in is what produces a pin that
+         is wrong by Tuesday. -->
+    <div class="lbl" style="margin-bottom:7px">Do you have a salon?</div>
+    <div class="pick">
+      <button type="button" class="${shop ? "on" : ""}" data-a="has-salon" data-v="1">
+        <b>Yes, a shop</b><em>Customers come to one address. Oma shows it, and
+          it stays put.</em></button>
+      <button type="button" class="${shop ? "" : "on"}" data-a="has-salon" data-v="0">
+        <b>No, I travel</b><em>Oma shows where you are while you are working,
+          and takes you off the map when you stop.</em></button>
+    </div>
+    ${shop ? "" : `<div class="note pink" style="margin-bottom:14px">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
+      <div><b>You will not be found unless your phone is telling Oma where you
+        are.</b> There is a switch for it below — turn it on when you start
+        work and off when you finish. Oma keeps where you are now, and no
+        record of where you have been.</div></div>`}
+
     <label class="field"><span class="lab">Business name</span>
       <span class="inp">${I.shop()}<input id="bName" value="${esc(b.name || "")}" placeholder="Thandi Nails Studio"></span></label>
-    <label class="field"><span class="lab">Street &amp; shop number</span>
+    ${shop ? `<label class="field"><span class="lab">Street &amp; shop number</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>
-    <label class="field"><span class="lab">Area</span>
-      <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
-        <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span></span></label>
+        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>` : ""}
+    <div style="display:flex;gap:10px">
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Area</span>
+        <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
+          <!-- Only a shop gets a pin. A tech who travels has no fixed point to
+               pin, and a button offering her one would be a promise Oma
+               cannot keep. -->
+          ${shop ? `<span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>` : ""}
+        </span></label>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
+        <span class="inp"><select id="bState">
+          <option value="">Choose…</option>
+          ${NG_STATES.map(x => `<option ${(b.state || "") === x ? "selected" : ""}>${x}</option>`).join("")}
+        </select></span></label>
+    </div>
     <div style="display:flex;gap:10px">
       <label class="field" style="flex:1;min-width:0"><span class="lab">Currency</span>
         <span class="inp"><select id="bCur">${["₦", "R", "$", "£", "€", "GH₵", "KSh"].map(c =>
@@ -423,6 +469,9 @@ function vSetup(edit) {
       <label class="field" style="flex:1;min-width:0"><span class="lab">Closes</span>
         <span class="inp"><input id="bClose" type="time" value="${esc(b.closes || "18:00")}"></span></label>
     </div>
+
+    ${shop ? "" : `<div class="lbl" style="margin:4px 0 7px">Working right now</div>
+      ${workingCard()}<div style="height:14px"></div>`}
 
     <div class="rowbetween" style="margin:6px 0 10px">
       <div style="font-size:14.5px;font-weight:800;letter-spacing:-.02em">Your service menu</div>

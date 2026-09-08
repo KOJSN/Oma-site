@@ -195,7 +195,10 @@ a{color:var(--pink);text-decoration:none}
 .mepin{width:16px;height:16px;border-radius:50%;background:#2f7cf6;
   border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,124,246,.2)}
 
-.mapbtns{position:absolute;top:calc(92px + env(safe-area-inset-top));right:14px;z-index:5;
+/* Below the greeting AND below the scope pill — they used to share the same
+   strip, and the greeting card, which is painted last, silently swallowed
+   every tap meant for the scope. */
+.mapbtns{position:absolute;top:calc(132px + env(safe-area-inset-top));right:14px;z-index:5;
   display:flex;flex-direction:column;gap:10px}
 .mapbtn{width:46px;height:46px;border-radius:16px;background:var(--card);
   border:1px solid var(--line);box-shadow:var(--card-shadow);
@@ -584,6 +587,32 @@ h3{font-size:16px}
   box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
 .switch.on{background:var(--pink)}
 .switch.on i{transform:translateX(19px)}
+
+/* ═══ working, and where ══════════════════════════════
+   The two-way question at the top of a tech's listing — shop, or no shop —
+   and the switch a tech with no shop lives by. Every colour is a token: the
+   .choice block further down is hard-wired white because it sits inside the
+   dark scan screen, and reusing it here is exactly how the welcome screen
+   ended up black in light mode. */
+.pick{display:flex;gap:10px;margin:2px 0 16px}
+.pick button{flex:1;min-width:0;text-align:left;padding:13px 14px;border-radius:16px;
+  border:1.5px solid var(--line);background:var(--fill);color:var(--ink);cursor:pointer}
+.pick button.on{border-color:var(--pink);background:var(--tint)}
+.pick b{display:block;font-size:14.5px;font-weight:800;letter-spacing:-.02em}
+.pick em{font-style:normal;display:block;margin-top:3px;font-size:12px;
+  color:var(--sub);font-weight:500;line-height:1.4}
+.card.work{border:1.5px solid var(--line)}
+.card.work.on{border-color:var(--good);background:var(--goodbg)}
+/* The map's scope: near me, or the whole state. */
+.scope{position:absolute;top:calc(74px + env(safe-area-inset-top));left:50%;
+  transform:translateX(-50%);z-index:420;display:flex;gap:4px;padding:4px;
+  border-radius:99px;background:var(--card);border:1px solid var(--line);
+  box-shadow:0 6px 18px rgba(0,0,0,.16);max-width:min(92vw,340px)}
+.scope button,.scope select{padding:7px 14px;border-radius:99px;font-size:12.5px;
+  font-weight:700;color:var(--sub);background:transparent;border:0;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-family:inherit;
+  -webkit-appearance:none;appearance:none;max-width:170px}
+.scope button.on,.scope select.on{background:var(--pink);color:var(--onpink)}
 
 /* ═══ empty states ═══════════════════════════════════════ */
 /* ═══ the live lists ══════════════════════════════════

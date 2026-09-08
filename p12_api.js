@@ -195,6 +195,19 @@ const API = (() => {
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
     nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.nearby(lat, lng, km),
     search:        (q, lat, lng)            => live() ? rpc("api_search", { p_q: q || "", p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng }) : MOCK.search(q, lat, lng),
+
+    /* Where a nail tech who has no shop is RIGHT NOW. A salon has an address
+       and never touches any of these; see live.sql for why a travelling tech
+       gets a heartbeat instead of a pin, and p20_live.js for what sends it. */
+    pingPosition:  (lat, lng, acc)          => live() ? rpc("api_ping_position", { p_lat: lat, p_lng: lng, p_acc: acc == null ? null : acc }) : MOCK.pingPosition(lat, lng, acc),
+    goOffline:     ()                       => live() ? rpc("api_go_offline") : MOCK.goOffline(),
+    myPresence:    ()                       => live() ? rpc("api_my_presence") : MOCK.myPresence(),
+    setMobility:   (hasSalon, state)        => live() ? rpc("api_set_mobility", { p_has_salon: !!hasSalon, p_state: state || null }) : MOCK.setMobility(!!hasSalon, state),
+
+    /* The whole-state map. api_nearby answers "who is within 15 km of me";
+       this answers "who does Oma have in Lagos at all". */
+    stateTechs:    (state, lat, lng)        => live() ? rpc("api_state_techs", { p_state: state, p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng, p_limit: 300 }) : MOCK.stateTechs(state, lat, lng),
+    states:        ()                       => live() ? rpc("api_states") : MOCK.states(),
     // A device, not a subscription. The database is deliberately incurious
     // about which kind of token this is; see push.sql.
     registerDevice:(platform, token, label)  => live() ? rpc("api_register_device", { p_platform: platform, p_token: token, p_label: label || null }) : MOCK.registerDevice(platform, token, label),
@@ -354,9 +367,14 @@ const API = (() => {
       ];
       names.forEach(([name, area, lat, lng, years]) => {
         const id = uid();
-        S.techs.push({ id, business_name: name, area, address: area + ", Lagos",
+        // Pretty Tips has no shop — she travels, and she is working now. The
+        // practice app needs one of each or the map cannot be checked.
+        const roams = name === "Pretty Tips";
+        S.techs.push({ id, business_name: name, area, address: roams ? null : area + ", Lagos",
                        lat, lng, years, currency: "NGN", opens: "09:00", closes: "18:00",
-                       kyc: "verified", listed: true });
+                       kyc: "verified", listed: true, state: "Lagos",
+                       has_salon: !roams,
+                       live_at: roams ? new Date().toISOString() : null });
         [["Acrylic full set", 120, 900000], ["Gel overlay", 75, 550000],
          ["Refill", 90, 650000], ["Soak off", 30, 200000]].forEach(([n, m, k]) => {
           S.services.push({ id: uid(), tech_id: id, name: n, minutes: m, price_kobo: k, active: true });
@@ -451,9 +469,74 @@ const API = (() => {
         if (lat != null) { u.lat = lat; u.lng = lng; }
         save(); return await MOCK.me();
       },
+      /* live.sql's tech_visible(), in the practice app. A salon is visible
+         once she has listed herself; a travelling tech only while her phone
+         is still saying where she is. 45 minutes, the same window. */
+      visible: (t) => !!t && !!t.listed && (t.has_salon !== false ||
+        (!!t.live_at && Date.now() - new Date(t.live_at).getTime() < 45 * 60000)),
+
+      pingPosition: async (lat, lng) => {
+        const s = load(), t = myTech();
+        if (!t) throw new Error("list yourself first");
+        if (t.has_salon !== false) throw new Error("this listing is a salon — its address does not move");
+        const moved = t.lat == null ? null : km(t.lat, t.lng, lat, lng) * 1000;
+        if (moved != null && moved > 100000) {
+          throw new Error("that fix is " + Math.round(moved / 1000) + " km from your last one");
+        }
+        t.lat = lat; t.lng = lng; t.live_at = new Date().toISOString();
+        save();
+        return [{ live_at: t.live_at, moved_m: moved, listed: t.listed }];
+      },
+      goOffline: async () => {
+        const t = myTech();
+        if (t && t.has_salon === false) { t.live_at = null; save(); }
+        return [{ live_at: (t && t.live_at) || null }];
+      },
+      myPresence: async () => {
+        const t = myTech();
+        if (!t) return [];
+        return [{ has_salon: t.has_salon !== false, state: t.state || null,
+                  live_at: t.live_at || null, listed: !!t.listed,
+                  visible: MOCK.visible(t),
+                  seconds_ago: t.live_at
+                    ? (Date.now() - new Date(t.live_at).getTime()) / 1000 : null }];
+      },
+      setMobility: async (hasSalon, state) => {
+        const t = myTech();
+        if (!t) throw new Error("list yourself first");
+        t.has_salon = !!hasSalon;
+        if (state) t.state = state;
+        if (hasSalon) t.live_at = null;
+        save();
+        return [{ has_salon: t.has_salon, state: t.state || null, live_at: t.live_at || null }];
+      },
+      stateTechs: async (state, lat, lng) => {
+        const s = load(), want = String(state || "").toLowerCase().trim();
+        return s.techs.filter(MOCK.visible)
+          .filter((t) => (t.state || "").toLowerCase() === want ||
+                         (!t.state && (t.area || "").toLowerCase().includes(want)))
+          .map((t) => {
+            const pin = HEX.snap(t.lat, t.lng);
+            return { ...t, address: null,
+                     km: lat == null ? null : km(lat, lng, t.lat, t.lng),
+                     lat: pin.lat, lng: pin.lng, cell: pin.cell, boundary: pin.boundary,
+                     from_kobo: Math.min(...s.services.filter((x) => x.tech_id === t.id).map((x) => x.price_kobo)) };
+          })
+          .sort((a, b) => (a.km == null ? 1 : b.km == null ? -1 : a.km - b.km));
+      },
+      states: async () => {
+        const out = {};
+        load().techs.filter(MOCK.visible).forEach((t) => {
+          const k = (t.state || "").trim() || "(not said)";
+          out[k] = (out[k] || 0) + 1;
+        });
+        return Object.keys(out).map((state) => ({ state, techs: out[state] }))
+          .sort((a, b) => b.techs - a.techs || a.state.localeCompare(b.state));
+      },
+
       nearby: async (lat, lng, radius) => {
         const s = load();
-        return s.techs.filter((t) => t.listed)
+        return s.techs.filter(MOCK.visible)
           .map((t) => {
             // Distance from where she really is; position from her hexagon.
             // The address is withheld exactly as the real one withholds it.
@@ -476,7 +559,10 @@ const API = (() => {
         const toks = query ? query.split(/\s+/) : null;
         const out = [];
         for (const t of s.techs) {
-          if (!t.listed) continue;
+          // Not just "listed": a travelling tech whose phone stopped reporting
+          // is off the map, and being searchable by name would be a way round
+          // that. See MOCK.visible and live.sql's tech_visible.
+          if (!MOCK.visible(t)) continue;
           const svcs = s.services.filter((x) => x.tech_id === t.id && x.active);
           const n = (t.business_name || "").toLowerCase();
           const a = (t.area || "").toLowerCase();

@@ -337,7 +337,21 @@ document.getElementById("shell").addEventListener("click", e => {
     // not on the screen, with no way past it. Customers reach her through the
     // conversation in the app now, so there is nothing to replace it with.
     b.services = (b.services || []).filter(s => (s.n || "").trim());
+    if (b.hasSalon === false) {
+      // No address to show, and keeping the one she typed before changing her
+      // answer would put a street on a listing that has no street.
+      b.address = "";
+      if (!b.state) return toast("Pick your state — it is how customers in your state find you.");
+    }
     DB.biz = b; DB.cur = b.cur || DB.cur; dbSave();
+    // The server needs to know, because it is what decides whether she is
+    // found by an address that never moves or by a phone that does. Failing
+    // this must not lose her listing, so it is reported and not thrown.
+    if (API.signedIn()) {
+      API.setMobility(b.hasSalon !== false, b.state || null)
+        .then(() => { if (b.hasSalon === false) liveResume(); })
+        .catch((e) => toast(e.message || "Saved here, but Oma did not get the change."));
+    }
     toast("Listing saved.");
     return nav("listing");
   }
@@ -360,6 +374,24 @@ document.getElementById("shell").addEventListener("click", e => {
     const link = location.origin + location.pathname + "#t=" +
       b64e(JSON.stringify({ n: t.n, a: t.a, ad: t.ad, p: t.p, d: t.d, y: t.y, c: t.c, ll: t.ll, o: t.o, cl: t.cl, s: t.s }));
     return copy(link, "Her link is copied — send it on.");
+  }
+  /* Shop, or no shop. The answer reshapes the form, so what she has already
+     typed is read back out first — repainting over a half-filled listing and
+     losing it is the sort of thing that makes people give up on an app. */
+  if (a === "has-salon") {
+    const want = el.dataset.v === "1";
+    DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { hasSalon: want });
+    if (want) LIVE.on = false;          // a shop does not broadcast
+    dbSave();
+    return paint();
+  }
+  if (a === "work-toggle") return toggleWorking();
+  /* Near me, or the whole state. Repainting home is what re-fetches and
+     re-frames the map; there is no separate "reload the pins" path, so there
+     is no second copy of that logic to fall out of step. */
+  if (a === "map-scope") {
+    MSCOPE.all = el.dataset.v === "all";
+    return paint();
   }
   if (a === "push-toggle") return togglePush();
   if (a === "push-why") return toast(el.dataset.v || "Notifications are not available here.");
@@ -474,12 +506,25 @@ document.getElementById("shell").addEventListener("input", e => {
 });
 
 /* ══ actions ═════════════════════════════════════════ */
+/* Choosing a state on the map. A <select> does not click, so it cannot go
+   through the delegated handler with everything else. Her choice is kept on
+   the device, because "all of Lagos" should still mean Lagos tomorrow. */
+document.addEventListener("change", (e) => {
+  const n = e.target;
+  if (!n || n.id !== "mState") return;
+  MSCOPE.state = n.value;
+  MSCOPE.all = true;
+  DB.me = Object.assign({}, DB.me, { state: n.value });
+  dbSave();
+  paint();
+});
+
 function readBiz() {
   const g = k => { const n = document.getElementById(k); return n ? n.value.trim() : undefined; };
   const out = {};
   // No phone or dial any more: signing in is by email and techs are reached
   // through the in-app conversation, not WhatsApp.
-  const map = { bName: "name", bAddr: "address", bArea: "area",
+  const map = { bName: "name", bAddr: "address", bArea: "area", bState: "state",
                 bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes" };
   for (const k in map) { const v = g(k); if (v !== undefined) out[map[k]] = v; }
   const svc = [];
@@ -703,4 +748,10 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
   }
   ROUTE = { v: DB.role ? (DB.role === "tech" ? "requests" : "home") : "welcome", a: null };
   paint();
+
+  /* A nail tech who was working when she last closed the app is still working
+     now — she did not stop, the browser did. This asks the SERVER whether she
+     is a travelling tech before broadcasting anything, so a salon can never be
+     started by a stale flag on a phone. See p20_live.js. */
+  if (typeof liveResume === "function") liveResume();
 })();

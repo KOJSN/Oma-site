@@ -259,6 +259,21 @@ let HOMEPOS = null;  // where we centred, and whether we had to guess it
 let PICKID = null;   // the tech whose card is open, or null
 let MAPRO = null;    // watches the map's box, see drawMap
 
+/* ── near me, or the whole state ───────────────────────
+   Kamsy, 8 Sep 2026: "Oma should show all the techs in a state on the map,
+   not only nearby techs — it can still be a feature though."
+
+   So both, and she says which. NEAR ME is the default because it is the
+   question somebody standing in Lekki is actually asking; the state is for
+   the other one — is there anybody in Enugu at all — which is the question a
+   new city gets judged on, and an empty map is a bad answer to it when there
+   are eleven techs forty kilometres away.
+
+   The state list is only the states that HAVE somebody. A picker offering all
+   thirty-seven when thirty-five are empty teaches people the app is empty. */
+let MSCOPE = { all: false, state: null };
+let MSTATES = [];       // [{ state, techs }] — filled once per map screen
+
 /* paint() replaces the whole view. Leaflet keeps listeners on window and a
    running animation frame, so an instance left behind after its container is
    gone leaks and, worse, fights the next one for the same div. Every
@@ -266,6 +281,8 @@ let MAPRO = null;    // watches the map's box, see drawMap
 function stopMap() {
   if (MAPRO) { try { MAPRO.disconnect(); } catch (e) { /* gone */ } MAPRO = null; }
   if (MAP) { try { MAP.remove(); } catch (e) { /* already torn down */ } }
+  // MSCOPE deliberately survives: she chose it, and coming back to the map
+  // after looking at one tech should not silently put her back on "near me".
   MAP = null; PINS = []; NEAR = []; NEXTUP = null; HOMEPOS = null; PICKID = null;
 }
 
@@ -295,7 +312,16 @@ function vHomeLive() {
       API.signedIn() ? API.bookings(false).catch(() => []) : Promise.resolve([]),
     ]);
     HOMEPOS = pos;
-    NEAR = (await API.nearby(pos.lat, pos.lng, 15).catch(() => []))
+    // Which states have anybody. Asked every time the map opens, because a
+    // stale list is how a tech who joined this morning stays invisible.
+    MSTATES = await API.states().catch(() => []);
+    MSTATES = MSTATES.filter((r) => r.state && r.state !== "(not said)");
+    if (!MSCOPE.state) MSCOPE.state = (DB.me && DB.me.state) || (MSTATES[0] || {}).state || null;
+    if (MSCOPE.all && !MSCOPE.state) MSCOPE.all = false;
+
+    NEAR = (MSCOPE.all
+      ? await API.stateTechs(MSCOPE.state, pos.lat, pos.lng).catch(() => [])
+      : await API.nearby(pos.lat, pos.lng, 15).catch(() => []))
       .filter((t) => Number.isFinite(+t.lat) && Number.isFinite(+t.lng));
     NEXTUP = upcoming(mine).filter((b) => b.status !== "cancelled")[0] || null;
 
@@ -304,6 +330,7 @@ function vHomeLive() {
 
     fillHost(`
       <div id="map"></div>
+      ${scopeBar()}
       <div class="mapbtns">
         <button class="mapbtn" data-a="map-me" aria-label="Centre the map on me">${I.pin()}</button>
         <button class="mapbtn pink" data-a="startscan" aria-label="Scan your hands">${I.scan()}</button>
@@ -339,6 +366,23 @@ function vHomeLive() {
       </div>
       <button class="avatar" data-a="go" data-v="profile">${esc(initials(me.name))}</button>
     </div>
+  </div>`;
+}
+
+/* The two questions the map can answer, as two taps. The state is a native
+   <select> rather than a home-made sheet: it is one line of markup, it is
+   reachable with a screen reader, and on a phone it opens the wheel everybody
+   already knows how to use. */
+function scopeBar() {
+  if (!MSTATES.length) return "";          // nothing listed anywhere yet
+  const opts = MSTATES.map((r) =>
+    `<option value="${esc(r.state)}" ${r.state === MSCOPE.state ? "selected" : ""}
+      >${esc(r.state)} · ${r.techs}</option>`).join("");
+  return `<div class="scope" role="group" aria-label="What the map shows">
+    <button type="button" class="${MSCOPE.all ? "" : "on"}" data-a="map-scope" data-v="near"
+            aria-pressed="${MSCOPE.all ? "false" : "true"}">Near me</button>
+    <select id="mState" class="${MSCOPE.all ? "on" : ""}"
+            aria-label="Show a whole state">${opts}</select>
   </div>`;
 }
 
@@ -394,8 +438,17 @@ function drawMap(pos, list) {
     const room = el.getBoundingClientRect().height;
     const under = Math.min(room * 0.62,
       (sheet ? sheet.getBoundingClientRect().height : 220) + 24);
-    MAP.fitBounds([[pos.lat, pos.lng], ...list.slice(0, 5).map((t) => [+t.lat, +t.lng])], {
-      paddingTopLeft: [40, 48], paddingBottomRight: [40, under], maxZoom: 15,
+    // Near me opens on her and the five closest. A whole state has to open on
+    // the STATE — fitting Lagos to her five nearest would show her the same
+    // corner of Lekki and quietly answer a different question from the one she
+    // asked. Her own position is still in the bounds, so she can see where she
+    // sits in it.
+    const frame = MSCOPE.all
+      ? [[pos.lat, pos.lng], ...list.map((t) => [+t.lat, +t.lng])]
+      : [[pos.lat, pos.lng], ...list.slice(0, 5).map((t) => [+t.lat, +t.lng])];
+    MAP.fitBounds(frame, {
+      paddingTopLeft: [40, 132], paddingBottomRight: [40, under],
+      maxZoom: MSCOPE.all ? 13 : 15,
     });
   } else {
     MAP.setView([pos.lat, pos.lng], 14);
@@ -581,6 +634,7 @@ function sheetMany() {
 function homeAsList() {
   const last = DB.scans[0];
   fillHost(`
+    ${scopeBar()}
     <div class="maplist">
       <div class="pad mt16">
         <button class="hero" data-a="startscan">
@@ -605,14 +659,16 @@ function homeAsList() {
                   <div class="pad stack gap12">${bookingRow(NEXTUP)}</div>` : ""}
 
       <div class="seehead">
-        <h3>Nail techs near you</h3>
+        <h3>${MSCOPE.all ? `Nail techs in ${esc(MSCOPE.state || "your state")}`
+                         : "Nail techs near you"}</h3>
         ${NEAR.length > 3 ? `<span class="seeall" data-a="go" data-v="salons">See all</span>` : ""}
       </div>
       <div class="pad stack gap12">
         ${NEAR.length
           ? NEAR.slice(0, 3).map(techRowLive).join("")
           : `<div class="empty"><div class="ic">${I.pin()}</div>
-               <b>No nail techs near you yet</b>
+               <b>${MSCOPE.all ? `No nail techs in ${esc(MSCOPE.state || "that state")} yet`
+                                : "No nail techs near you yet"}</b>
                Oma shows techs who have listed themselves and passed their ID check.</div>`}
       </div>
       <div style="height:16px"></div>
