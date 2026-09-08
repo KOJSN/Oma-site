@@ -473,6 +473,10 @@ function vSetup(edit) {
     ${shop ? "" : `<div class="lbl" style="margin:4px 0 7px">Working right now</div>
       ${workingCard()}<div style="height:14px"></div>`}
 
+    <!-- She comes to you. Under the menu on purpose: it is about the menu —
+         whether she travels, what the trip costs, and how far she will go. -->
+    ${homeSettings(b)}
+
     <div class="rowbetween" style="margin:6px 0 10px">
       <div style="font-size:14.5px;font-weight:800;letter-spacing:-.02em">Your service menu</div>
       <button class="tag" data-a="addSvc">+ Add service</button>
@@ -481,10 +485,17 @@ function vSetup(edit) {
 
     <div class="note mt16">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8.2v.1"/></svg>
+      <!-- The TERMS, in a sentence. Not a running total beside every price box:
+           setting a price is when a tech decides what she is worth, and a
+           deduction counting itself out while she does that is the wrong
+           screen for it. The arithmetic appears on her earnings screen once
+           an appointment is actually paid. -->
       <div><b>Oma charges ₦250 for each completed service</b>, plus 2% of anything
         a service costs above ₦30,000. It comes off when you scan the client's
         code — if an appointment is refunded because you never scanned, you are
-        charged nothing. The card fee shown above is Paystack's, not ours.</div>
+        charged nothing. The card fee is Paystack's, not ours.
+        <b>You will see exactly what came off, on every appointment, in
+        Earnings.</b></div>
     </div>
     <div style="margin-top:auto;padding-top:22px">
       <button class="btn" data-a="saveBiz">${edit ? "Save changes" : "Publish my listing"} ${I.arrow()}</button>
@@ -517,7 +528,11 @@ function svcEditor(list, cur) {
           <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
           <span class="tiny faint">min</span></span></label>
     </div>
-    <div class="tiny" data-keep="${i}" style="margin-top:8px;min-height:15px"></div>
+    <!-- Only when she travels: a price for this service at somebody's house.
+         Blank means the same as above, which is both the default and the
+         plainest way to say it. -->
+    ${(DB.biz && DB.biz.homeService) ? svcHomeRow(s, i, cur) : ""}
+
     <div class="pills mt12">${SERVICE_SHAPES.map(sh =>
       `<button class="pill ${(s.sh || []).includes(sh) ? "on" : ""}" data-a="svcShape" data-i="${i}" data-sh="${sh}"
         style="text-transform:capitalize">${sh}</button>`).join("")}</div>

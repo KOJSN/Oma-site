@@ -9,11 +9,11 @@ function paint() {
     case "welcome": html = vWelcome(); break;
     case "role": html = vRole(); break;
     case "signup": html = vSignup(); break;
-    // The listing EDITOR is where a tech sets her prices, so it is where she
-    // is told what Oma and Paystack take. The lines are filled after the paint
-    // because they are computed from the values the paint just wrote.
-    case "setup": html = vSetup(false); setTimeout(drawKeepLines, 0); break;
-    case "editbiz": html = vSetup(true); setTimeout(drawKeepLines, 0); break;
+    // The listing editor states Oma's TERMS in a sentence and shows no
+    // arithmetic. The breakdown belongs on her earnings screen, after she has
+    // been paid — see p19_fee.js.
+    case "setup": html = vSetup(false); break;
+    case "editbiz": html = vSetup(true); break;
     // The bottom bar used to lead to a second, device-only app. Every one
     // of these now reads the database instead. See oma-two-apps.md.
     case "home": html = vHomeLive(); break;
@@ -196,14 +196,38 @@ document.getElementById("shell").addEventListener("click", e => {
     el.classList.add("on");
     return;
   }
+  if (a === "home-where") {
+    HOME.at = el.dataset.v === "1";
+    paintHome();
+    // The quote is only worth asking for once she has actually chosen it —
+    // it costs a GPS fix and a round trip.
+    if (HOME.at && !HOME.quote) askHomeQuote();
+    return;
+  }
   if (a === "mslot") {
     const day = document.querySelector("#dayChips .chip.on");
     if (!day) return toast("Pick a day first.");
     const at = new Date(Number(day.dataset.ts));
     at.setHours(Number(el.dataset.h), 0, 0, 0);
+    const shape = (DB.scans && DB.scans[0] && DB.scans[0].shape) || null;
+
+    if (HOME.at) {
+      const typed = document.getElementById("hAddr");
+      HOME.addr = typed ? typed.value.trim() : HOME.addr;
+      if (!HOME.addr) return toast("She needs an address to come to.");
+      if (!HOME.quote || !HOME.quote.ok) {
+        return toast((HOME.quote && HOME.quote.says) || "Working out the travel — one moment.");
+      }
+      el.disabled = true;
+      return API.bookAtHome(PICKED.techId, at.getTime(), PICKED.ids,
+                            HOME.pos.lat, HOME.pos.lng, HOME.addr,
+                            (DB.me && DB.me.area) || null, null, shape)
+        .then(b => nav("pay", b.id))
+        .catch(err => { el.disabled = false; toast(err.message); });
+    }
+
     el.disabled = true;
-    return API.book(PICKED.techId, at.getTime(), PICKED.ids, null,
-                    (DB.scans && DB.scans[0] && DB.scans[0].shape) || null)
+    return API.book(PICKED.techId, at.getTime(), PICKED.ids, null, shape)
       .then(b => nav("pay", b.id))
       .catch(err => { el.disabled = false; toast(err.message); });
   }
@@ -351,6 +375,17 @@ document.getElementById("shell").addEventListener("click", e => {
       API.setMobility(b.hasSalon !== false, b.state || null)
         .then(() => { if (b.hasSalon === false) liveResume(); })
         .catch((e) => toast(e.message || "Saved here, but Oma did not get the change."));
+      // Her home-service terms, and any per-service home price she typed.
+      // Sent separately because a bad number in one service must not throw
+      // away her call-out.
+      saveHomeSettings(b).catch((e) =>
+        toast(e.message || "Saved here, but Oma did not get the travel settings."));
+      (b.services || []).forEach((sv) => {
+        if (!sv.id) return;                       // not on the server yet
+        const n = String(sv.hp || "").replace(/[^\d.]/g, "");
+        API.setServiceHomePrice(sv.id, n ? Math.round(Number(n) * 100) : null)
+          .catch(() => { /* reported once, above, not once per service */ });
+      });
     }
     toast("Listing saved.");
     return nav("listing");
@@ -386,6 +421,12 @@ document.getElementById("shell").addEventListener("click", e => {
     return paint();
   }
   if (a === "work-toggle") return toggleWorking();
+  if (a === "home-toggle") {
+    DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(),
+                           { homeService: !(DB.biz && DB.biz.homeService) });
+    dbSave();
+    return paint();
+  }
   /* Near me, or the whole state. Repainting home is what re-fetches and
      re-frames the map; there is no separate "reload the pins" path, so there
      is no second copy of that logic to fall out of step. */
@@ -525,7 +566,9 @@ function readBiz() {
   // No phone or dial any more: signing in is by email and techs are reached
   // through the in-app conversation, not WhatsApp.
   const map = { bName: "name", bAddr: "address", bArea: "area", bState: "state",
-                bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes" };
+                bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes",
+                // Going to customers: the call-out, the per-km and how far.
+                hCallout: "calloutNaira", hPerKm: "perKmNaira", hMaxKm: "maxKm" };
   for (const k in map) { const v = g(k); if (v !== undefined) out[map[k]] = v; }
   const svc = [];
   document.querySelectorAll("#svcList [data-s]").forEach(n => {

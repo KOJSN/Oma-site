@@ -164,20 +164,24 @@ function vNearby() {
 }
 
 /* ── 22 one tech, and her services ────────────────────── */
-let PICKED = { techId: null, name: "", ids: [], at: null };
+let PICKED = { techId: null, name: "", ids: [], at: null, terms: null };
 
 function vTechLive(id) {
   load(async () => {
     // The reviews are asked for beside the services rather than after them:
     // this is the screen where somebody decides whether to book, so the score
     // should arrive with the prices, not a beat later.
-    const [list, revs, rate] = await Promise.all([
+    const [list, revs, rate, terms] = await Promise.all([
       API.services(id),
       API.techReviews(id, 8).catch(() => []),
       API.ratings([id]).catch(() => []),
+      // Whether she travels. Asked here so the next screen can offer "she
+      // comes to me" only when it is a real option.
+      API.homeTerms(id).catch(() => null),
     ]);
     const r = (rate || []).find((x) => x.tech_id === id);
-    PICKED = { techId: id, name: PICKED.name, ids: [], at: null };
+    PICKED = { techId: id, name: PICKED.name, ids: [], at: null, terms };
+    resetHome();
     fillHost(`
       <div class="pad stack gap12">
         <div class="rowbetween">
@@ -230,6 +234,7 @@ function vTimeLive() {
   return `
   ${head("Pick a time", PICKED.name)}
   <div class="pad">
+    ${homeBlock(PICKED.terms)}
     <div class="chips" id="dayChips">
       ${days.map((d, i) => `<button class="chip${i === 0 ? " on" : ""}" data-a="mday"
          data-ts="${d.getTime()}">${dayLabel(d.getTime())}</button>`).join("")}

@@ -217,6 +217,11 @@ function vJob(bookingId) {
           <div class="kv"><span class="k">Status</span><span class="v">${esc(words)}</span></div>
         </div></div>
 
+        <!-- Where she is going, on a home appointment. Filled after the paint
+             because the server decides how much of it either of them may see:
+             the area now, the street once the money is in escrow. -->
+        <div id="whereSlot"></div>
+
         ${["cancelled", "expired", "refunded"].includes(b.status) ? "" : `
           <button class="btn ghost" data-a="go" data-v="chat" data-id="${esc(b.id)}"
                   style="display:flex;align-items:center;justify-content:center;gap:9px">
@@ -236,6 +241,7 @@ function vJob(bookingId) {
           ? `<button class="btn ghost sm" data-a="cancel" data-id="${esc(b.id)}">
                Cancel this appointment</button>` : ""}
       </div>`);
+    fillWhere(bookingId);
   });
   return head("Appointment", "") + host();
 }

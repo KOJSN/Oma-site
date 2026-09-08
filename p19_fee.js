@@ -1,16 +1,34 @@
-/* ══ what Oma charges, shown before it is charged ═════
+/* ══ what Oma charges, shown once it has been charged ══
    ₦250 for every completed service, plus 2% of whatever a sale is ABOVE
    ₦30,000. The tech pays it, and she pays the card fee too.
 
-   The database is the authority — api/fee.sql owns the rate, charges it with a
-   trigger when the QR is scanned, and records it. This file is a QUOTE: it
-   does the same arithmetic in the app so a tech typing a price sees what she
-   keeps as she types, without a round trip per keystroke.
+   ── who sees the arithmetic, and when ───────────────────────────────
+
+   Kamsy, 8 Sep 2026: "don't let the customer see the breakdown of price, and
+   when a tech wants to set a price let her not see the breakdown — only
+   reveal it to a tech when she has been paid, so she can see why she won't
+   get the full money."
+
+   So the breakdown lives in exactly ONE place: her earnings, after the
+   appointment is done. Not in the price editor, where a running deduction
+   beside every box she types in makes setting a price feel like being taxed
+   in real time. Not on the customer's screen at all — what Oma takes from a
+   tech is between Oma and the tech, and a customer reading it learns nothing
+   she can act on.
+
+   The TERMS are still stated in the listing editor, in one sentence, because
+   a fee somebody has to be charged to discover is not a fee they agreed to.
+   Terms are not a breakdown; the difference is a number that moves as she
+   types versus a rule she can read once.
+
+   The database is the authority — api/fee.sql owns the rate, charges it with
+   a trigger when the QR is scanned, and records it. The two functions below
+   repeat the arithmetic so the receipt can be drawn without a round trip.
 
    Two copies of a pricing rule is a real risk and it is taken deliberately.
-   t_fee.py pins the two together — the numbers here are checked against the
-   values api_fee_quote returns, so the day the rate changes in SQL and not
-   here, a test fails instead of a tech being quoted the wrong figure. */
+   t_fee.py pins the two together — the numbers here are checked against what
+   api_fee_quote returns, so the day the rate changes in SQL and not here, a
+   test fails instead of a tech being paid the wrong figure. */
 
 const OMA_FLAT_KOBO = 25000;        // ₦250
 const OMA_TIER_KOBO = 3000000;      // ₦30,000 — 2% applies above this
@@ -37,50 +55,19 @@ function paystackFeeKobo(total) {
   return Math.min(200000, f);
 }
 
-/* A bill, not a sentence.
-
-   This was one line — "You keep ₦8,515 · Oma ₦250 · card fee ₦235" — and
-   Kamsy was right that it is the wrong shape. A tech reading that has to do
-   the subtraction herself to believe it. Set out as a receipt, the arithmetic
-   is visible and it adds up in front of her:
+/* ── the receipt, and the only place the deductions appear ──────────
+   Drawn once the appointment is scanned and the money is hers. This is where
+   "why is it not the full ₦9,000" gets answered, in the one place where the
+   answer is a fact rather than a projection:
 
        ₦9,000     Price
         −₦250     Oma's fee
         −₦235     Paystack
-       ₦8,515     You get
+       ₦8,515     You got
 
-   Deductions are written with a real minus sign, not a hyphen, and the amounts
-   are right-aligned in a tabular font so the columns line up down the page
+   Deductions carry a real minus sign, not a hyphen, and the amounts are
+   right-aligned in a tabular font so the columns line up down the page
    however many digits each number has. */
-function keepBill(totalKobo) {
-  const t = Math.round(Number(totalKobo) || 0);
-  if (!t) return "";
-  const oma = omaFeeKobo(t), ps = paystackFeeKobo(t);
-  const net = t - oma - ps;
-  const row = (label, amount, opts) => `
-    <div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0${
-      opts && opts.rule ? ";margin-top:4px;padding-top:6px;border-top:1px solid var(--line)" : ""}">
-      <span${opts && opts.strong ? ' style="font-weight:800"' : ' class="faint"'}>${label}</span>
-      <span style="font-variant-numeric:tabular-nums${
-        opts && opts.strong ? ";font-weight:800" : ""}">${amount}</span>
-    </div>`;
-  return `<div>
-    ${row("Price", kobo(t))}
-    ${row("Oma's fee", "−" + kobo(oma))}
-    ${row("Paystack", "−" + kobo(ps))}
-    ${row("You get", kobo(net), { strong: true, rule: true })}
-  </div>`;
-}
-
-/* ── the same bill, afterwards, in her earnings ──────
-   Kamsy: "it would be shown in their diary of past payments". The quote in the
-   price editor is a promise; this is the receipt. Same four lines, same order,
-   so the number she was shown before she listed is the number she can check
-   against her bank afterwards.
-
-   Paystack's share is computed rather than recorded, because Paystack takes it
-   at settlement and it never passes through Oma's ledger. It is labelled below
-   as what it is. */
 function paidBill(row) {
   const line = (label, amount, opts) => `
     <div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0${
@@ -91,11 +78,28 @@ function paidBill(row) {
     </div>`;
   return `
     <div class="card" style="display:block">
-      <div class="tiny faint" style="margin-bottom:8px">${esc(whenShort(row.paid_at))}</div>
-      ${line("Price", kobo(row.total_kobo))}
-      ${line("Oma's fee", "−" + kobo(row.oma_kobo))}
+      <div class="tiny faint" style="margin-bottom:8px">${esc(whenShort(row.paid_at))}
+        ${row.travel_kobo ? "· she went to the client" : ""}</div>
+      <!-- On a home visit the price splits in two, because the fee lines
+           below apply to them differently: Oma charges on the services only,
+           Paystack on the whole card payment. Showing one "Price" line and
+           then a fee that is not a percentage of it is how a tech decides she
+           is being quietly shorted. -->
+      ${row.travel_kobo
+        ? line("Services", kobo(row.base_kobo)) + line("Travel and call-out", kobo(row.travel_kobo))
+        : ""}
+      ${line(row.travel_kobo ? "Client paid" : "Price", kobo(row.total_kobo),
+             row.travel_kobo ? { rule: true } : null)}
+      ${line("Oma's fee" + (row.travel_kobo ? " (on services)" : ""), "−" + kobo(row.oma_kobo))}
       ${line("Paystack", "−" + kobo(row.paystack_kobo))}
       ${line("You got", kobo(row.net_kobo), { strong: true, rule: true })}
+      <!-- The sentence, not just the columns. This screen exists because a
+           tech looking at ₦8,515 after quoting ₦9,000 deserves the reason in
+           words, once, rather than being left to work out the subtraction and
+           wonder whether she was short-changed. -->
+      <div class="tiny faint" style="margin-top:8px">
+        ${kobo(row.total_kobo)} came in; ${kobo(Number(row.oma_kobo) + Number(row.paystack_kobo))}
+        went to Oma and the card, so ${kobo(row.net_kobo)} is yours.</div>
     </div>`;
 }
 
@@ -121,26 +125,8 @@ async function drawEarnings() {
     <div class="stack gap12">${rows.map(paidBill).join("")}</div>`;
 }
 
-/* Live as she types. Delegated on the document rather than bound when the
-   editor paints, because the service list is re-rendered whenever she adds or
-   removes a row and re-bound listeners would be lost or doubled. */
-document.addEventListener("input", (e) => {
-  const el = e.target;
-  if (!el || el.dataset == null || el.dataset.s !== "p") return;
-  const slot = document.querySelector(`[data-keep="${el.dataset.i}"]`);
-  if (!slot) return;
-  // The editor holds naira, because that is what a person types. Everything
-  // below this line is kobo, because everything about money in Oma is kobo.
-  const naira = Number(String(el.value).replace(/[^0-9.]/g, ""));
-  slot.innerHTML = naira > 0 ? keepBill(Math.round(naira * 100)) : "";
-});
-
-/* Called after the listing editor paints, so the lines are right before she
-   touches anything. */
-function drawKeepLines() {
-  document.querySelectorAll("[data-keep]").forEach((slot) => {
-    const inp = document.querySelector(`[data-s="p"][data-i="${slot.dataset.keep}"]`);
-    const naira = inp ? Number(String(inp.value).replace(/[^0-9.]/g, "")) : 0;
-    slot.innerHTML = naira > 0 ? keepBill(Math.round(naira * 100)) : "";
-  });
-}
+/* There is deliberately nothing here that runs while she is typing a price.
+   That used to be a receipt under every box, recalculating on each keystroke.
+   It was accurate and it was the wrong screen for it: setting a price is when
+   a tech is deciding what she is worth, and a deduction counting itself out
+   beside her while she does that is a thing to remove, not to polish. */

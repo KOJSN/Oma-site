@@ -208,6 +208,21 @@ const API = (() => {
        this answers "who does Oma have in Lagos at all". */
     stateTechs:    (state, lat, lng)        => live() ? rpc("api_state_techs", { p_state: state, p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng, p_limit: 300 }) : MOCK.stateTechs(state, lat, lng),
     states:        ()                       => live() ? rpc("api_states") : MOCK.states(),
+
+    /* She comes to you. The QUOTE is asked of the server, never worked out
+       here: the tech's real coordinates never leave the database, so the
+       distance cannot be measured on a phone even if it were wise to let it.
+       See home.sql. */
+    // Does she travel at all, and on what terms. Read beside her services so
+    // the "she comes to me" choice is only offered when it is real.
+    homeTerms:     (techId)                 => live() ? rpc("api_home_terms", { p_tech: techId }) : MOCK.homeTerms(techId),
+    homeQuote:     (techId, ids, lat, lng)  => live() ? rpc("api_home_quote", { p_tech: techId, p_service_ids: ids || [], p_lat: lat, p_lng: lng }) : MOCK.homeQuote(techId, ids, lat, lng),
+    bookAtHome:    (techId, startsAt, ids, lat, lng, address, area, note, shape) => live() ? rpc("api_book_at_home", { p_tech: techId, p_starts: new Date(startsAt).toISOString(), p_service_ids: ids, p_lat: lat, p_lng: lng, p_address: address, p_area: area || null, p_note: note || null, p_shape: shape || null }) : MOCK.bookAtHome(techId, startsAt, ids, lat, lng, address, area, note, shape),
+    // The customer's street, released to the tech only once the money is in
+    // escrow. One function for both sides; the server decides what each sees.
+    bookingWhere:  (bookingId)              => live() ? rpc("api_booking_where", { p_booking: bookingId }) : MOCK.bookingWhere(bookingId),
+    setHomeService:(on, callout, perKm, maxKm) => live() ? rpc("api_set_home_service", { p_on: !!on, p_callout_kobo: callout, p_per_km_kobo: perKm, p_max_km: maxKm }) : MOCK.setHomeService(!!on, callout, perKm, maxKm),
+    setServiceHomePrice: (id, kobo)         => live() ? rpc("api_set_service_home_price", { p_service: id, p_home_kobo: kobo }) : MOCK.setServiceHomePrice(id, kobo),
     // A device, not a subscription. The database is deliberately incurious
     // about which kind of token this is; see push.sql.
     registerDevice:(platform, token, label)  => live() ? rpc("api_register_device", { p_platform: platform, p_token: token, p_label: label || null }) : MOCK.registerDevice(platform, token, label),
@@ -373,6 +388,10 @@ const API = (() => {
         S.techs.push({ id, business_name: name, area, address: roams ? null : area + ", Lagos",
                        lat, lng, years, currency: "NGN", opens: "09:00", closes: "18:00",
                        kyc: "verified", listed: true, state: "Lagos",
+                       // Two of the five travel, so the practice app can show
+                       // both a salon and a home visit without any setting up.
+                       home_service: roams || name === "The Nail Room",
+                       callout_kobo: 300000, per_km_kobo: 130000, home_max_km: 15,
                        has_salon: !roams,
                        live_at: roams ? new Date().toISOString() : null });
         [["Acrylic full set", 120, 900000], ["Gel overlay", 75, 550000],
@@ -534,6 +553,110 @@ const API = (() => {
           .sort((a, b) => b.techs - a.techs || a.state.localeCompare(b.state));
       },
 
+      /* home.sql, in the practice app. Deliberately the same arithmetic and
+         the same refusals, so the demo and the real thing behave alike. */
+      fareKm: (km) => Math.max(1, Math.ceil((km || 0) * 2) / 2),
+
+      homeTerms: async (techId) => {
+        const t = load().techs.find((x) => x.id === techId && x.listed);
+        if (!t) return null;
+        return { home_service: !!t.home_service,
+                 callout_kobo: t.callout_kobo == null ? 300000 : t.callout_kobo,
+                 per_km_kobo: t.per_km_kobo == null ? 130000 : t.per_km_kobo,
+                 home_max_km: t.home_max_km == null ? 15 : t.home_max_km };
+      },
+
+      homeQuote: async (techId, ids, lat, lng) => {
+        const s = load();
+        const t = s.techs.find((x) => x.id === techId);
+        if (!t || !t.listed) throw new Error("that tech is not listed");
+        const svcs = s.services.filter((x) => ids.includes(x.id) && x.tech_id === techId && x.active);
+        if (svcs.length !== (ids || []).length || !svcs.length) {
+          throw new Error("one of those services is not available from that tech");
+        }
+        const base = svcs.reduce((a, x) => a + (x.home_kobo || x.price_kobo), 0);
+        const salon = svcs.reduce((a, x) => a + x.price_kobo, 0);
+        if (!t.home_service) {
+          return { ok: false, why: "not_offered", base_kobo: base,
+                   says: t.business_name + " does not travel to customers." };
+        }
+        if (lat == null || lng == null) {
+          return { ok: false, why: "no_position", base_kobo: base,
+                   says: "Oma needs to know where you are to work out the travel." };
+        }
+        const d = km(lat, lng, t.lat, t.lng);
+        const max = t.home_max_km == null ? 15 : t.home_max_km;
+        if (d > max) {
+          return { ok: false, why: "too_far", km: Math.round(d * 10) / 10, max_km: max,
+                   base_kobo: base,
+                   says: t.business_name + " travels up to " + max + " km, and you are "
+                         + (Math.round(d * 10) / 10) + " km away." };
+        }
+        const callout = t.callout_kobo == null ? 300000 : t.callout_kobo;
+        const perKm = t.per_km_kobo == null ? 130000 : t.per_km_kobo;
+        const cKm = MOCK.fareKm(d);
+        const fare = Math.round(cKm * perKm);
+        return { ok: true, km: Math.round(d * 10) / 10, charged_km: cKm,
+                 base_kobo: base, callout_kobo: callout, per_km_kobo: perKm,
+                 fare_kobo: fare, total_kobo: base + callout + fare, salon_kobo: salon };
+      },
+
+      bookAtHome: async (techId, startsAt, ids, lat, lng, address, area, note, shapeName) => {
+        if (!String(address || "").trim()) throw new Error("she needs an address to come to");
+        const q = await MOCK.homeQuote(techId, ids, lat, lng);
+        if (!q.ok) throw new Error(q.says || "she cannot come to you");
+        const s = load();
+        const svcs = s.services.filter((x) => ids.includes(x.id));
+        const items = svcs.map((x) => ({ service_id: x.id, name: x.name, minutes: x.minutes,
+                                         price_kobo: x.home_kobo || x.price_kobo }));
+        // The two lines with no service_id. That is the whole mechanism by
+        // which Oma's fee stays off the tech's petrol — see booking_base_kobo.
+        if (q.callout_kobo) items.push({ service_id: null, name: "Home visit", minutes: 0,
+                                         price_kobo: q.callout_kobo });
+        if (q.fare_kobo) items.push({ service_id: null, name: "Travel (" + q.charged_km + " km)",
+                                      minutes: 0, price_kobo: q.fare_kobo });
+        const b = await MOCK.bookItems(techId, startsAt, items, note, shapeName);
+        b.at_home = true; b.cust_address = String(address).trim();
+        b.cust_area = area || null; b.cust_lat = lat; b.cust_lng = lng; b.km = q.km;
+        save();
+        return Object.assign({}, shape(b), { at_home: true, km: q.km, quote: q });
+      },
+
+      bookingWhere: async (bookingId) => {
+        const s = load();
+        const b = s.bookings.find((x) => x.id === bookingId);
+        const mine = (s.user || {}).id;
+        if (!b || (b.customer_id !== mine && b.tech_id !== mine)) throw new Error("no such booking");
+        if (!b.at_home) return { at_home: false };
+        const open = b.customer_id === mine
+          || ["paid", "released", "disputed"].includes(b.status);
+        return { at_home: true, km: b.km, area: b.cust_area,
+                 address: open ? b.cust_address : null,
+                 lat: open ? b.cust_lat : null, lng: open ? b.cust_lng : null,
+                 why: open ? null : "The address comes through once the appointment is paid for." };
+      },
+
+      setHomeService: async (on, callout, perKm, maxKm) => {
+        const t = myTech();
+        if (!t) throw new Error("list yourself first");
+        t.home_service = !!on;
+        if (callout != null) t.callout_kobo = callout;
+        if (perKm != null) t.per_km_kobo = perKm;
+        if (maxKm != null) t.home_max_km = maxKm;
+        save();
+        return { home_service: t.home_service, callout_kobo: t.callout_kobo,
+                 per_km_kobo: t.per_km_kobo, home_max_km: t.home_max_km };
+      },
+
+      setServiceHomePrice: async (id, kobo) => {
+        const s = load(), t = myTech();
+        const sv = s.services.find((x) => x.id === id && t && x.tech_id === t.id);
+        if (!sv) throw new Error("that is not one of your services");
+        sv.home_kobo = kobo == null ? null : kobo;
+        save();
+        return { id, home_kobo: sv.home_kobo };
+      },
+
       nearby: async (lat, lng, radius) => {
         const s = load();
         return s.techs.filter(MOCK.visible)
@@ -670,25 +793,43 @@ const API = (() => {
         s.reads[whoAmI() + "|" + bookingId] = Date.now();
         save();
       },
-      book: async (techId, startsAt, ids, note, shapeName) => {
+      /* The same seam create_booking gives the server: hand it a list of
+         itemised lines and it makes the appointment. A home visit is that
+         list plus two lines with no service_id, and NOTHING else about
+         booking, escrow or the scan needs to know. */
+      bookItems: async (techId, startsAt, items, note, shapeName) => {
         const s = load(); expire();
         const at = new Date(startsAt).getTime();
         if (at <= Date.now()) fail("that time has already passed");
-        const chosen = s.services.filter((x) => ids.includes(x.id) && x.tech_id === techId && x.active);
-        if (chosen.length !== ids.length) fail("one of those services is not available from that tech");
         const clash = s.bookings.find((b) => b.tech_id === techId && b.starts_at_ms === at &&
           ["awaiting_payment", "paid", "released"].includes(b.status));
         if (clash) fail("somebody has just taken that slot");
         const b = {
           id: uid(), customer_id: meRow().id, tech_id: techId, starts_at_ms: at,
-          minutes: chosen.reduce((a, x) => a + x.minutes, 0),
-          total_kobo: chosen.reduce((a, x) => a + x.price_kobo, 0),
+          minutes: Math.max(1, items.reduce((a, x) => a + (x.minutes || 0), 0)),
+          total_kobo: items.reduce((a, x) => a + x.price_kobo, 0),
           status: "awaiting_payment", note: note || null, scan_shape: shapeName || null,
           pay_deadline_ms: Date.now() + 30 * 60000,
-          items: chosen.map((x) => ({ name: x.name, minutes: x.minutes, price_kobo: x.price_kobo })),
+          items: items.map((x) => ({ service_id: x.service_id == null ? null : x.service_id,
+                                     name: x.name, minutes: x.minutes || 0,
+                                     price_kobo: x.price_kobo })),
         };
         s.bookings.push(b); save();
-        return shape(b);
+        return b;
+      },
+      book: async (techId, startsAt, ids, note, shapeName) => {
+        const s = load();
+        const chosen = s.services.filter((x) => ids.includes(x.id) && x.tech_id === techId && x.active);
+        if (chosen.length !== ids.length) fail("one of those services is not available from that tech");
+        return shape(await MOCK.bookItems(techId, startsAt,
+          chosen.map((x) => ({ service_id: x.id, name: x.name, minutes: x.minutes,
+                               price_kobo: x.price_kobo })), note, shapeName));
+      },
+      /* fee.sql's booking_base_kobo(): the lines that ARE services. The
+         call-out and the fare are not Oma's to charge on. */
+      baseKobo: (b) => {
+        const svc = (b.items || []).filter((i) => i.service_id != null);
+        return svc.length ? svc.reduce((a, i) => a + i.price_kobo, 0) : b.total_kobo;
       },
       bookings: async (past) => {
         const s = load(); expire();
@@ -880,10 +1021,14 @@ const API = (() => {
           .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
           .slice(0, limit || 30)
           .map((f) => {
+            // Paystack IS on the full amount — that is what the card was
+            // charged. Oma is on the base. The two really are different.
             const ps = paystackFeeKobo(f.total_kobo);
+            const base = f.base_kobo == null ? f.total_kobo : f.base_kobo;
             return { booking_id: f.booking_id, paid_at: f.created_at,
-                     total_kobo: f.total_kobo, oma_kobo: f.fee_kobo,
-                     paystack_kobo: ps,
+                     total_kobo: f.total_kobo, base_kobo: base,
+                     travel_kobo: f.total_kobo - base,
+                     oma_kobo: f.fee_kobo, paystack_kobo: ps,
                      net_kobo: f.total_kobo - f.fee_kobo - ps };
           });
       },
@@ -924,12 +1069,16 @@ const API = (() => {
       // Oma's fee, charged at the scan exactly as the trigger in fee.sql
       // charges it. A mock that released the whole amount would show a tech a
       // balance the real system will never pay her.
-      const fee = omaFeeKobo(b.total_kobo);
+      // On the SERVICES, not the sale: a home visit's call-out and fare are
+      // the tech's time and petrol, and charging a percentage of those is
+      // what this whole design avoids. Same rule as booking_base_kobo().
+      const base = MOCK.baseKobo(b);
+      const fee = omaFeeKobo(base);
       if (fee > 0) {
         s.fees = s.fees || [];
         if (!s.fees.some((f) => f.booking_id === b.id)) {
           s.fees.push({ booking_id: b.id, tech_id: b.tech_id,
-                        total_kobo: b.total_kobo, fee_kobo: fee,
+                        total_kobo: b.total_kobo, base_kobo: base, fee_kobo: fee,
                         created_at: new Date().toISOString() });
           s.ledger.push({ tech_id: b.tech_id, booking_id: b.id, bucket: "available",
                           delta_kobo: -fee, kind: "oma_fee", at: Date.now() });
