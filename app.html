@@ -195,7 +195,10 @@ a{color:var(--pink);text-decoration:none}
 .mepin{width:16px;height:16px;border-radius:50%;background:#2f7cf6;
   border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,124,246,.2)}
 
-.mapbtns{position:absolute;top:calc(92px + env(safe-area-inset-top));right:14px;z-index:5;
+/* Below the greeting AND below the scope pill — they used to share the same
+   strip, and the greeting card, which is painted last, silently swallowed
+   every tap meant for the scope. */
+.mapbtns{position:absolute;top:calc(132px + env(safe-area-inset-top));right:14px;z-index:5;
   display:flex;flex-direction:column;gap:10px}
 .mapbtn{width:46px;height:46px;border-radius:16px;background:var(--card);
   border:1px solid var(--line);box-shadow:var(--card-shadow);
@@ -584,6 +587,32 @@ h3{font-size:16px}
   box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
 .switch.on{background:var(--pink)}
 .switch.on i{transform:translateX(19px)}
+
+/* ═══ working, and where ══════════════════════════════
+   The two-way question at the top of a tech's listing — shop, or no shop —
+   and the switch a tech with no shop lives by. Every colour is a token: the
+   .choice block further down is hard-wired white because it sits inside the
+   dark scan screen, and reusing it here is exactly how the welcome screen
+   ended up black in light mode. */
+.pick{display:flex;gap:10px;margin:2px 0 16px}
+.pick button{flex:1;min-width:0;text-align:left;padding:13px 14px;border-radius:16px;
+  border:1.5px solid var(--line);background:var(--fill);color:var(--ink);cursor:pointer}
+.pick button.on{border-color:var(--pink);background:var(--tint)}
+.pick b{display:block;font-size:14.5px;font-weight:800;letter-spacing:-.02em}
+.pick em{font-style:normal;display:block;margin-top:3px;font-size:12px;
+  color:var(--sub);font-weight:500;line-height:1.4}
+.card.work{border:1.5px solid var(--line)}
+.card.work.on{border-color:var(--good);background:var(--goodbg)}
+/* The map's scope: near me, or the whole state. */
+.scope{position:absolute;top:calc(74px + env(safe-area-inset-top));left:50%;
+  transform:translateX(-50%);z-index:420;display:flex;gap:4px;padding:4px;
+  border-radius:99px;background:var(--card);border:1px solid var(--line);
+  box-shadow:0 6px 18px rgba(0,0,0,.16);max-width:min(92vw,340px)}
+.scope button,.scope select{padding:7px 14px;border-radius:99px;font-size:12.5px;
+  font-weight:700;color:var(--sub);background:transparent;border:0;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-family:inherit;
+  -webkit-appearance:none;appearance:none;max-width:170px}
+.scope button.on,.scope select.on{background:var(--pink);color:var(--onpink)}
 
 /* ═══ empty states ═══════════════════════════════════════ */
 /* ═══ the live lists ══════════════════════════════════
@@ -1028,7 +1057,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "70a94ccb8c";
+const BUILD_ID = "279de22056";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -3402,6 +3431,19 @@ const API = (() => {
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
     nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.nearby(lat, lng, km),
     search:        (q, lat, lng)            => live() ? rpc("api_search", { p_q: q || "", p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng }) : MOCK.search(q, lat, lng),
+
+    /* Where a nail tech who has no shop is RIGHT NOW. A salon has an address
+       and never touches any of these; see live.sql for why a travelling tech
+       gets a heartbeat instead of a pin, and p20_live.js for what sends it. */
+    pingPosition:  (lat, lng, acc)          => live() ? rpc("api_ping_position", { p_lat: lat, p_lng: lng, p_acc: acc == null ? null : acc }) : MOCK.pingPosition(lat, lng, acc),
+    goOffline:     ()                       => live() ? rpc("api_go_offline") : MOCK.goOffline(),
+    myPresence:    ()                       => live() ? rpc("api_my_presence") : MOCK.myPresence(),
+    setMobility:   (hasSalon, state)        => live() ? rpc("api_set_mobility", { p_has_salon: !!hasSalon, p_state: state || null }) : MOCK.setMobility(!!hasSalon, state),
+
+    /* The whole-state map. api_nearby answers "who is within 15 km of me";
+       this answers "who does Oma have in Lagos at all". */
+    stateTechs:    (state, lat, lng)        => live() ? rpc("api_state_techs", { p_state: state, p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng, p_limit: 300 }) : MOCK.stateTechs(state, lat, lng),
+    states:        ()                       => live() ? rpc("api_states") : MOCK.states(),
     // A device, not a subscription. The database is deliberately incurious
     // about which kind of token this is; see push.sql.
     registerDevice:(platform, token, label)  => live() ? rpc("api_register_device", { p_platform: platform, p_token: token, p_label: label || null }) : MOCK.registerDevice(platform, token, label),
@@ -3561,9 +3603,14 @@ const API = (() => {
       ];
       names.forEach(([name, area, lat, lng, years]) => {
         const id = uid();
-        S.techs.push({ id, business_name: name, area, address: area + ", Lagos",
+        // Pretty Tips has no shop — she travels, and she is working now. The
+        // practice app needs one of each or the map cannot be checked.
+        const roams = name === "Pretty Tips";
+        S.techs.push({ id, business_name: name, area, address: roams ? null : area + ", Lagos",
                        lat, lng, years, currency: "NGN", opens: "09:00", closes: "18:00",
-                       kyc: "verified", listed: true });
+                       kyc: "verified", listed: true, state: "Lagos",
+                       has_salon: !roams,
+                       live_at: roams ? new Date().toISOString() : null });
         [["Acrylic full set", 120, 900000], ["Gel overlay", 75, 550000],
          ["Refill", 90, 650000], ["Soak off", 30, 200000]].forEach(([n, m, k]) => {
           S.services.push({ id: uid(), tech_id: id, name: n, minutes: m, price_kobo: k, active: true });
@@ -3658,9 +3705,74 @@ const API = (() => {
         if (lat != null) { u.lat = lat; u.lng = lng; }
         save(); return await MOCK.me();
       },
+      /* live.sql's tech_visible(), in the practice app. A salon is visible
+         once she has listed herself; a travelling tech only while her phone
+         is still saying where she is. 45 minutes, the same window. */
+      visible: (t) => !!t && !!t.listed && (t.has_salon !== false ||
+        (!!t.live_at && Date.now() - new Date(t.live_at).getTime() < 45 * 60000)),
+
+      pingPosition: async (lat, lng) => {
+        const s = load(), t = myTech();
+        if (!t) throw new Error("list yourself first");
+        if (t.has_salon !== false) throw new Error("this listing is a salon — its address does not move");
+        const moved = t.lat == null ? null : km(t.lat, t.lng, lat, lng) * 1000;
+        if (moved != null && moved > 100000) {
+          throw new Error("that fix is " + Math.round(moved / 1000) + " km from your last one");
+        }
+        t.lat = lat; t.lng = lng; t.live_at = new Date().toISOString();
+        save();
+        return [{ live_at: t.live_at, moved_m: moved, listed: t.listed }];
+      },
+      goOffline: async () => {
+        const t = myTech();
+        if (t && t.has_salon === false) { t.live_at = null; save(); }
+        return [{ live_at: (t && t.live_at) || null }];
+      },
+      myPresence: async () => {
+        const t = myTech();
+        if (!t) return [];
+        return [{ has_salon: t.has_salon !== false, state: t.state || null,
+                  live_at: t.live_at || null, listed: !!t.listed,
+                  visible: MOCK.visible(t),
+                  seconds_ago: t.live_at
+                    ? (Date.now() - new Date(t.live_at).getTime()) / 1000 : null }];
+      },
+      setMobility: async (hasSalon, state) => {
+        const t = myTech();
+        if (!t) throw new Error("list yourself first");
+        t.has_salon = !!hasSalon;
+        if (state) t.state = state;
+        if (hasSalon) t.live_at = null;
+        save();
+        return [{ has_salon: t.has_salon, state: t.state || null, live_at: t.live_at || null }];
+      },
+      stateTechs: async (state, lat, lng) => {
+        const s = load(), want = String(state || "").toLowerCase().trim();
+        return s.techs.filter(MOCK.visible)
+          .filter((t) => (t.state || "").toLowerCase() === want ||
+                         (!t.state && (t.area || "").toLowerCase().includes(want)))
+          .map((t) => {
+            const pin = HEX.snap(t.lat, t.lng);
+            return { ...t, address: null,
+                     km: lat == null ? null : km(lat, lng, t.lat, t.lng),
+                     lat: pin.lat, lng: pin.lng, cell: pin.cell, boundary: pin.boundary,
+                     from_kobo: Math.min(...s.services.filter((x) => x.tech_id === t.id).map((x) => x.price_kobo)) };
+          })
+          .sort((a, b) => (a.km == null ? 1 : b.km == null ? -1 : a.km - b.km));
+      },
+      states: async () => {
+        const out = {};
+        load().techs.filter(MOCK.visible).forEach((t) => {
+          const k = (t.state || "").trim() || "(not said)";
+          out[k] = (out[k] || 0) + 1;
+        });
+        return Object.keys(out).map((state) => ({ state, techs: out[state] }))
+          .sort((a, b) => b.techs - a.techs || a.state.localeCompare(b.state));
+      },
+
       nearby: async (lat, lng, radius) => {
         const s = load();
-        return s.techs.filter((t) => t.listed)
+        return s.techs.filter(MOCK.visible)
           .map((t) => {
             // Distance from where she really is; position from her hexagon.
             // The address is withheld exactly as the real one withholds it.
@@ -3683,7 +3795,10 @@ const API = (() => {
         const toks = query ? query.split(/\s+/) : null;
         const out = [];
         for (const t of s.techs) {
-          if (!t.listed) continue;
+          // Not just "listed": a travelling tech whose phone stopped reporting
+          // is off the map, and being searchable by name would be a way round
+          // that. See MOCK.visible and live.sql's tech_visible.
+          if (!MOCK.visible(t)) continue;
           const svcs = s.services.filter((x) => x.tech_id === t.id && x.active);
           const n = (t.business_name || "").toLowerCase();
           const a = (t.area || "").toLowerCase();
@@ -4670,8 +4785,22 @@ function vSignup() {
 
 /* ══ 04 the tech's listing ═══════════════════════════ */
 const SERVICE_SHAPES = ["oval", "round", "square", "squoval", "almond", "coffin", "stiletto"];
+
+/* The state is what the whole-state map is drawn from — "show me everyone in
+   Lagos", not only everyone within 15 km. All 36 and the FCT, because Oma is
+   not only a Lagos app and a list that stops at six states tells a tech in
+   Enugu she is not wanted. */
+const NG_STATES = ["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa",
+  "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu",
+  "FCT — Abuja", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi",
+  "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo",
+  "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"];
 function vSetup(edit) {
   const b = DB.biz || { services: [] };
+  // Default true: a listing made before this question existed described a
+  // shop, and quietly turning those techs into travelling ones would take
+  // every one of them off the map until she found this screen again.
+  const shop = b.hasSalon !== false;
   return `<div class="pad" style="min-height:100dvh;display:flex;flex-direction:column;
       padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(30px + env(safe-area-inset-bottom))">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
@@ -4679,14 +4808,46 @@ function vSetup(edit) {
       <div style="font-size:15px;font-weight:700">${edit ? "Edit your listing" : "Set up your listing"}</div>
     </div>
     ${edit ? "" : `<h2 style="font-size:24px;line-height:1.2;margin-bottom:18px">Tell customers where to find you</h2>`}
+
+    <!-- Asked FIRST, because the answer changes the rest of the form. A salon
+         is a place with an address; a tech who travels is not a place at all,
+         and giving her an address box to fill in is what produces a pin that
+         is wrong by Tuesday. -->
+    <div class="lbl" style="margin-bottom:7px">Do you have a salon?</div>
+    <div class="pick">
+      <button type="button" class="${shop ? "on" : ""}" data-a="has-salon" data-v="1">
+        <b>Yes, a shop</b><em>Customers come to one address. Oma shows it, and
+          it stays put.</em></button>
+      <button type="button" class="${shop ? "" : "on"}" data-a="has-salon" data-v="0">
+        <b>No, I travel</b><em>Oma shows where you are while you are working,
+          and takes you off the map when you stop.</em></button>
+    </div>
+    ${shop ? "" : `<div class="note pink" style="margin-bottom:14px">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
+      <div><b>You will not be found unless your phone is telling Oma where you
+        are.</b> There is a switch for it below — turn it on when you start
+        work and off when you finish. Oma keeps where you are now, and no
+        record of where you have been.</div></div>`}
+
     <label class="field"><span class="lab">Business name</span>
       <span class="inp">${I.shop()}<input id="bName" value="${esc(b.name || "")}" placeholder="Thandi Nails Studio"></span></label>
-    <label class="field"><span class="lab">Street &amp; shop number</span>
+    ${shop ? `<label class="field"><span class="lab">Street &amp; shop number</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>
-    <label class="field"><span class="lab">Area</span>
-      <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
-        <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span></span></label>
+        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>` : ""}
+    <div style="display:flex;gap:10px">
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Area</span>
+        <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
+          <!-- Only a shop gets a pin. A tech who travels has no fixed point to
+               pin, and a button offering her one would be a promise Oma
+               cannot keep. -->
+          ${shop ? `<span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>` : ""}
+        </span></label>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
+        <span class="inp"><select id="bState">
+          <option value="">Choose…</option>
+          ${NG_STATES.map(x => `<option ${(b.state || "") === x ? "selected" : ""}>${x}</option>`).join("")}
+        </select></span></label>
+    </div>
     <div style="display:flex;gap:10px">
       <label class="field" style="flex:1;min-width:0"><span class="lab">Currency</span>
         <span class="inp"><select id="bCur">${["₦", "R", "$", "£", "€", "GH₵", "KSh"].map(c =>
@@ -4700,6 +4861,9 @@ function vSetup(edit) {
       <label class="field" style="flex:1;min-width:0"><span class="lab">Closes</span>
         <span class="inp"><input id="bClose" type="time" value="${esc(b.closes || "18:00")}"></span></label>
     </div>
+
+    ${shop ? "" : `<div class="lbl" style="margin:4px 0 7px">Working right now</div>
+      ${workingCard()}<div style="height:14px"></div>`}
 
     <div class="rowbetween" style="margin:6px 0 10px">
       <div style="font-size:14.5px;font-weight:800;letter-spacing:-.02em">Your service menu</div>
@@ -6495,6 +6659,21 @@ let HOMEPOS = null;  // where we centred, and whether we had to guess it
 let PICKID = null;   // the tech whose card is open, or null
 let MAPRO = null;    // watches the map's box, see drawMap
 
+/* ── near me, or the whole state ───────────────────────
+   Kamsy, 8 Sep 2026: "Oma should show all the techs in a state on the map,
+   not only nearby techs — it can still be a feature though."
+
+   So both, and she says which. NEAR ME is the default because it is the
+   question somebody standing in Lekki is actually asking; the state is for
+   the other one — is there anybody in Enugu at all — which is the question a
+   new city gets judged on, and an empty map is a bad answer to it when there
+   are eleven techs forty kilometres away.
+
+   The state list is only the states that HAVE somebody. A picker offering all
+   thirty-seven when thirty-five are empty teaches people the app is empty. */
+let MSCOPE = { all: false, state: null };
+let MSTATES = [];       // [{ state, techs }] — filled once per map screen
+
 /* paint() replaces the whole view. Leaflet keeps listeners on window and a
    running animation frame, so an instance left behind after its container is
    gone leaks and, worse, fights the next one for the same div. Every
@@ -6502,6 +6681,8 @@ let MAPRO = null;    // watches the map's box, see drawMap
 function stopMap() {
   if (MAPRO) { try { MAPRO.disconnect(); } catch (e) { /* gone */ } MAPRO = null; }
   if (MAP) { try { MAP.remove(); } catch (e) { /* already torn down */ } }
+  // MSCOPE deliberately survives: she chose it, and coming back to the map
+  // after looking at one tech should not silently put her back on "near me".
   MAP = null; PINS = []; NEAR = []; NEXTUP = null; HOMEPOS = null; PICKID = null;
 }
 
@@ -6531,7 +6712,16 @@ function vHomeLive() {
       API.signedIn() ? API.bookings(false).catch(() => []) : Promise.resolve([]),
     ]);
     HOMEPOS = pos;
-    NEAR = (await API.nearby(pos.lat, pos.lng, 15).catch(() => []))
+    // Which states have anybody. Asked every time the map opens, because a
+    // stale list is how a tech who joined this morning stays invisible.
+    MSTATES = await API.states().catch(() => []);
+    MSTATES = MSTATES.filter((r) => r.state && r.state !== "(not said)");
+    if (!MSCOPE.state) MSCOPE.state = (DB.me && DB.me.state) || (MSTATES[0] || {}).state || null;
+    if (MSCOPE.all && !MSCOPE.state) MSCOPE.all = false;
+
+    NEAR = (MSCOPE.all
+      ? await API.stateTechs(MSCOPE.state, pos.lat, pos.lng).catch(() => [])
+      : await API.nearby(pos.lat, pos.lng, 15).catch(() => []))
       .filter((t) => Number.isFinite(+t.lat) && Number.isFinite(+t.lng));
     NEXTUP = upcoming(mine).filter((b) => b.status !== "cancelled")[0] || null;
 
@@ -6540,6 +6730,7 @@ function vHomeLive() {
 
     fillHost(`
       <div id="map"></div>
+      ${scopeBar()}
       <div class="mapbtns">
         <button class="mapbtn" data-a="map-me" aria-label="Centre the map on me">${I.pin()}</button>
         <button class="mapbtn pink" data-a="startscan" aria-label="Scan your hands">${I.scan()}</button>
@@ -6575,6 +6766,23 @@ function vHomeLive() {
       </div>
       <button class="avatar" data-a="go" data-v="profile">${esc(initials(me.name))}</button>
     </div>
+  </div>`;
+}
+
+/* The two questions the map can answer, as two taps. The state is a native
+   <select> rather than a home-made sheet: it is one line of markup, it is
+   reachable with a screen reader, and on a phone it opens the wheel everybody
+   already knows how to use. */
+function scopeBar() {
+  if (!MSTATES.length) return "";          // nothing listed anywhere yet
+  const opts = MSTATES.map((r) =>
+    `<option value="${esc(r.state)}" ${r.state === MSCOPE.state ? "selected" : ""}
+      >${esc(r.state)} · ${r.techs}</option>`).join("");
+  return `<div class="scope" role="group" aria-label="What the map shows">
+    <button type="button" class="${MSCOPE.all ? "" : "on"}" data-a="map-scope" data-v="near"
+            aria-pressed="${MSCOPE.all ? "false" : "true"}">Near me</button>
+    <select id="mState" class="${MSCOPE.all ? "on" : ""}"
+            aria-label="Show a whole state">${opts}</select>
   </div>`;
 }
 
@@ -6630,8 +6838,17 @@ function drawMap(pos, list) {
     const room = el.getBoundingClientRect().height;
     const under = Math.min(room * 0.62,
       (sheet ? sheet.getBoundingClientRect().height : 220) + 24);
-    MAP.fitBounds([[pos.lat, pos.lng], ...list.slice(0, 5).map((t) => [+t.lat, +t.lng])], {
-      paddingTopLeft: [40, 48], paddingBottomRight: [40, under], maxZoom: 15,
+    // Near me opens on her and the five closest. A whole state has to open on
+    // the STATE — fitting Lagos to her five nearest would show her the same
+    // corner of Lekki and quietly answer a different question from the one she
+    // asked. Her own position is still in the bounds, so she can see where she
+    // sits in it.
+    const frame = MSCOPE.all
+      ? [[pos.lat, pos.lng], ...list.map((t) => [+t.lat, +t.lng])]
+      : [[pos.lat, pos.lng], ...list.slice(0, 5).map((t) => [+t.lat, +t.lng])];
+    MAP.fitBounds(frame, {
+      paddingTopLeft: [40, 132], paddingBottomRight: [40, under],
+      maxZoom: MSCOPE.all ? 13 : 15,
     });
   } else {
     MAP.setView([pos.lat, pos.lng], 14);
@@ -6817,6 +7034,7 @@ function sheetMany() {
 function homeAsList() {
   const last = DB.scans[0];
   fillHost(`
+    ${scopeBar()}
     <div class="maplist">
       <div class="pad mt16">
         <button class="hero" data-a="startscan">
@@ -6841,14 +7059,16 @@ function homeAsList() {
                   <div class="pad stack gap12">${bookingRow(NEXTUP)}</div>` : ""}
 
       <div class="seehead">
-        <h3>Nail techs near you</h3>
+        <h3>${MSCOPE.all ? `Nail techs in ${esc(MSCOPE.state || "your state")}`
+                         : "Nail techs near you"}</h3>
         ${NEAR.length > 3 ? `<span class="seeall" data-a="go" data-v="salons">See all</span>` : ""}
       </div>
       <div class="pad stack gap12">
         ${NEAR.length
           ? NEAR.slice(0, 3).map(techRowLive).join("")
           : `<div class="empty"><div class="ic">${I.pin()}</div>
-               <b>No nail techs near you yet</b>
+               <b>${MSCOPE.all ? `No nail techs in ${esc(MSCOPE.state || "that state")} yet`
+                                : "No nail techs near you yet"}</b>
                Oma shows techs who have listed themselves and passed their ID check.</div>`}
       </div>
       <div style="height:16px"></div>
@@ -7658,6 +7878,304 @@ function drawKeepLines() {
   });
 }
 
+/* ══ WORKING, AND WHERE ════════════════════════════════════════════════
+   For the nail tech who has no shop.
+
+   Kamsy, 8 Sep 2026: "not all nail techs have a store, so before the tech
+   fills her form let her confirm she has a salon or not; if she doesn't, let
+   her location be tracked for her to be visible."
+
+   A salon is a place. A tech who works out of a bag is not: she is wherever
+   she is this afternoon, and a pin she dropped last week is a lie that costs
+   a customer a taxi fare. So she gets a HEARTBEAT instead of a pin — her
+   phone says where she is while she is working, and live.sql shows her for as
+   long as that heartbeat is fresh. Stop working and she leaves the map,
+   rather than sitting on it, wrong.
+
+   ── the honest shape of "24/7" ───────────────────────────────────────
+
+   A WEB PAGE CANNOT FOLLOW ANYBODY AROUND IN THE BACKGROUND. The moment she
+   locks her phone or switches app, iOS and Android suspend the page and
+   watchPosition stops. There is no flag, permission or trick that changes
+   that; anyone who says otherwise is describing a native app.
+
+   So this file has two halves that do the same job at different depths:
+
+     ON THE WEB (today)      watchPosition while the app is open and visible,
+                             plus a renewal tick so a tech standing still
+                             still counts as here. She is visible for 45
+                             minutes after her last fix, which covers a phone
+                             in a pocket through one appointment.
+
+     IN THE APP (App Store)  the native wrapper keeps CoreLocation /
+                             FusedLocationProvider running with the app in the
+                             background and calls window.OmaLive.position(...)
+                             here. Everything downstream — the throttle, the
+                             API call, what the screen says — is the same code.
+                             See ios/BACKGROUND-LOCATION.md.
+
+   The bridge is deliberately the whole of the difference. When the wrapper
+   ships, no screen and no server function changes; a wrapper that is not
+   there simply never calls in, and the web half carries on alone.
+
+   ── what is never done ───────────────────────────────────────────────
+
+   No trail. Each heartbeat overwrites the last, here and in the database.
+   Oma holds WHERE SHE IS, never WHERE SHE HAS BEEN — a record of a woman's
+   movements is a far more dangerous thing to keep than a current position,
+   it is not needed to put her on a map, and the reliable way not to leak it
+   is not to have it.
+
+   Nothing here runs for a customer, ever. A customer's position is asked of
+   her phone when a screen needs a distance and then dropped.               */
+
+const LIVE = {
+  on: false,        // she has said she is working
+  watch: null,      // navigator.geolocation.watchPosition id
+  tick: null,       // the renewal timer
+  last: null,       // { lat, lng, at } — the last fix we SENT
+  liveAt: null,     // what the SERVER said, not what we hoped
+  err: null,        // the last refusal, in her words
+  src: "web",       // or "ios" / "android" once a wrapper is calling in
+  native: false,    // a wrapper answered when we asked
+};
+
+// A fix is worth sending when she has moved 25 m, or when four minutes have
+// passed and the freshness itself needs renewing. Both are well inside
+// live.sql's 45-minute window, so a missed send is never a disappearance.
+const LIVE_MOVE_M = 25;
+const LIVE_RENEW_MS = 240000;
+const LIVE_MIN_GAP_MS = 20000;      // never more than three sends a minute
+const LIVE_KEY = "oma-working";     // she was working when the app last closed
+
+function metresApart(a, b) {
+  if (!a || !b) return Infinity;
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
+  const s = Math.sin(dLat / 2) ** 2
+          + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(s));
+}
+
+/* ── the one place a position goes to the server ────────────────────
+   Every source — the web watcher, the renewal tick, the native wrapper —
+   comes through here, so the throttle cannot be bypassed by adding a fourth
+   source later. */
+async function liveSend(lat, lng, acc, src) {
+  if (!LIVE.on) return;
+  if (!Number.isFinite(+lat) || !Number.isFinite(+lng)) return;
+  const now = { lat: +lat, lng: +lng, at: Date.now() };
+  if (src) { LIVE.src = src; LIVE.native = src !== "web"; }
+
+  if (LIVE.last) {
+    const since = now.at - LIVE.last.at;
+    if (since < LIVE_MIN_GAP_MS) return;                 // too soon, whatever moved
+    if (metresApart(LIVE.last, now) < LIVE_MOVE_M && since < LIVE_RENEW_MS) return;
+  }
+
+  try {
+    const r = (await API.pingPosition(now.lat, now.lng, acc))[0] || {};
+    LIVE.last = now;
+    LIVE.liveAt = r.live_at || null;
+    LIVE.err = null;
+  } catch (e) {
+    // Her screen must not claim she is visible because we sent something. It
+    // says visible only when the SERVER said so.
+    LIVE.err = (e && e.message) || "Could not reach Oma";
+  }
+  paintWorking();
+}
+
+/* ── the web half ───────────────────────────────────────────────────── */
+function liveWatchStart() {
+  if (LIVE.watch !== null || !navigator.geolocation) return;
+  LIVE.watch = navigator.geolocation.watchPosition(
+    (p) => liveSend(p.coords.latitude, p.coords.longitude,
+                    Math.round(p.coords.accuracy || 0), "web"),
+    (e) => {
+      LIVE.err = e && e.code === 1
+        ? "Location is off for Oma, so customers cannot see you."
+        : "No fix yet — outdoors, or with Wi-Fi on, usually does it.";
+      paintWorking();
+    },
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 15000 },
+  );
+  // watchPosition fires when she MOVES. A tech doing somebody's nails for an
+  // hour does not move, and without this she would quietly expire mid-
+  // appointment. The tick re-sends the same position to renew the freshness.
+  if (!LIVE.tick) {
+    LIVE.tick = setInterval(() => {
+      if (!LIVE.on) return;
+      if (LIVE.last) return liveSend(LIVE.last.lat, LIVE.last.lng, null, LIVE.src);
+      whereAmI().then((p) => { if (!p.guessed) liveSend(p.lat, p.lng, p.acc, "web"); });
+    }, LIVE_RENEW_MS);
+  }
+}
+
+function liveWatchStop() {
+  if (LIVE.watch !== null && navigator.geolocation) {
+    try { navigator.geolocation.clearWatch(LIVE.watch); } catch (e) { /* gone */ }
+  }
+  LIVE.watch = null;
+  if (LIVE.tick) { clearInterval(LIVE.tick); LIVE.tick = null; }
+}
+
+/* ── the native half ─────────────────────────────────────────────────
+   Two lines of contract, and the wrapper implements whichever side it is.
+   Absent — which is every browser today — these do nothing at all. */
+function nativeBridge() {
+  try {
+    if (window.webkit && webkit.messageHandlers && webkit.messageHandlers.omaLocation) {
+      return { post: (m) => webkit.messageHandlers.omaLocation.postMessage(m), kind: "ios" };
+    }
+    if (window.OmaAndroid && typeof OmaAndroid.setBackgroundLocation === "function") {
+      return { post: (m) => OmaAndroid.setBackgroundLocation(JSON.stringify(m)), kind: "android" };
+    }
+  } catch (e) { /* a wrapper that half-exists is the same as none */ }
+  return null;
+}
+
+function nativeSay(on) {
+  const b = nativeBridge();
+  if (!b) return false;
+  try {
+    b.post({ action: on ? "start" : "stop", minMetres: LIVE_MOVE_M,
+             minSeconds: Math.round(LIVE_RENEW_MS / 1000) });
+    LIVE.native = true;
+    return true;
+  } catch (e) { return false; }
+}
+
+/* What the wrapper calls, from CoreLocation's didUpdateLocations or Android's
+   LocationCallback, with the app in the background. This is the ONLY entry
+   point it needs, and it is the same funnel the web watcher uses. */
+window.OmaLive = {
+  position(lat, lng, acc, src) {
+    return liveSend(lat, lng, acc, src || "native");
+  },
+  // The wrapper asks this on launch so it knows whether to start CoreLocation
+  // at all — a nail tech who is not working should not be tracked.
+  wanted() { return !!LIVE.on; },
+  // The wrapper calls this when the phone refuses. Her screen must say so
+  // rather than showing a switch that is on and a listing nobody can find.
+  denied(why) {
+    LIVE.err = why === "denied"
+      ? "Location is off for Oma in your phone's settings, so customers "
+        + "cannot see you."
+      : "Oma cannot get your position right now.";
+    paintWorking();
+  },
+  version: 1,
+};
+
+/* ── on and off ─────────────────────────────────────────────────────── */
+async function liveStart() {
+  LIVE.on = true; LIVE.err = null;
+  try { localStorage.setItem(LIVE_KEY, "1"); } catch (e) { /* private mode */ }
+  liveWatchStart();
+  nativeSay(true);
+  paintWorking();
+  // Send one immediately rather than waiting for the first movement, so she is
+  // on the map the moment she says she is working.
+  const p = await whereAmI();
+  if (p.guessed) {
+    LIVE.err = p.why === "denied"
+      ? "Location is off for Oma, so customers cannot see you."
+      : "No fix yet — Oma will keep trying.";
+    return paintWorking();
+  }
+  LIVE.last = null;                       // never throttle the first one
+  return liveSend(p.lat, p.lng, p.acc, LIVE.native ? LIVE.src : "web");
+}
+
+async function liveStop() {
+  LIVE.on = false;
+  try { localStorage.removeItem(LIVE_KEY); } catch (e) { /* private mode */ }
+  liveWatchStop();
+  nativeSay(false);
+  LIVE.last = null;
+  try {
+    const r = (await API.goOffline())[0] || {};
+    LIVE.liveAt = r.live_at || null;
+  } catch (e) { LIVE.err = (e && e.message) || "Could not reach Oma"; }
+  paintWorking();
+}
+
+function toggleWorking() {
+  return LIVE.on ? liveStop() : liveStart();
+}
+
+/* Called once by boot(), and again whenever she signs in. Picks the working
+   switch back up where she left it — but only after ASKING THE SERVER whether
+   she is actually a travelling tech, because a salon must never start
+   broadcasting. */
+async function liveResume() {
+  if (!API.signedIn()) return;
+  let p;
+  try { p = (await API.myPresence())[0]; } catch (e) { return; }
+  if (!p || p.has_salon) return;                 // a shop does not move
+  LIVE.liveAt = p.live_at || null;
+  let wanted = false;
+  try { wanted = localStorage.getItem(LIVE_KEY) === "1"; } catch (e) { /* private */ }
+  // Fresh on the server counts as working even if this phone forgot — she may
+  // have switched device, and the map already has her.
+  if (wanted || p.visible) return liveStart();
+  paintWorking();
+}
+
+/* ── what she sees ──────────────────────────────────────────────────── */
+function agoWords(iso) {
+  if (!iso) return null;
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return "just now";
+  if (s < 3600) return Math.round(s / 60) + " min ago";
+  return Math.round(s / 3600) + " hr ago";
+}
+
+function workingCard() {
+  const seen = agoWords(LIVE.liveAt);
+  const on = LIVE.on && !!LIVE.liveAt && !LIVE.err;
+  return `<div class="card work${on ? " on" : ""}" id="workCard">
+    <div class="rowbetween">
+      <div style="min-width:0">
+        <div style="font-weight:800;letter-spacing:-.02em">
+          ${on ? "Customers can see you" : "You are off the map"}</div>
+        <div class="tiny faint" style="margin-top:3px">
+          ${LIVE.err ? esc(LIVE.err)
+            : on ? `Your position updated ${esc(seen || "just now")}. Oma shows
+                    where you are now, and keeps no record of where you have been.`
+                 : `Turn this on when you start work. Nobody can find you while
+                    it is off, and Oma is not watching you.`}</div>
+      </div>
+      <button class="switch${LIVE.on ? " on" : ""}" data-a="work-toggle"
+              role="switch" aria-checked="${LIVE.on ? "true" : "false"}"
+              aria-label="Working now"><i></i></button>
+    </div>
+    ${LIVE.on && !LIVE.native ? `<div class="tiny faint" style="margin-top:9px">
+      Keep Oma open while you work. A website cannot follow you once the phone
+      is locked — the Oma app from the App Store will, and this switch is what
+      it uses.</div>` : ""}
+  </div>`;
+}
+
+/* Repaint the one card in place. paint() would rebuild the whole screen and
+   throw away a half-typed price. */
+function paintWorking() {
+  const el = document.getElementById("workCard");
+  if (!el) return;
+  const box = document.createElement("div");
+  box.innerHTML = workingCard();
+  el.replaceWith(box.firstElementChild);
+}
+
+/* A page that is hidden is a page whose watchPosition has probably been
+   suspended. Ask again the moment she comes back, so her first look at the
+   screen is not a stale "updated 40 min ago". */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !LIVE.on) return;
+  whereAmI().then((p) => { if (!p.guessed) liveSend(p.lat, p.lng, p.acc, LIVE.src); });
+});
+
 /* ══ being told something happened ═══════════════════
    Kamsy: "oma is not gonna be a web app forever i am just using it as a
    physical model and when we are done i publish it on playstore and app store
@@ -8285,7 +8803,21 @@ document.getElementById("shell").addEventListener("click", e => {
     // not on the screen, with no way past it. Customers reach her through the
     // conversation in the app now, so there is nothing to replace it with.
     b.services = (b.services || []).filter(s => (s.n || "").trim());
+    if (b.hasSalon === false) {
+      // No address to show, and keeping the one she typed before changing her
+      // answer would put a street on a listing that has no street.
+      b.address = "";
+      if (!b.state) return toast("Pick your state — it is how customers in your state find you.");
+    }
     DB.biz = b; DB.cur = b.cur || DB.cur; dbSave();
+    // The server needs to know, because it is what decides whether she is
+    // found by an address that never moves or by a phone that does. Failing
+    // this must not lose her listing, so it is reported and not thrown.
+    if (API.signedIn()) {
+      API.setMobility(b.hasSalon !== false, b.state || null)
+        .then(() => { if (b.hasSalon === false) liveResume(); })
+        .catch((e) => toast(e.message || "Saved here, but Oma did not get the change."));
+    }
     toast("Listing saved.");
     return nav("listing");
   }
@@ -8308,6 +8840,24 @@ document.getElementById("shell").addEventListener("click", e => {
     const link = location.origin + location.pathname + "#t=" +
       b64e(JSON.stringify({ n: t.n, a: t.a, ad: t.ad, p: t.p, d: t.d, y: t.y, c: t.c, ll: t.ll, o: t.o, cl: t.cl, s: t.s }));
     return copy(link, "Her link is copied — send it on.");
+  }
+  /* Shop, or no shop. The answer reshapes the form, so what she has already
+     typed is read back out first — repainting over a half-filled listing and
+     losing it is the sort of thing that makes people give up on an app. */
+  if (a === "has-salon") {
+    const want = el.dataset.v === "1";
+    DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { hasSalon: want });
+    if (want) LIVE.on = false;          // a shop does not broadcast
+    dbSave();
+    return paint();
+  }
+  if (a === "work-toggle") return toggleWorking();
+  /* Near me, or the whole state. Repainting home is what re-fetches and
+     re-frames the map; there is no separate "reload the pins" path, so there
+     is no second copy of that logic to fall out of step. */
+  if (a === "map-scope") {
+    MSCOPE.all = el.dataset.v === "all";
+    return paint();
   }
   if (a === "push-toggle") return togglePush();
   if (a === "push-why") return toast(el.dataset.v || "Notifications are not available here.");
@@ -8422,12 +8972,25 @@ document.getElementById("shell").addEventListener("input", e => {
 });
 
 /* ══ actions ═════════════════════════════════════════ */
+/* Choosing a state on the map. A <select> does not click, so it cannot go
+   through the delegated handler with everything else. Her choice is kept on
+   the device, because "all of Lagos" should still mean Lagos tomorrow. */
+document.addEventListener("change", (e) => {
+  const n = e.target;
+  if (!n || n.id !== "mState") return;
+  MSCOPE.state = n.value;
+  MSCOPE.all = true;
+  DB.me = Object.assign({}, DB.me, { state: n.value });
+  dbSave();
+  paint();
+});
+
 function readBiz() {
   const g = k => { const n = document.getElementById(k); return n ? n.value.trim() : undefined; };
   const out = {};
   // No phone or dial any more: signing in is by email and techs are reached
   // through the in-app conversation, not WhatsApp.
-  const map = { bName: "name", bAddr: "address", bArea: "area",
+  const map = { bName: "name", bAddr: "address", bArea: "area", bState: "state",
                 bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes" };
   for (const k in map) { const v = g(k); if (v !== undefined) out[map[k]] = v; }
   const svc = [];
@@ -8651,6 +9214,12 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
   }
   ROUTE = { v: DB.role ? (DB.role === "tech" ? "requests" : "home") : "welcome", a: null };
   paint();
+
+  /* A nail tech who was working when she last closed the app is still working
+     now — she did not stop, the browser did. This asks the SERVER whether she
+     is a travelling tech before broadcasting anything, so a salon can never be
+     started by a stale flag on a phone. See p20_live.js. */
+  if (typeof liveResume === "function") liveResume();
 })();
 
 </script>
