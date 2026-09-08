@@ -1,0 +1,11 @@
+# Everything here is meant to be found. That is the whole problem this file is
+# part of solving: searching omaa.com.ng showed a different company entirely,
+# because there was nothing at the root of this domain to index.
+User-agent: *
+Allow: /
+
+# Not the admin page. It is guarded by a passphrase either way, but there is
+# no reason for it to appear in a search result and every reason not to.
+Disallow: /admin.html
+
+Sitemap: https://omaa.com.ng/sitemap.xml

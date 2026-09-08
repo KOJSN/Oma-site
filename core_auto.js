@@ -52,75 +52,6 @@ const LM_MCP = { index: 5, middle: 9, ring: 13, pinky: 17 };
 let MPHANDS = null;          // the loaded model, kept for the next scan
 let MPDEAD = null;           // why it cannot be used, if it cannot
 
-/* ══ measuring what has never been measured ══════════
-   Every number in the table above came from eight photographs on a desktop in
-   a container. Nobody has ever run this on a phone, over Nigerian mobile data,
-   which is where all of it actually has to work — and "about 9 MB" and "about
-   three seconds" are both estimates, not observations.
-
-   So the scan times itself. This is OFF for everybody: it shows nothing unless
-   the app was opened once with ?timing=1, which sets a flag this phone keeps.
-   A real customer never sees it. */
-const MPT = { script: 0, init: 0, find: 0, nails: 0, warm: false, bytes: null };
-
-function timingOn() {
-  try {
-    const q = (location.search || "") + (location.hash || "");
-    if (q.indexOf("timing=1") !== -1) localStorage.setItem("oma-timing", "1");
-    if (q.indexOf("timing=0") !== -1) localStorage.removeItem("oma-timing");
-    return !!localStorage.getItem("oma-timing");
-  } catch (e) { return false; }   // private mode: simply off
-}
-
-/* What actually came down the wire, from the browser's own resource timing.
-   transferSize is 0 when a response came from cache — which is the answer we
-   want on the second scan, and is worth distinguishing from "not reported". */
-function mpBytes() {
-  try {
-    if (!window.performance || !performance.getEntriesByType) return null;
-    const rs = performance.getEntriesByType("resource")
-      .filter(r => String(r.name).indexOf(MP_BASE) === 0);
-    if (!rs.length) return null;
-    let transfer = 0, body = 0, reported = 0;
-    for (const r of rs) {
-      transfer += r.transferSize || 0;
-      body += r.encodedBodySize || 0;
-      if (r.encodedBodySize) reported++;
-    }
-    // jsdelivr sends Timing-Allow-Origin, but if it ever stops, every size
-    // reads 0 and a "0 MB download" would be a lie. Say so instead.
-    return { files: rs.length, transfer, body, reported };
-  } catch (e) { return null; }
-}
-
-const mb = (n) => (n / 1048576).toFixed(2) + " MB";
-const secs = (ms) => ms >= 1000 ? (ms / 1000).toFixed(1) + " s" : Math.round(ms) + " ms";
-
-function showTiming(res) {
-  const el = document.getElementById("autoTiming");
-  if (!el) return;
-  if (!timingOn()) { el.className = "hidden"; return; }
-  const b = MPT.bytes;
-  const size = !b ? "not reported by this browser"
-    : !b.reported ? `${b.files} files, sizes hidden by the CDN`
-    : b.transfer === 0 ? `${mb(b.body)}, all from cache`
-    : `${mb(b.transfer)} over the wire (${mb(b.body)} unpacked, ${b.files} files)`;
-  const rows = [
-    ["Model", MPT.warm ? "already loaded, nothing downloaded" : size],
-    ["Download + start", MPT.warm ? "—" : secs(MPT.script + MPT.init)],
-    ["Finding the hand", MPT.find ? secs(MPT.find) : "—"],
-    ["Reading 4 nails", MPT.nails ? secs(MPT.nails) : "—"],
-    ["Result", res.ok ? `read ${res.read} of 4` : "failed: " + (res.why || "?")],
-  ];
-  el.className = "note";
-  el.style.marginTop = "14px";
-  el.innerHTML = `<div style="width:100%"><div class="tiny"
-      style="font-weight:700;margin-bottom:6px">Timing (only you see this)</div>`
-    + rows.map(r => `<div class="rowbetween tiny" style="padding:2px 0">
-         <span class="faint">${r[0]}</span><span>${esc(String(r[1]))}</span></div>`).join("")
-    + `</div>`;
-}
-
 function mpScript(src) {
   return new Promise((res, rej) => {
     const s = document.createElement("script");
@@ -141,14 +72,11 @@ function withTimeout(p, ms, msg) {
 }
 
 async function loadHandModel() {
-  if (MPHANDS) { MPT.warm = true; return MPHANDS; }
-  MPT.warm = false;
+  if (MPHANDS) return MPHANDS;
   if (MPDEAD) throw new Error(MPDEAD);
-  const t0 = performance.now();
   if (!window.Hands) {
     await withTimeout(mpScript(MP_BASE + "hands.js"), 40000, "the download stalled");
   }
-  MPT.script = performance.now() - t0;
   if (!window.Hands) throw new Error("the hand model did not start");
   const h = new window.Hands({ locateFile: f => MP_BASE + f });
   h.setOptions({
@@ -162,12 +90,7 @@ async function loadHandModel() {
   // connection it is the 9 MB arriving, and it CAN simply never finish. Without
   // a bound on it somebody sits on this screen forever, which is a worse
   // failure than being asked to tap. Two minutes, then hand over to tapping.
-  const t1 = performance.now();
   await withTimeout(h.initialize(), 120000, "the download stalled");
-  MPT.init = performance.now() - t1;
-  // Read after initialize(), because that is when the .wasm and the model
-  // weights actually arrive — hands.js on its own is a small fraction of it.
-  MPT.bytes = mpBytes();
   MPHANDS = h;
   return h;
 }
@@ -251,14 +174,11 @@ async function autoRead(say) {
   say("Finding your hand");
   await breathe();
   let pts = null;
-  const tFind = performance.now();
   try {
     pts = await findHand(S.src);
   } catch (e) {
-    MPT.find = performance.now() - tFind;
     return { ok: false, read: 0, why: "model", detail: e.message };
   }
-  MPT.find = performance.now() - tFind;
   if (!pts) return { ok: false, read: 0, why: "nohand" };
 
   // Finger length and palm width, straight off the skeleton. This is what the
@@ -272,7 +192,6 @@ async function autoRead(say) {
 
   S.boxes = {};
   let read = 0;
-  const tNails = performance.now();
   // Two passes, and the second almost never runs. The first insists on a
   // nail-sized region; if that leaves the WHOLE hand with nothing, the second
   // takes what it can get, because no reading at all is worse than a rough one.
@@ -305,7 +224,6 @@ async function autoRead(say) {
     drawAuto();
   }
   }
-  MPT.nails = performance.now() - tNails;
   return { ok: read > 0, read: read, why: read ? null : "noread" };
 }
 
@@ -337,8 +255,6 @@ async function runAuto() {
   document.getElementById("autoNote").className = "hidden";
   document.getElementById("autoFoot").className = "hidden";
   document.getElementById("autoWork").className = "";
-  document.getElementById("autoTiming").className = "hidden";
-  MPT.find = 0; MPT.nails = 0;
   autoBar(0.05);
   drawAuto();
 
@@ -360,16 +276,10 @@ async function runAuto() {
   autoBar(1);
   document.getElementById("autoWork").className = "hidden";
 
-  showTiming(res);
-
   if (res.ok) {
     autoSay(res.read === 4 ? "All four nails read"
                            : `Read ${res.read} of 4 — the rest were not clear enough`);
     document.getElementById("autoFoot").className = "";
-    // Moving on by itself is the point of the whole change — except while
-    // timing, where being carried off the screen before the numbers can be
-    // read defeats the reason for measuring.
-    if (timingOn()) return;
     // It moves on by itself. That is the whole point of the change: nobody has
     // to press anything to get past this screen. The pause is long enough to
     // see the outlines land and reach for Check them if they look wrong.

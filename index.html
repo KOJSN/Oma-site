@@ -2,104 +2,703 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oma — Nail appointments, done properly</title>
-<meta name="description" content="Oma helps women in Nigeria find a nail tech, book a time, and pay safely. Money is held until the appointment actually happens.">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+<!-- ══ what a search engine and a shared link see ══════════════════════
+     Kamsy, 8 Sep 2026: searching omaa.com.ng shows a Nigerian energy company
+     instead. That is not a bug — until now there was NOTHING at the root of
+     this domain to index. The app lives at /app.html and a crawler that finds
+     no page at / has no title, no description and nothing to show.
+
+     Everything in this block exists to fix that half. The other half is
+     manual and only Kamsy can do it: add the site to Google Search Console
+     and submit /sitemap.xml. Nothing here makes that happen on its own.
+
+     THE DOMAIN IS WRITTEN ONCE, in the canonical and og:url below and in
+     sitemap.xml. If it ever changes, those are the only places to edit. -->
+<title>Oma — find a nail tech near you, book, and pay safely</title>
+<meta name="description" content="Oma helps women in Nigeria find a nail tech nearby, see her prices before booking, and pay into escrow — the money only reaches her when the appointment actually happens. Scan your hands to find the nail shape that fits.">
+<link rel="canonical" href="https://omaa.com.ng/">
+<meta name="theme-color" content="#f0518d">
+<meta name="robots" content="index,follow">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Oma">
+<meta property="og:url" content="https://omaa.com.ng/">
+<meta property="og:title" content="Oma — find a nail tech near you, book, and pay safely">
+<meta property="og:description" content="Find a nail tech nearby, see her prices before booking, and pay into escrow. The money only reaches her when the appointment actually happens.">
+<meta property="og:image" content="https://omaa.com.ng/icons/icon-512.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+
+<!-- Structured data. It is what lets Google show a name and a logo rather
+     than a bare URL, and it is the cheapest thing on this page. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Oma",
+  "url": "https://omaa.com.ng/",
+  "description": "Find a nail tech near you in Nigeria, book, and pay safely into escrow.",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Oma",
+    "url": "https://omaa.com.ng/",
+    "logo": "https://omaa.com.ng/icons/icon-512.png",
+    "founder": { "@type": "Person", "name": "Kamsy Samben-Nwosu" },
+    "areaServed": { "@type": "Country", "name": "Nigeria" }
+  }
+}
+</script>
+
 <style>
-  :root{
-    --ink:#1c1414; --muted:#6b5b5b; --line:#e8dedd;
-    --bg:#fdfbfa; --card:#fff; --accent:#b4485f; --accent-soft:#fdeef1;
+/* ══ tokens ═══════════════════════════════════════════════════════════
+   The same palette as the app, so the site and the thing it is advertising
+   are recognisably one product. Light first on bare :root, then overridden
+   twice — once for the system's dark mode, once for an explicit toggle — so
+   no colour has its only definition inside a media query. That was a real
+   bug in the app once and it is not worth repeating here. */
+:root{
+  --bg:#ffffff; --bg2:#f7f5fa; --card:#ffffff; --ink:#181220; --sub:#5f5670;
+  --faint:#8a8296; --line:rgba(24,18,32,.10);
+  --pink:#f0518d; --pink2:#ff8ab8; --pinkd:#c22a66;
+  --tint:#fff0f6; --onpink:#ffffff;
+  --ink-on-dark:#ffffff; --sub-on-dark:rgba(255,255,255,.72);
+  --shadow:0 24px 60px -20px rgba(24,18,32,.20),0 6px 16px -6px rgba(24,18,32,.10);
+  --grad:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
+  --hero:#120e17;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a080d; --bg2:#110d16; --card:#17131e; --ink:#f7f4f9; --sub:#a79db3;
+    --faint:#7b7186; --line:rgba(255,255,255,.10);
+    --pink:#ff5f96; --pink2:#ff92bb; --pinkd:#ffa9c8;
+    --tint:#2a1622; --onpink:#1a0f16;
+    --shadow:0 24px 60px -20px rgba(0,0,0,.72),0 6px 16px -6px rgba(0,0,0,.5);
+    --hero:#0d0a12;
   }
-  *{box-sizing:border-box}
-  body{
-    margin:0; background:var(--bg); color:var(--ink);
-    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:720px;margin:0 auto;padding:0 24px}
-  header{padding:64px 0 40px}
-  .logo{
-    font-size:32px;font-weight:700;letter-spacing:-.02em;margin:0 0 6px;
-    color:var(--accent);
-  }
-  .tag{font-size:19px;color:var(--muted);margin:0}
-  section{padding:36px 0;border-top:1px solid var(--line)}
-  h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
-     font-weight:600;margin:0 0 16px}
-  p{margin:0 0 14px;max-width:60ch}
-  ol{margin:0;padding-left:20px} li{margin-bottom:10px;max-width:58ch}
-  .note{
-    background:var(--accent-soft);border-radius:10px;padding:18px 20px;
-    border:1px solid #f6dde3;
-  }
-  .note p:last-child{margin-bottom:0}
-  a{color:var(--accent)}
-  footer{padding:40px 0 64px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
-  @media (max-width:520px){ header{padding:44px 0 28px} .logo{font-size:27px} }
+}
+:root[data-theme="dark"]{
+  --bg:#0a080d; --bg2:#110d16; --card:#17131e; --ink:#f7f4f9; --sub:#a79db3;
+  --faint:#7b7186; --line:rgba(255,255,255,.10);
+  --pink:#ff5f96; --pink2:#ff92bb; --pinkd:#ffa9c8;
+  --tint:#2a1622; --onpink:#1a0f16;
+  --shadow:0 24px 60px -20px rgba(0,0,0,.72),0 6px 16px -6px rgba(0,0,0,.5);
+  --hero:#0d0a12;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{animation:none!important;transition:none!important}
+}
+img,svg{max-width:100%;display:block}
+/* The browser's own [hidden] rule is display:none at the lowest priority, and
+   ANY display in a stylesheet beats it. The tab panels below are .grid, so
+   hiding one did nothing at all — it stayed on screen under the other. This
+   line is why the tabs work. */
+[hidden]{display:none!important}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+h1,h2,h3{margin:0;letter-spacing:-.035em;line-height:1.06;font-weight:800}
+p{margin:0}
+
+/* ── the bar ─────────────────────────────────────────── */
+.bar{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
+  background:color-mix(in srgb,var(--bg) 82%,transparent);
+  border-bottom:1px solid transparent;transition:border-color .2s}
+.bar.stuck{border-bottom-color:var(--line)}
+.bar .wrap{display:flex;align-items:center;gap:26px;height:66px}
+.mark{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;
+  letter-spacing:-.04em;flex:none}
+.mark i{width:30px;height:30px;border-radius:9px;background:var(--grad);flex:none;
+  display:block;position:relative}
+.mark i::after{content:"";position:absolute;inset:8px 10px;border-radius:50%;
+  border:2.5px solid rgba(11,9,16,.92);transform:rotate(-15deg)}
+.navlinks{display:flex;gap:24px;margin-left:auto;font-size:14.5px;font-weight:600;
+  color:var(--sub)}
+.navlinks a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  padding:12px 20px;border-radius:99px;font-weight:700;font-size:15px;
+  border:0;cursor:pointer;font-family:inherit;white-space:nowrap;
+  background:var(--grad);color:#fff;box-shadow:0 10px 26px -10px rgba(240,81,141,.85);
+  transition:transform .15s,box-shadow .15s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 16px 34px -12px rgba(240,81,141,.95)}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line);
+  box-shadow:none}
+.btn.ghost:hover{border-color:var(--pink);color:var(--pink)}
+.btn.big{padding:16px 28px;font-size:16.5px}
+.btn.onhero{background:#fff;color:#17131e;box-shadow:0 14px 34px -14px rgba(0,0,0,.7)}
+.burger{display:none;margin-left:auto;background:none;border:0;color:inherit;
+  cursor:pointer;padding:8px}
+@media (max-width:820px){
+  .navlinks{display:none}
+  .navlinks.open{display:flex;position:absolute;top:66px;left:0;right:0;
+    flex-direction:column;gap:0;background:var(--bg);border-bottom:1px solid var(--line);
+    padding:6px 22px 14px}
+  .navlinks.open a{padding:12px 0;border-bottom:1px solid var(--line)}
+  .navlinks.open a:last-child{border-bottom:0}
+  .burger{display:block}
+  .bar .wrap{position:relative}
+  .bar .btn{display:none}
+}
+
+/* ── hero ────────────────────────────────────────────── */
+.hero{position:relative;background:var(--hero);color:var(--ink-on-dark);
+  overflow:hidden;padding:96px 0 108px}
+.hero::before,.hero::after{content:"";position:absolute;border-radius:50%;
+  filter:blur(90px);pointer-events:none}
+.hero::before{width:620px;height:620px;top:-220px;right:-160px;
+  background:rgba(240,81,141,.55)}
+.hero::after{width:520px;height:520px;bottom:-260px;left:-180px;
+  background:rgba(255,143,186,.30)}
+.hero .wrap{position:relative;display:grid;grid-template-columns:1.05fr .95fr;
+  gap:56px;align-items:center}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;
+  border-radius:99px;background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.16);
+  font-size:12.5px;font-weight:700;letter-spacing:.02em;margin-bottom:22px}
+.eyebrow b{color:#ffb3d0}
+h1{font-size:clamp(36px,5.6vw,62px);text-wrap:balance}
+.hero p.lede{color:var(--sub-on-dark);font-size:clamp(17px,2.1vw,20px);
+  margin-top:20px;max-width:34ch;line-height:1.55}
+.ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:34px}
+.trust{display:flex;gap:22px;flex-wrap:wrap;margin-top:34px;
+  color:rgba(255,255,255,.62);font-size:13.5px;font-weight:600}
+.trust span{display:flex;align-items:center;gap:7px}
+
+/* the phone. Drawn, not photographed — there is no screenshot of a real
+   booking yet and a fake one on a marketing page is a small lie. */
+.phone{width:min(290px,80vw);margin:0 auto;border-radius:38px;padding:11px;
+  background:#241f2b;box-shadow:0 40px 90px -30px rgba(0,0,0,.85);
+  border:1px solid rgba(255,255,255,.10)}
+.screen{border-radius:28px;background:#17131e;overflow:hidden;
+  padding:18px 15px;color:#fff}
+.screen .k{font-size:11px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:rgba(255,255,255,.45)}
+.screen .row{display:flex;align-items:center;gap:11px;padding:11px;
+  border-radius:15px;background:rgba(255,255,255,.06);margin-top:9px}
+.screen .av{width:36px;height:36px;border-radius:11px;background:var(--grad);
+  flex:none;display:grid;place-items:center;font-size:12.5px;font-weight:800}
+.screen .nm{font-size:13.5px;font-weight:700;letter-spacing:-.02em}
+.screen .sub{font-size:11.5px;color:rgba(255,255,255,.55)}
+.screen .amt{margin-left:auto;font-size:13px;font-weight:800}
+.screen .pill{margin-top:14px;padding:11px 13px;border-radius:14px;
+  background:rgba(78,208,140,.16);color:#8ff0ba;font-size:12px;font-weight:700;
+  display:flex;align-items:center;gap:8px}
+@media (max-width:900px){
+  .hero{padding:70px 0 78px}
+  .hero .wrap{grid-template-columns:1fr;gap:44px}
+  .hero p.lede{max-width:none}
+  .phone{margin-top:6px}
+}
+
+/* ── sections ────────────────────────────────────────── */
+section{padding:88px 0}
+section.alt{background:var(--bg2)}
+.head{max-width:640px;margin-bottom:44px}
+.tag{font-size:12.5px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;
+  color:var(--pink);margin-bottom:12px}
+h2{font-size:clamp(28px,4.2vw,42px)}
+.head p{color:var(--sub);margin-top:14px;font-size:17px}
+
+.grid{display:grid;gap:18px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+@media (max-width:900px){.g4{grid-template-columns:repeat(2,1fr)}
+  .g3,.g2{grid-template-columns:1fr}}
+@media (max-width:560px){.g4{grid-template-columns:1fr}}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;
+  padding:26px 24px}
+.card .n{width:34px;height:34px;border-radius:11px;background:var(--tint);
+  color:var(--pink);display:grid;place-items:center;font-weight:800;font-size:15px;
+  margin-bottom:16px}
+.card h3{font-size:18px;margin-bottom:8px;letter-spacing:-.02em}
+.card p{color:var(--sub);font-size:14.8px}
+
+.tabs{display:inline-flex;gap:4px;padding:4px;border-radius:99px;
+  background:var(--bg2);border:1px solid var(--line);margin-bottom:30px}
+section.alt .tabs{background:var(--bg)}
+.tabs button{padding:9px 20px;border-radius:99px;border:0;background:none;
+  font:inherit;font-size:14.5px;font-weight:700;color:var(--sub);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--grad);color:#fff}
+
+/* the escrow explainer — the one thing that makes Oma worth using */
+.safe{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center}
+@media (max-width:900px){.safe{grid-template-columns:1fr;gap:30px}}
+.flow{display:flex;flex-direction:column;gap:0}
+.step{display:flex;gap:16px;padding:16px 0}
+.step .dot{width:12px;height:12px;border-radius:50%;background:var(--pink);
+  flex:none;margin-top:7px;position:relative}
+.step .dot::after{content:"";position:absolute;top:16px;left:5px;width:2px;
+  height:calc(100% + 18px);background:var(--line)}
+.step:last-child .dot::after{display:none}
+.step b{display:block;font-size:15.5px;letter-spacing:-.02em}
+.step span{color:var(--sub);font-size:14.3px}
+
+/* ── founder ─────────────────────────────────────────── */
+.founder{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.founder .fi{width:74px;height:74px;border-radius:22px;background:var(--grad);
+  display:grid;place-items:center;color:#fff;font-size:26px;font-weight:800;
+  letter-spacing:-.03em;flex:none}
+
+/* ── the app badges ──────────────────────────────────── */
+.badges{display:flex;gap:14px;flex-wrap:wrap;margin-top:26px}
+.badge{display:flex;align-items:center;gap:12px;padding:13px 20px;border-radius:16px;
+  border:1.5px solid var(--line);background:var(--card);min-width:190px;
+  opacity:.62;cursor:default}
+.badge .bs{font-size:11px;color:var(--faint);font-weight:600;line-height:1.2}
+.badge .bb{font-size:15px;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+.soon{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--pink);background:var(--tint);padding:3px 8px;border-radius:99px;
+  margin-left:auto}
+
+/* ── contact ─────────────────────────────────────────── */
+form{display:grid;gap:14px;max-width:560px}
+label{display:block;font-size:13px;font-weight:700;color:var(--sub);
+  margin-bottom:6px}
+input,textarea{width:100%;padding:14px 16px;border-radius:14px;
+  border:1.5px solid var(--line);background:var(--card);color:var(--ink);
+  font:inherit;font-size:15.5px}
+input:focus,textarea:focus{outline:2px solid var(--pink);outline-offset:1px;
+  border-color:transparent}
+textarea{min-height:130px;resize:vertical}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.note{padding:14px 16px;border-radius:14px;font-size:14.5px;font-weight:600}
+.note.ok{background:rgba(27,158,90,.12);color:#1b9e5a}
+.note.bad{background:rgba(184,121,27,.14);color:#b8791b}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .note.ok{color:#4ed08c}
+  :root:not([data-theme="light"]) .note.bad{color:#e0a944}
+}
+
+footer{border-top:1px solid var(--line);padding:44px 0;color:var(--faint);
+  font-size:14px}
+footer .wrap{display:flex;gap:20px;flex-wrap:wrap;align-items:center}
+footer a{color:var(--sub);font-weight:600}
+footer a:hover{color:var(--pink)}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:12px;top:12px;z-index:99;background:var(--card);color:var(--ink);
+  padding:10px 16px;border-radius:12px;border:1px solid var(--line)}
 </style>
 </head>
 <body>
-<div class="wrap">
+<a class="skip" href="#main">Skip to content</a>
 
-  <header>
-    <h1 class="logo">Oma</h1>
-    <p class="tag">Find a nail tech near you, book a time, and pay without worrying.</p>
-  </header>
+<header class="bar" id="bar">
+  <div class="wrap">
+    <a class="mark" href="/" aria-label="Oma, home"><i aria-hidden="true"></i>Oma</a>
+    <button class="burger" id="burger" aria-label="Menu" aria-expanded="false">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <nav class="navlinks" id="nav">
+      <a href="#how">How it works</a>
+      <a href="#safe">Paying safely</a>
+      <a href="#about">About</a>
+      <a href="#get">Get the app</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <a class="btn" href="/app.html">Open Oma</a>
+  </div>
+</header>
 
-  <section>
-    <h2>What Oma does</h2>
-    <p>Oma connects women in Nigeria with nail technicians working near them. You
-    choose a shape and a style, see who is available, pick a time, and pay in the app.</p>
-    <p>Your payment is held until the appointment actually happens. The technician
-    scans a code at the start of the session, and only then is she paid. If she does
-    not show up, the money comes back to you automatically.</p>
-  </section>
+<main id="main">
 
-  <section>
-    <h2>How it works</h2>
-    <ol>
-      <li>Scan your nails or pick a shape you like.</li>
-      <li>Browse technicians nearby, with their prices and their work.</li>
-      <li>Book a time and pay. The money is held, not released.</li>
-      <li>At your appointment, she scans your code. She gets paid. You get your nails done.</li>
-    </ol>
-  </section>
-
-  <section>
-    <h2>Why we send text messages</h2>
-    <div class="note">
-      <p>Oma sends SMS only to people who have entered their own phone number in the
-      app. There are two kinds of message, and nothing else:</p>
-      <p><strong>One-time codes</strong> — a six-digit number to confirm the phone
-      belongs to you when you sign in.</p>
-      <p><strong>Booking notices</strong> — a confirmation when an appointment is
-      booked, and a reminder before it starts.</p>
-      <p>We do not send marketing or promotional messages, we do not buy or sell
-      phone numbers, and we do not message anyone who has not signed up.</p>
+<!-- ══ hero ═══════════════════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">🇳🇬 Built in Nigeria &nbsp;·&nbsp; <b>Free to use</b></span>
+      <h1>Find a nail&nbsp;tech.<br>Book her. Pay safely.</h1>
+      <p class="lede">Oma shows you the nail techs near you, what they charge, and
+        what other women thought — then holds your money until the appointment
+        actually happens.</p>
+      <div class="ctas">
+        <a class="btn big onhero" href="/app.html">Open Oma in your browser</a>
+        <a class="btn big ghost" href="#tech" style="color:#fff;border-color:rgba(255,255,255,.28)">I'm a nail tech</a>
+      </div>
+      <div class="trust">
+        <span>💳 Your money is held until you're done</span>
+        <span>📍 Sorted by how far away she really is</span>
+      </div>
     </div>
-  </section>
 
-  <section>
-    <h2>Your information</h2>
-    <p>We keep your name, your phone number, and your bookings. Technicians are
-    verified with a government-issued identity check; we store only whether that
-    check passed, never the identity number itself.</p>
-    <p>Payments are handled by a licensed payment processor. Oma never sees or
-    stores your card details.</p>
-  </section>
+    <!-- Drawn, not a screenshot. There is no photograph of a real booking yet
+         and a mocked-up one presented as real is a small lie to open with. -->
+    <div class="phone" aria-hidden="true">
+      <div class="screen">
+        <div class="k">Nail techs near you</div>
+        <div class="row"><div class="av">TN</div>
+          <div><div class="nm">Tola Nails</div><div class="sub">Lekki Phase 1 · 1.2 km</div></div>
+          <div class="amt">from ₦5,500</div></div>
+        <div class="row"><div class="av">GL</div>
+          <div><div class="nm">Glossy Lagos</div><div class="sub">Victoria Island · 3.4 km</div></div>
+          <div class="amt">from ₦7,000</div></div>
+        <div class="row"><div class="av">AS</div>
+          <div><div class="nm">Ada's Studio</div><div class="sub">Comes to you · 5.1 km</div></div>
+          <div class="amt">from ₦9,000</div></div>
+        <div class="pill">🔒 Held until you scan at the appointment</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-  <section>
-    <h2>Contact</h2>
-    <!-- CHANGE THIS to a real address on your domain before you submit to Termii. -->
-    <p>Email <a href="omaappy@gmail.com">omaappy@gmail.com</a> — we read every message.</p>
-    <p>Abuja, Nigeria.</p>
-  </section>
+<!-- ══ how it works ═══════════════════════════════════════════════════ -->
+<section id="how">
+  <div class="wrap">
+    <div class="head">
+      <div class="tag">How it works</div>
+      <h2>Four steps, and nobody has to trust a stranger.</h2>
+      <p>The hard part of booking a nail tech you have never met is not finding
+        her. It is knowing the money is safe and that she will turn up.</p>
+    </div>
 
-  <footer>
-    <p> Founder: Samben-Nwosu Oduagu Kamsy Jerry</p>
-    <p>© 2026 Oma. Oma is currently in testing and is not yet open to the public.</p>
-  </footer>
+    <div class="tabs" role="tablist" aria-label="Who are you">
+      <button role="tab" id="tab-cust" aria-controls="panel-cust" aria-selected="true">For customers</button>
+      <button role="tab" id="tab-tech" aria-controls="panel-tech" aria-selected="false">For nail techs</button>
+    </div>
 
-</div>
+    <div class="grid g4" id="panel-cust" role="tabpanel" aria-labelledby="tab-cust">
+      <div class="card"><div class="n">1</div>
+        <h3>Scan your hands</h3>
+        <p>Oma measures your nail beds from a photo, on your phone, and tells you
+          which shapes actually suit them. The photo never leaves the device.</p></div>
+      <div class="card"><div class="n">2</div>
+        <h3>Find someone near you</h3>
+        <p>See who is close, what they charge, and what other women said. Or let
+          her come to you — the price for that is shown before you book.</p></div>
+      <div class="card"><div class="n">3</div>
+        <h3>Book and pay</h3>
+        <p>You pay into an account for that one appointment. She cannot touch it
+          yet, and neither can we.</p></div>
+      <div class="card"><div class="n">4</div>
+        <h3>Show your code</h3>
+        <p>When your nails are done, she scans the code on your phone. That is
+          what releases the money — and it is the only thing that does.</p></div>
+    </div>
+
+    <div class="grid g4" id="panel-tech" role="tabpanel" aria-labelledby="tab-tech" hidden>
+      <div class="card"><div class="n">1</div>
+        <h3>List yourself</h3>
+        <p>Your name, your area, your own prices and how long each service takes.
+          Shop or no shop — if you travel, Oma shows where you are while you work.</p></div>
+      <div class="card"><div class="n">2</div>
+        <h3>Pass the ID check</h3>
+        <p>One check, so a customer paying a stranger knows who she is paying.
+          Your ID number is never stored — only the fact that it passed.</p></div>
+      <div class="card"><div class="n">3</div>
+        <h3>Take bookings</h3>
+        <p>Requests arrive in the app with the services, the time, and whether
+          she is coming to you or you to her.</p></div>
+      <div class="card"><div class="n">4</div>
+        <h3>Scan, and get paid</h3>
+        <p>Scan her code when you finish. The money moves to your balance, with
+          every deduction set out line by line.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ escrow ═════════════════════════════════════════════════════════ -->
+<section class="alt" id="safe">
+  <div class="wrap safe">
+    <div>
+      <div class="tag">Paying safely</div>
+      <h2>Your money doesn't move until your nails are done.</h2>
+      <p style="color:var(--sub);margin-top:16px;font-size:17px">
+        Paying a stranger up front is the reason most people never book online.
+        Oma's answer is not a promise — it is where the money physically sits.</p>
+      <p style="color:var(--sub);margin-top:14px;font-size:17px">
+        If she never scans your code, the appointment never completed, and the
+        money goes back to you.</p>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="dot"></div>
+        <div><b>You pay into an account for that appointment</b>
+        <span>Made for your booking, closed after it.</span></div></div>
+      <div class="step"><div class="dot"></div>
+        <div><b>It sits there. Nobody can spend it</b>
+        <span>Not her, not you, not Oma.</span></div></div>
+      <div class="step"><div class="dot"></div>
+        <div><b>She does your nails</b>
+        <span>You show the code on your phone. She scans it.</span></div></div>
+      <div class="step"><div class="dot"></div>
+        <div><b>That scan releases the money</b>
+        <span>It is the only thing that does.</span></div></div>
+      <div class="step"><div class="dot"></div>
+        <div><b>No scan, no payment</b>
+        <span>If the appointment never happened, you get it back.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ about ══════════════════════════════════════════════════════════ -->
+<section id="about">
+  <div class="wrap">
+    <div class="head">
+      <div class="tag">About us</div>
+      <h2>Oma is for the first appointment.</h2>
+      <p>Finding a good nail tech in Nigeria happens by word of mouth, and word
+        of mouth stops at the edge of who you already know. If you move to a new
+        area, or your usual tech stops answering, you are back to guessing from
+        photos and hoping.</p>
+    </div>
+    <div class="grid g3">
+      <div class="card">
+        <h3>Real prices, before you book</h3>
+        <p>Every tech sets her own. You see the number, and what it would cost
+          for her to come to you, before you commit to anything.</p></div>
+      <div class="card">
+        <h3>Distance you can trust</h3>
+        <p>Oma asks your phone where you are each time you look, so "1.2 km" is
+          from where you are standing, not where you were last week.</p></div>
+      <div class="card">
+        <h3>Reviews that had to be earned</h3>
+        <p>Only someone who paid for and completed an appointment can leave one.
+          A tech cannot rate herself and a rival cannot rate her down.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ founder ════════════════════════════════════════════════════════ -->
+<section class="alt">
+  <div class="wrap">
+    <div class="head"><div class="tag">Founder</div></div>
+    <div class="founder">
+      <div class="fi" aria-hidden="true">KS</div>
+      <div>
+        <h2 style="font-size:clamp(24px,3.2vw,32px)">Kamsy Samben-Nwosu</h2>
+        <p style="color:var(--sub);margin-top:10px;max-width:56ch;font-size:16.5px">
+          Oma was founded and built to make booking a nail tech in Nigeria
+          something you can do without knowing her already.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ get the app ════════════════════════════════════════════════════ -->
+<section id="get">
+  <div class="wrap">
+    <div class="head">
+      <div class="tag">Get the app</div>
+      <h2>It already works in your browser.</h2>
+      <p>Open Oma and add it to your home screen — it behaves like an installed
+        app, works offline, and needs no store. The store versions are coming;
+        nothing is waiting on them.</p>
+    </div>
+    <a class="btn big" href="/app.html">Open Oma</a>
+    <div class="badges">
+      <div class="badge"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 12.7c0-2.2 1.8-3.3 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.4.8-.7 0-1.8-.8-2.9-.8-1.5 0-2.9.9-3.6 2.2-1.6 2.7-.4 6.7 1.1 8.9.7 1.1 1.6 2.3 2.8 2.2 1.1 0 1.5-.7 2.9-.7s1.7.7 2.9.7c1.2 0 2-1.1 2.7-2.2.8-1.2 1.2-2.4 1.2-2.5 0 0-2.3-.9-2.4-3.6zM14.3 5.5c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 2-.5 2.6-1.2z"/></svg>
+        <div><div class="bs">Coming soon on the</div><div class="bb">App Store</div></div>
+        <span class="soon">Soon</span></div>
+      <div class="badge"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.6 2.3c-.2.3-.3.6-.3 1v17.4c0 .4.1.8.3 1l9.2-9.7L3.6 2.3zm10.6 8.2l2.6-2.8-9-5.1c-.3-.2-.6-.2-.9-.2l7.3 8.1zm0 3l-7.3 8.2c.3 0 .6 0 .9-.2l9-5.2-2.6-2.8zm5.6-3.4l-2.1-1.2-2.8 3 2.8 3 2.1-1.2c.9-.5.9-2.1 0-2.6z"/></svg>
+        <div><div class="bs">Coming soon on</div><div class="bb">Google Play</div></div>
+        <span class="soon">Soon</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ for techs ══════════════════════════════════════════════════════ -->
+<section class="alt" id="tech">
+  <div class="wrap">
+    <div class="head">
+      <div class="tag">For nail techs</div>
+      <h2>Listing yourself is free. You are paid when you scan.</h2>
+      <p>No monthly fee and nothing to pay to be found. Oma takes a small amount
+        from each completed service — and nothing at all if an appointment is
+        refunded, because then it never happened.</p>
+    </div>
+    <div class="grid g3">
+      <div class="card"><h3>Your prices are yours</h3>
+        <p>Set what you charge for every service, and a different price for
+          going to a customer if you want one.</p></div>
+      <div class="card"><h3>Nothing taken from your travel</h3>
+        <p>If you travel to a client, the call-out and the transport are yours.
+          Oma's fee is on your service prices only.</p></div>
+      <div class="card"><h3>No shop? Still findable</h3>
+        <p>Turn on <b>Working</b> when you start your day and customers see
+          where you are. Turn it off and you are off the map.</p></div>
+    </div>
+    <div style="margin-top:30px"><a class="btn big" href="/app.html">List yourself on Oma</a></div>
+  </div>
+</section>
+
+<!-- ══ contact ════════════════════════════════════════════════════════ -->
+<section id="contact">
+  <div class="wrap">
+    <div class="head">
+      <div class="tag">Contact us</div>
+      <h2>Say hello.</h2>
+      <p>A question, a nail tech who wants to join, or something that went
+        wrong — this reaches Kamsy directly.</p>
+    </div>
+    <form id="contactForm" novalidate>
+      <div>
+        <label for="cName">Your name</label>
+        <input id="cName" name="name" autocomplete="name" maxlength="80" required>
+      </div>
+      <div>
+        <label for="cEmail">Your email</label>
+        <input id="cEmail" name="email" type="email" autocomplete="email"
+               maxlength="200" required>
+      </div>
+      <div>
+        <label for="cBody">Message</label>
+        <textarea id="cBody" name="body" maxlength="4000" required></textarea>
+      </div>
+      <!-- The bot trap. A person never sees this and never fills it; anything
+           that does is thanked and thrown away, in the database. Named
+           innocently, because "honeypot" in the markup is a hint. -->
+      <div class="hp" aria-hidden="true">
+        <label for="cCompany">Company</label>
+        <input id="cCompany" name="company" tabindex="-1" autocomplete="off">
+      </div>
+      <div><button class="btn big" type="submit" id="cSend">Send it</button></div>
+      <div id="cNote" role="status" aria-live="polite"></div>
+    </form>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="mark" href="/" style="font-size:17px"><i aria-hidden="true"></i>Oma</a>
+    <span style="margin-left:auto">© <span id="yr">2026</span> Oma</span>
+    <a href="/app.html">Open the app</a>
+    <a href="#contact">Contact</a>
+  </div>
+</footer>
+
+<script>
+/* ══ the two lines that connect this page to the database ══════════════
+   The anon key is PUBLIC BY DESIGN — it is already printed inside every copy
+   of the app, and every function it can reach checks who is calling. The
+   service_role key is a different thing entirely and must NEVER appear here
+   or anywhere else a browser can read.
+
+   Leave both empty and the page still works: the contact form simply says it
+   is not connected yet rather than pretending to send. And on omaa.com.ng the
+   app has usually already stored these, in which case they are picked up
+   automatically and these two lines never matter. */
+const OMA_URL  = "";
+const OMA_ANON = "";
+
+function cfg() {
+  // app.html keeps the project settings under this key. index.html, app.html
+  // and admin.html are all on the same domain, so a browser that has opened
+  // the app already has them and nothing needs typing twice.
+  try {
+    const c = JSON.parse(localStorage.getItem("oma-cfg") || "{}");
+    if (c.url && c.anon) return c;
+  } catch (e) { /* private mode, or nothing stored */ }
+  return OMA_URL && OMA_ANON ? { url: OMA_URL, anon: OMA_ANON } : null;
+}
+
+/* ── the bar gets a line under it once you scroll ── */
+const bar = document.getElementById("bar");
+const onScroll = () => bar.classList.toggle("stuck", window.scrollY > 8);
+addEventListener("scroll", onScroll, { passive: true });
+onScroll();
+
+/* ── the menu, on a phone ── */
+const burger = document.getElementById("burger"), nav = document.getElementById("nav");
+burger.addEventListener("click", () => {
+  const open = nav.classList.toggle("open");
+  burger.setAttribute("aria-expanded", open ? "true" : "false");
+});
+nav.addEventListener("click", (e) => {
+  if (e.target.tagName === "A") {
+    nav.classList.remove("open");
+    burger.setAttribute("aria-expanded", "false");
+  }
+});
+
+/* ── customers / nail techs ── */
+const tabs = { "tab-cust": "panel-cust", "tab-tech": "panel-tech" };
+Object.keys(tabs).forEach((id) => {
+  document.getElementById(id).addEventListener("click", () => {
+    Object.entries(tabs).forEach(([t, p]) => {
+      const on = t === id;
+      document.getElementById(t).setAttribute("aria-selected", on ? "true" : "false");
+      document.getElementById(p).hidden = !on;
+    });
+  });
+});
+
+document.getElementById("yr").textContent = new Date().getFullYear();
+
+/* ── the contact form ──────────────────────────────────────────────────
+   Everything it sends is checked again in the database — the length caps,
+   the rate limits and the bot trap all live in contact.sql, because a check
+   that only exists in a page is a check anybody can skip. */
+const form = document.getElementById("contactForm");
+const note = document.getElementById("cNote");
+const sendBtn = document.getElementById("cSend");
+
+function say(kind, words) {
+  note.className = "note " + kind;
+  note.textContent = words;
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const c = cfg();
+  const name = document.getElementById("cName").value.trim();
+  const email = document.getElementById("cEmail").value.trim();
+  const body = document.getElementById("cBody").value.trim();
+  const company = document.getElementById("cCompany").value;
+
+  if (!name)  return say("bad", "What should we call you?");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))
+    return say("bad", "That does not look like an email address.");
+  if (!body)  return say("bad", "The message is empty.");
+
+  if (!c) {
+    // Honest rather than a fake success. A form that swallows messages is
+    // worse than a form that admits it is not wired up.
+    return say("bad", "The form is not connected yet. Please try again later.");
+  }
+
+  sendBtn.disabled = true;
+  say("", "Sending…");
+  try {
+    const r = await fetch(c.url.replace(/\/$/, "") + "/rest/v1/rpc/api_contact_send", {
+      method: "POST",
+      headers: { apikey: c.anon, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        p_name: name, p_email: email, p_body: body,
+        p_page: location.pathname, p_company: company,
+      }),
+    });
+    const text = await r.text();
+    if (!r.ok) {
+      let msg = "Could not send that.";
+      try { msg = (JSON.parse(text) || {}).message || msg; } catch (e) { /* not json */ }
+      say("bad", msg);
+    } else {
+      form.reset();
+      say("ok", "Sent. Kamsy will get back to you.");
+    }
+  } catch (err) {
+    say("bad", "Could not reach Oma. Check your connection and try again.");
+  } finally {
+    sendBtn.disabled = false;
+  }
+});
+</script>
 </body>
 </html>

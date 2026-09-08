@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Oma — admin</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#f0518d">
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+/* ══ tokens ═══════════════════════════════════════════════════════════
+   Light first on bare :root, overridden twice. The dark steps are CHOSEN
+   against the dark surface, not an automatic flip of the light ones — a
+   flipped palette is how a chart ends up unreadable in one theme.        */
+:root{
+  --bg:#f7f5fa; --card:#ffffff; --ink:#181220; --sub:#5f5670; --faint:#8a8296;
+  --line:rgba(24,18,32,.10); --fill:#f2eff7;
+  --pink:#f0518d; --tint:#fff0f6; --onpink:#fff;
+  --good:#1b9e5a; --goodbg:rgba(27,158,90,.12);
+  --warn:#b8791b; --warnbg:rgba(184,121,27,.13);
+  --bad:#c0392b;  --badbg:rgba(192,57,43,.12);
+  --grid:rgba(24,18,32,.10);
+  --shadow:0 2px 10px -2px rgba(24,18,32,.08),0 1px 2px rgba(24,18,32,.04);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a080d; --card:#17131e; --ink:#f7f4f9; --sub:#a79db3; --faint:#7b7186;
+    --line:rgba(255,255,255,.10); --fill:#1e1927;
+    --pink:#ff5f96; --tint:#2a1622; --onpink:#1a0f16;
+    --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
+    --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+    --bad:#ff7a6b;  --badbg:rgba(255,122,107,.14);
+    --grid:rgba(255,255,255,.10);
+    --shadow:0 2px 10px -2px rgba(0,0,0,.5);
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Plus Jakarta Sans",system-ui,-apple-system,sans-serif;
+  font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;letter-spacing:-.03em;line-height:1.15}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+button{font:inherit;cursor:pointer;border:0}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ── the door ── */
+#gate{min-height:100dvh;display:grid;place-items:center;padding:24px}
+#gate .box{width:min(400px,100%);background:var(--card);border:1px solid var(--line);
+  border-radius:24px;padding:30px;box-shadow:var(--shadow)}
+.mark{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;
+  letter-spacing:-.04em}
+.mark i{width:28px;height:28px;border-radius:9px;flex:none;position:relative;
+  background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f)}
+.mark i::after{content:"";position:absolute;inset:7px 9px;border-radius:50%;
+  border:2.5px solid rgba(11,9,16,.92);transform:rotate(-15deg)}
+label{display:block;font-size:12.5px;font-weight:700;color:var(--sub);margin:20px 0 7px}
+input{width:100%;padding:14px 16px;border-radius:14px;border:1.5px solid var(--line);
+  background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+input:focus{outline:2px solid var(--pink);outline-offset:1px;border-color:transparent}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:13px 22px;border-radius:99px;font-weight:700;font-size:15px;
+  background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);color:#fff;
+  box-shadow:0 10px 26px -12px rgba(240,81,141,.9)}
+.btn.wide{width:100%;margin-top:18px}
+.btn.sm{padding:9px 16px;font-size:13.5px;box-shadow:none}
+.btn.plain{background:var(--fill);color:var(--ink);box-shadow:none}
+.btn[disabled]{opacity:.55;cursor:default}
+.msg{margin-top:14px;padding:12px 14px;border-radius:12px;font-size:14px;
+  font-weight:600}
+.msg.bad{background:var(--badbg);color:var(--bad)}
+.msg.warn{background:var(--warnbg);color:var(--warn)}
+.hint{color:var(--faint);font-size:12.5px;margin-top:16px;line-height:1.5}
+
+/* ── the dashboard ── */
+#app{display:none}
+.top{position:sticky;top:0;z-index:20;background:var(--bg);
+  border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:14px;height:64px;flex-wrap:wrap}
+.top .who{margin-left:auto;color:var(--faint);font-size:12.5px}
+section{padding:26px 0}
+.lbl{font-size:11.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--faint);margin:0 0 12px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+@media (max-width:860px){.g4{grid-template-columns:repeat(2,1fr)}
+  .g3,.g2{grid-template-columns:1fr}}
+@media (max-width:480px){.g4{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+  padding:18px;box-shadow:var(--shadow)}
+/* A stat tile. No plot in it, so no hover — the number IS the whole chart. */
+.tile .k{font-size:12.5px;color:var(--sub);font-weight:600}
+.tile .v{font-size:30px;font-weight:800;letter-spacing:-.04em;margin-top:2px}
+.tile .s{font-size:12.5px;color:var(--faint);margin-top:1px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:14.2px}
+.kv .k{color:var(--sub)}
+.kv .v{font-weight:700}
+.kv + .kv{border-top:1px solid var(--line)}
+
+/* trouble */
+.tr{display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:14px;
+  font-size:14.2px;font-weight:600}
+.tr.bad{background:var(--badbg);color:var(--bad)}
+.tr.warn{background:var(--warnbg);color:var(--warn)}
+.tr.ok{background:var(--goodbg);color:var(--good)}
+.tr b{margin-left:auto;font-variant-numeric:tabular-nums;font-size:16px}
+
+/* ── charts ──────────────────────────────────────────────────────────
+   Two charts, never one with two y-axes. Bookings are a count and money is
+   kobo; putting them on a shared axis makes a relationship out of a unit
+   mismatch, which is the most common way a dashboard lies.
+   One series each, so the title names it and no legend is needed. */
+.chart{position:relative}
+.chart h3{font-size:15px;margin-bottom:2px}
+.chart .cs{font-size:12.5px;color:var(--faint);margin-bottom:14px}
+.chart svg{width:100%;height:150px;display:block;overflow:visible}
+.bar{fill:var(--pink)}
+.bar.z{fill:var(--grid)}          /* a day with nothing in it, still drawn */
+.gridline{stroke:var(--grid);stroke-width:1}
+.axt{fill:var(--faint);font-size:10.5px;font-weight:600}
+.hit{fill:transparent}
+.tip{position:absolute;pointer-events:none;background:var(--card);
+  border:1px solid var(--line);border-radius:11px;padding:8px 11px;
+  box-shadow:var(--shadow);font-size:12.5px;font-weight:600;white-space:nowrap;
+  transform:translate(-50%,-118%);opacity:0;transition:opacity .1s}
+.tip .d{color:var(--faint);font-weight:600}
+.tip.on{opacity:1}
+
+table{width:100%;border-collapse:collapse;font-size:13.8px}
+th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--faint);font-weight:800;padding:0 10px 9px 0}
+td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
+.scroll{overflow-x:auto}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11.5px;
+  font-weight:700}
+.chip.ok{background:var(--goodbg);color:var(--good)}
+.chip.no{background:var(--warnbg);color:var(--warn)}
+.mail{border-top:1px solid var(--line);padding:14px 0}
+.mail:first-of-type{border-top:0}
+.mail .h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.mail .n{font-weight:800}
+.mail .e{color:var(--faint);font-size:12.5px}
+.mail .w{color:var(--faint);font-size:12.5px;margin-left:auto}
+.mail p{margin:6px 0 0;color:var(--sub);white-space:pre-wrap}
+.empty{color:var(--faint);font-size:14px;padding:10px 0}
+</style>
+</head>
+<body>
+
+<!-- ══ the door ══════════════════════════════════════════════════════
+     Nothing here checks the passphrase. It cannot: this file is public and
+     anything it checks for itself, anybody can read. It sends the words to
+     the database, which compares them against a bcrypt hash and hands back a
+     token that expires in eight hours. See api/admin.sql. -->
+<div id="gate">
+  <div class="box">
+    <div class="mark"><i aria-hidden="true"></i>Oma admin</div>
+    <form id="gateForm">
+      <label for="pw">Passphrase</label>
+      <input id="pw" type="password" autocomplete="current-password"
+             autocapitalize="off" autocorrect="off" spellcheck="false">
+      <button class="btn wide" id="go" type="submit">Open</button>
+    </form>
+    <div id="gateMsg"></div>
+    <div class="hint">Eight wrong tries locks this for fifteen minutes. A
+      session lasts eight hours and then asks again.</div>
+  </div>
+</div>
+
+<!-- ══ the dashboard ═════════════════════════════════════════════════ -->
+<div id="app">
+  <div class="top">
+    <div class="wrap">
+      <div class="mark"><i aria-hidden="true"></i>Oma admin</div>
+      <button class="btn sm plain" id="refresh">Refresh</button>
+      <button class="btn sm plain" id="out">Sign out</button>
+      <div class="who" id="who"></div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <div class="lbl">Needs looking at</div>
+      <div class="grid g3" id="trouble"></div>
+    </section>
+
+    <section>
+      <div class="lbl">Right now</div>
+      <div class="grid g4" id="tiles"></div>
+    </section>
+
+    <section>
+      <div class="lbl">The last 30 days</div>
+      <div class="grid g2">
+        <div class="card chart" id="chartBookings">
+          <h3>Bookings a day</h3>
+          <div class="cs" id="csBookings"></div>
+          <svg viewBox="0 0 600 150" preserveAspectRatio="none" role="img"
+               aria-label="Bookings made each day for the last 30 days"></svg>
+          <div class="tip"></div>
+        </div>
+        <div class="card chart" id="chartMoney">
+          <h3>Paid into escrow a day</h3>
+          <div class="cs" id="csMoney"></div>
+          <svg viewBox="0 0 600 150" preserveAspectRatio="none" role="img"
+               aria-label="Money paid into escrow each day for the last 30 days"></svg>
+          <div class="tip"></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="grid g3">
+        <div class="card"><div class="lbl">People</div><div id="people"></div></div>
+        <div class="card"><div class="lbl">Money</div><div id="money"></div></div>
+        <div class="card"><div class="lbl">Oma's own books</div><div id="oma"></div></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="lbl">Messages</div>
+      <div class="card" id="mail"></div>
+    </section>
+
+    <section>
+      <div class="lbl">Newest listings</div>
+      <div class="card scroll" id="techs"></div>
+    </section>
+
+    <section>
+      <div class="lbl">Where they are</div>
+      <div class="card" id="states"></div>
+    </section>
+
+    <div style="height:40px"></div>
+  </div>
+</div>
+
+<script>
+/* ══ connecting ═══════════════════════════════════════════════════════
+   The anon key is PUBLIC BY DESIGN — it is already inside every copy of the
+   app, and every function it can reach checks the caller. The service_role
+   key is a different thing and must NEVER be put here.
+
+   Left empty, these fall back to whatever app.html stored on this domain, so
+   a browser that has opened Oma already needs nothing typed. */
+const OMA_URL  = "";
+const OMA_ANON = "";
+
+const TOKEN_KEY = "oma-admin-token";
+
+function cfg() {
+  try {
+    const c = JSON.parse(localStorage.getItem("oma-cfg") || "{}");
+    if (c.url && c.anon) return c;
+  } catch (e) { /* private mode */ }
+  return OMA_URL && OMA_ANON ? { url: OMA_URL, anon: OMA_ANON } : null;
+}
+
+async function rpc(fn, args) {
+  const c = cfg();
+  if (!c) throw new Error("This page is not connected to Oma's database yet.");
+  const r = await fetch(c.url.replace(/\/$/, "") + "/rest/v1/rpc/" + fn, {
+    method: "POST",
+    headers: { apikey: c.anon, "Content-Type": "application/json" },
+    body: JSON.stringify(args || {}),
+  });
+  const text = await r.text();
+  let body = null;
+  try { body = text ? JSON.parse(text) : null; } catch (e) { body = { message: text }; }
+  if (!r.ok) {
+    const e = new Error((body && (body.message || body.msg)) || ("request failed (" + r.status + ")"));
+    e.status = r.status;
+    throw e;
+  }
+  return body;
+}
+
+/* The token lives in sessionStorage, not localStorage: closing the tab should
+   end the session on a borrowed or shared device. */
+function token() { try { return sessionStorage.getItem(TOKEN_KEY); } catch (e) { return null; } }
+function setToken(t) {
+  try { t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY); }
+  catch (e) { /* private mode — she will just sign in again */ }
+}
+
+/* ══ formatting ═══════════════════════════════════════════════════════ */
+const naira = (kobo) => "₦" + Math.round((Number(kobo) || 0) / 100).toLocaleString("en-NG");
+const num = (n) => (Number(n) || 0).toLocaleString("en-NG");
+function shortNaira(kobo) {
+  const n = Math.round((Number(kobo) || 0) / 100);
+  if (n >= 1e6) return "₦" + (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "m";
+  if (n >= 1e3) return "₦" + (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + "k";
+  return "₦" + n;
+}
+const dayName = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("en-NG",
+  { day: "numeric", month: "short" });
+function ago(iso) {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 90) return "just now";
+  if (s < 3600) return Math.round(s / 60) + " min ago";
+  if (s < 86400) return Math.round(s / 3600) + " hr ago";
+  return Math.round(s / 86400) + " d ago";
+}
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
+  (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* ══ the door ═════════════════════════════════════════════════════════ */
+const gate = document.getElementById("gate");
+const app = document.getElementById("app");
+const gateMsg = document.getElementById("gateMsg");
+const goBtn = document.getElementById("go");
+
+function gateSay(kind, words) {
+  gateMsg.className = words ? "msg " + kind : "";
+  gateMsg.textContent = words || "";
+}
+
+document.getElementById("gateForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pw = document.getElementById("pw").value;
+  if (!pw) return gateSay("bad", "Type the passphrase.");
+  goBtn.disabled = true;
+  gateSay("", "");
+  try {
+    const r = await rpc("api_admin_open", { p_password: pw });
+    if (!r || !r.ok) {
+      // It RETURNS a refusal rather than raising one — see admin.sql for why
+      // that is what makes the lockout work at all.
+      gateSay(r && r.why === "locked" ? "warn" : "bad",
+              (r && r.says) || "That did not work.");
+      return;
+    }
+    setToken(r.token);
+    document.getElementById("pw").value = "";
+    show(r.expires_at);
+  } catch (err) {
+    gateSay("bad", err.message);
+  } finally {
+    goBtn.disabled = false;
+  }
+});
+
+document.getElementById("out").addEventListener("click", async () => {
+  const t = token();
+  setToken(null);
+  if (t) { try { await rpc("api_admin_close", { p_token: t }); } catch (e) { /* gone anyway */ } }
+  location.reload();
+});
+
+document.getElementById("refresh").addEventListener("click", () => load());
+
+function show(expires) {
+  gate.style.display = "none";
+  app.style.display = "block";
+  if (expires) {
+    document.getElementById("who").textContent =
+      "signed in until " + new Date(expires).toLocaleTimeString("en-NG",
+        { hour: "2-digit", minute: "2-digit" });
+  }
+  load();
+}
+
+function lockOut(why) {
+  setToken(null);
+  app.style.display = "none";
+  gate.style.display = "grid";
+  gateSay("warn", why || "That session has ended. Sign in again.");
+}
+
+/* ══ drawing ══════════════════════════════════════════════════════════ */
+
+/* A bar chart, by hand. Thin marks with 4px rounded tops anchored to the
+   baseline, a 2px gap between neighbours, one recessive gridline at the top,
+   and a hover tooltip — which an HTML chart gets by default, because it can.
+   No number printed on every bar: thirty labels is not a chart, it is a
+   table that has been made hard to read. */
+function drawBars(rootId, rows, valueOf, labelOf, subEl) {
+  const root = document.getElementById(rootId);
+  const svg = root.querySelector("svg");
+  const tip = root.querySelector(".tip");
+  const W = 600, H = 150, PAD_B = 20, PAD_T = 14;
+  const n = rows.length || 1;
+  const slot = W / n;
+  // Thin marks, centred in the slot. Filling the slot made thirty bars into a
+  // solid block with slits in it; a capped width leaves the ground visible
+  // between them, which is what makes a shape readable at a glance.
+  const bw = Math.min(11, Math.max(2, slot - 2));
+  const off = (slot - bw) / 2;
+  const top = Math.max(1, ...rows.map(valueOf));
+
+  const y = (v) => PAD_T + (H - PAD_T - PAD_B) * (1 - v / top);
+  const parts = [];
+
+  // One line at the top of the scale. More would be furniture.
+  parts.push(`<line class="gridline" x1="0" y1="${PAD_T}" x2="${W}" y2="${PAD_T}"/>`);
+  parts.push(`<text class="axt" x="2" y="${PAD_T - 4}">${esc(labelOf(top))}</text>`);
+  parts.push(`<line class="gridline" x1="0" y1="${H - PAD_B}" x2="${W}" y2="${H - PAD_B}"/>`);
+
+  rows.forEach((r, i) => {
+    const v = valueOf(r);
+    const x = i * slot + off;
+    const h = Math.max(v > 0 ? 3 : 2, (H - PAD_T - PAD_B) * (v / top));
+    const yy = (H - PAD_B) - h;
+    // rx on the whole rect, anchored to the baseline: the rounding reads at
+    // the data end and the bar still sits flat on the axis.
+    parts.push(`<rect class="bar${v ? "" : " z"}" x="${x.toFixed(1)}" y="${yy.toFixed(1)}"
+      width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3"/>`);
+    // A hit target the full slot and the full height, so an empty day and a
+    // 3px bar are both easy to point at with a finger.
+    parts.push(`<rect class="hit" x="${(i * slot).toFixed(1)}" y="0"
+      width="${slot.toFixed(1)}" height="${H}" data-i="${i}"/>`);
+  });
+
+  // First and last date only. Every date would collide at this width.
+  if (rows.length) {
+    parts.push(`<text class="axt" x="0" y="${H - 5}">${esc(dayName(rows[0].day))}</text>`);
+    parts.push(`<text class="axt" x="${W}" y="${H - 5}" text-anchor="end"
+      >${esc(dayName(rows[rows.length - 1].day))}</text>`);
+  }
+  svg.innerHTML = parts.join("");
+
+  const box = () => svg.getBoundingClientRect();
+  svg.onpointermove = (e) => {
+    const t = e.target.closest("[data-i]");
+    if (!t) { tip.classList.remove("on"); return; }
+    const r = rows[+t.dataset.i];
+    tip.innerHTML = `<div>${esc(labelOf(valueOf(r)))}</div>
+      <div class="d">${esc(dayName(r.day))}</div>`;
+    const b = box();
+    tip.style.left = (e.clientX - b.left) + "px";
+    tip.style.top = (e.clientY - b.top) + "px";
+    tip.classList.add("on");
+  };
+  svg.onpointerleave = () => tip.classList.remove("on");
+
+  if (subEl) {
+    const total = rows.reduce((a, r) => a + valueOf(r), 0);
+    subEl.textContent = labelOf(total) + " in " + rows.length + " days";
+  }
+}
+
+function tile(k, v, s) {
+  return `<div class="card tile"><div class="k">${esc(k)}</div>
+    <div class="v tnum">${esc(v)}</div>
+    ${s ? `<div class="s">${esc(s)}</div>` : ""}</div>`;
+}
+function kv(k, v) {
+  return `<div class="kv"><span class="k">${esc(k)}</span>
+    <span class="v tnum">${esc(v)}</span></div>`;
+}
+
+/* Only the rows that are actually a problem, plus one reassuring line when
+   none of them are. A wall of zeroes is a dashboard nobody reads twice. */
+function drawTrouble(t) {
+  const rows = [];
+  const add = (n, kind, words) => { if (n > 0) rows.push({ n, kind, words }); };
+  add(t.disputed, "bad", "disputed — money stuck in escrow");
+  add(t.unscanned, "bad",
+      "paid but never scanned" + (t.oldest_unscanned_days
+        ? " · oldest " + t.oldest_unscanned_days + " days" : ""));
+  add(t.notif_giving_up, "bad", "notifications that gave up");
+  add(t.payouts_waiting, "warn",
+      "payouts waiting · " + naira(t.payouts_kobo));
+  add(t.kyc_pending, "warn", "ID checks pending");
+  add(t.kyc_failed, "warn", "ID checks failed");
+  add(t.notif_unsent, "warn", "notifications still queued");
+  add(t.expired_unpaid, "warn", "bookings that expired unpaid");
+  document.getElementById("trouble").innerHTML = rows.length
+    ? rows.map((r) => `<div class="tr ${r.kind}">${esc(r.words)}<b>${num(r.n)}</b></div>`).join("")
+    : `<div class="tr ok">Nothing stuck<b>✓</b></div>`;
+}
+
+/* ══ loading ══════════════════════════════════════════════════════════ */
+let timer = null;
+
+async function load() {
+  const t = token();
+  if (!t) return lockOut("");
+  try {
+    const [o, tr, series, recent, mail] = await Promise.all([
+      rpc("api_admin_overview", { p_token: t }),
+      rpc("api_admin_trouble", { p_token: t }),
+      rpc("api_admin_series", { p_token: t, p_days: 30 }),
+      rpc("api_admin_recent", { p_token: t, p_limit: 12 }),
+      // contact.sql may not be loaded yet. A missing inbox must not take the
+      // whole dashboard down with it.
+      rpc("api_admin_messages", { p_token: t, p_limit: 30 }).catch(() => null),
+    ]);
+
+    drawTrouble(tr);
+
+    document.getElementById("tiles").innerHTML = [
+      tile("Nail techs listed", num(o.people.listed),
+           num(o.people.techs) + " signed up · " + num(o.people.awaiting_kyc) + " awaiting ID"),
+      tile("Bookings this week", num(o.bookings.week),
+           num(o.bookings.all) + " ever · " + num(o.bookings.at_home) + " at home"),
+      tile("In escrow now", naira(o.money.in_escrow_kobo), "waiting on a scan"),
+      tile("Oma earned, 30 days", naira(o.oma.earned_30d_kobo),
+           naira(o.oma.earned_kobo) + " all time"),
+    ].join("");
+
+    drawBars("chartBookings", series, (r) => Number(r.bookings), num,
+             document.getElementById("csBookings"));
+    drawBars("chartMoney", series, (r) => Number(r.gross_kobo), shortNaira,
+             document.getElementById("csMoney"));
+
+    document.getElementById("people").innerHTML =
+      kv("People signed up", num(o.people.users)) +
+      kv("New this week", num(o.people.users_7d)) +
+      kv("Techs, ID verified", num(o.people.verified)) +
+      kv("Techs who travel", num(o.people.travelling)) +
+      kv("Offer home visits", num(o.people.home_service)) +
+      kv("Listed with no services", num(o.people.no_services));
+
+    document.getElementById("money").innerHTML =
+      kv("Ever paid in", naira(o.money.paid_in_kobo)) +
+      kv("Released to techs", naira(o.money.released_kobo)) +
+      kv("Refunded", naira(o.money.refunded_kobo)) +
+      kv("Held (not yet scanned)", naira(o.money.held_kobo)) +
+      kv("Techs' available balance", naira(o.money.available_kobo));
+
+    document.getElementById("oma").innerHTML =
+      kv("Earned, all time", naira(o.oma.earned_kobo)) +
+      kv("Earned, 30 days", naira(o.oma.earned_30d_kobo)) +
+      kv("Services charged", num(o.oma.services_charged)) +
+      kv("Travel not charged on", naira(o.oma.travel_kobo)) +
+      kv("Reviews", num(o.reviews.count) +
+         (o.reviews.mean ? " · " + o.reviews.mean + "★" : ""));
+
+    document.getElementById("techs").innerHTML = (recent.techs || []).length
+      ? `<table><thead><tr><th>Business</th><th>Area</th><th>State</th>
+           <th>ID</th><th>Listed</th><th>Services</th><th>Joined</th></tr></thead>
+         <tbody>${recent.techs.map((x) => `<tr>
+           <td><b>${esc(x.name)}</b>${x.home_service ? " 🚗" : ""}${
+                x.has_salon === false ? " 📍" : ""}</td>
+           <td>${esc(x.area || "—")}</td>
+           <td>${esc(x.state || "—")}</td>
+           <td><span class="chip ${x.kyc === "verified" ? "ok" : "no"}">${esc(x.kyc)}</span></td>
+           <td>${x.listed ? "yes" : "no"}</td>
+           <td class="tnum">${num(x.services)}</td>
+           <td>${esc(ago(x.created_at))}</td></tr>`).join("")}</tbody></table>`
+      : `<div class="empty">No nail techs have signed up yet.</div>`;
+
+    document.getElementById("states").innerHTML = (recent.states || []).length
+      ? (recent.states || []).map((s) => kv(s.state, num(s.techs))).join("")
+      : `<div class="empty">Nothing listed anywhere yet.</div>`;
+
+    document.getElementById("mail").innerHTML = mail === null
+      ? `<div class="empty">The contact form's tables are not loaded yet —
+           run <b>contact.sql</b> in Supabase.</div>`
+      : (mail.length
+        ? mail.map((m) => `<div class="mail">
+            <div class="h"><span class="n">${esc(m.name)}</span>
+              <span class="e">${esc(m.email)}</span>
+              <span class="w">${esc(ago(m.created_at))}</span></div>
+            <p>${esc(m.body)}</p></div>`).join("")
+        : `<div class="empty">No messages yet.</div>`);
+
+  } catch (err) {
+    if (err.status === 401 || /sign in again/i.test(err.message)) return lockOut();
+    // Anything else is worth seeing rather than swallowing — a dashboard that
+    // silently shows yesterday's numbers is worse than one that says it broke.
+    document.getElementById("trouble").innerHTML =
+      `<div class="tr bad">${esc(err.message)}<b>!</b></div>`;
+  }
+}
+
+/* A minute is often enough to notice a booking arrive, and rare enough not to
+   be a background job. Paused while the tab is hidden. */
+function tick() {
+  clearInterval(timer);
+  timer = setInterval(() => {
+    if (document.visibilityState === "visible" && token()) load();
+  }, 60000);
+}
+tick();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && token()) load();
+});
+
+// Already signed in on this tab? Straight through.
+if (token()) show(null);
+</script>
+</body>
+</html>

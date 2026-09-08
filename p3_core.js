@@ -1,11 +1,5 @@
 const RULES = __RULES__;
 
-/* Which build this actually is. build2.py substitutes it, and stamps the same
-   value into site/sw.js, so "is the phone running what I just uploaded" stops
-   being a guess: Settings shows this, the first line of /sw.js shows the same
-   value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "__BUILD__";
-
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
 const S = {
