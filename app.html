@@ -9,6 +9,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#f0518d">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Oma — nail scan &amp; booking</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,6 +47,36 @@
   --good:#1b9e5a; --goodbg:rgba(27,158,90,.12);
   --warn:#b8791b; --warnbg:rgba(184,121,27,.12);
   --grad:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
+  /* The welcome screen. It had its colours written into the markup — a dark
+     ground and white ink, whatever the phone was set to — so somebody in
+     light mode met a black screen before they had seen anything else. These
+     are tokens like everything else now, defined light-first and overridden
+     for dark twice, so the very first screen follows the phone. */
+  --wel-bg:#fdf6fa; --wel-ink:#181220; --wel-sub:#6c6377;
+  --wel-glow1:rgba(240,81,141,.26); --wel-glow2:rgba(255,138,184,.20);
+  --wel-dot:#181220; --wel-dot-off:rgba(24,18,32,.22);
+
+  /* The scan owns the whole screen, and it was one fixed dark slab in both
+     themes — so a phone set to light met a black wall the moment she pressed
+     Scan. Same treatment as the welcome screen: light-first here, overridden
+     for dark twice. Kamsy, 9 Sep 2026: "create light modes for these frames".
+
+     What deliberately does NOT flip is anything drawn ON TOP of her own
+     photograph — the nail outlines, the crosshair, the loupe rim, the hint
+     pill. Her photo can be any colour at all, so those keep the contrast
+     that works over an arbitrary image rather than following the theme. */
+  --sc-bg:#ffffff;
+  --sc-glow:radial-gradient(120% 70% at 50% 28%,#fdf1f7 0%,#ffffff 72%);
+  --sc-ink:#181220; --sc-sub:#6c6377; --sc-faint:#8d8499;
+  --sc-soft:rgba(24,18,32,.06); --sc-soft2:rgba(24,18,32,.045);
+  --sc-soft3:rgba(24,18,32,.055);
+  --sc-line:rgba(24,18,32,.12); --sc-line2:rgba(24,18,32,.10);
+  --sc-dash:rgba(24,18,32,.22);
+  --sc-frame:linear-gradient(160deg,#fdeef6,#f5eef9);
+  --sc-frame-ink:#6c6377; --sc-stage:#f3eff7;
+  --sc-tabon-bg:#181220; --sc-tabon-ink:#ffffff;
+  --sc-rd-line:rgba(24,18,32,.28); --sc-bar:rgba(24,18,32,.10);
+  --sc-tick-i:rgba(24,18,32,.07);
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -55,6 +89,21 @@
     --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
     --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
     --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+    --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
+    --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
+    --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
+    --sc-bg:#14101a;
+    --sc-glow:radial-gradient(120% 70% at 50% 28%,#2f2638 0%,#14101a 72%);
+    --sc-ink:#ffffff; --sc-sub:rgba(255,255,255,.62); --sc-faint:rgba(255,255,255,.45);
+    --sc-soft:rgba(255,255,255,.12); --sc-soft2:rgba(255,255,255,.06);
+    --sc-soft3:rgba(255,255,255,.09);
+    --sc-line:rgba(255,255,255,.12); --sc-line2:rgba(255,255,255,.1);
+    --sc-dash:rgba(255,255,255,.28);
+    --sc-frame:linear-gradient(160deg,#3a2f42,#221b2c);
+    --sc-frame-ink:rgba(255,255,255,.68); --sc-stage:#0e0b13;
+    --sc-tabon-bg:#ffffff; --sc-tabon-ink:#1a0f16;
+    --sc-rd-line:rgba(255,255,255,.35); --sc-bar:rgba(255,255,255,.14);
+    --sc-tick-i:rgba(255,255,255,.12);
   }
 }
 :root[data-theme="dark"]{
@@ -67,6 +116,21 @@
   --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
   --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
   --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+  --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
+  --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
+  --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
+  --sc-bg:#14101a;
+  --sc-glow:radial-gradient(120% 70% at 50% 28%,#2f2638 0%,#14101a 72%);
+  --sc-ink:#ffffff; --sc-sub:rgba(255,255,255,.62); --sc-faint:rgba(255,255,255,.45);
+  --sc-soft:rgba(255,255,255,.12); --sc-soft2:rgba(255,255,255,.06);
+  --sc-soft3:rgba(255,255,255,.09);
+  --sc-line:rgba(255,255,255,.12); --sc-line2:rgba(255,255,255,.1);
+  --sc-dash:rgba(255,255,255,.28);
+  --sc-frame:linear-gradient(160deg,#3a2f42,#221b2c);
+  --sc-frame-ink:rgba(255,255,255,.68); --sc-stage:#0e0b13;
+  --sc-tabon-bg:#ffffff; --sc-tabon-ink:#1a0f16;
+  --sc-rd-line:rgba(255,255,255,.35); --sc-bar:rgba(255,255,255,.14);
+  --sc-tick-i:rgba(255,255,255,.12);
 }
 
 *,*::before,*::after{box-sizing:border-box}
@@ -177,7 +241,10 @@ a{color:var(--pink);text-decoration:none}
 .mepin{width:16px;height:16px;border-radius:50%;background:#2f7cf6;
   border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,124,246,.2)}
 
-.mapbtns{position:absolute;top:calc(92px + env(safe-area-inset-top));right:14px;z-index:5;
+/* Below the greeting AND below the scope pill — they used to share the same
+   strip, and the greeting card, which is painted last, silently swallowed
+   every tap meant for the scope. */
+.mapbtns{position:absolute;top:calc(132px + env(safe-area-inset-top));right:14px;z-index:5;
   display:flex;flex-direction:column;gap:10px}
 .mapbtn{width:46px;height:46px;border-radius:16px;background:var(--card);
   border:1px solid var(--line);box-shadow:var(--card-shadow);
@@ -567,6 +634,128 @@ h3{font-size:16px}
 .switch.on{background:var(--pink)}
 .switch.on i{transform:translateX(19px)}
 
+/* ═══ working, and where ══════════════════════════════
+   The two-way question at the top of a tech's listing — shop, or no shop —
+   and the switch a tech with no shop lives by. Every colour is a token: the
+   .choice block further down is hard-wired white because it sits inside the
+   dark scan screen, and reusing it here is exactly how the welcome screen
+   ended up black in light mode. */
+.pick{display:flex;gap:10px;margin:2px 0 16px}
+.pick button{flex:1;min-width:0;text-align:left;padding:13px 14px;border-radius:16px;
+  border:1.5px solid var(--line);background:var(--fill);color:var(--ink);cursor:pointer}
+.pick button.on{border-color:var(--pink);background:var(--tint)}
+.pick b{display:block;font-size:14.5px;font-weight:800;letter-spacing:-.02em}
+.pick em{font-style:normal;display:block;margin-top:3px;font-size:12px;
+  color:var(--sub);font-weight:500;line-height:1.4}
+.card.work{border:1.5px solid var(--line)}
+.card.work.on{border-color:var(--good);background:var(--goodbg)}
+/* ═══ her work, under each service ════════════════════
+   A row that scrolls sideways rather than wrapping: three photographs on a
+   320px phone would otherwise stack into a column and push the price out of
+   sight. Fixed squares, so a portrait and a landscape shot sit in the same
+   grid instead of making the row ragged. */
+.shots{display:flex;gap:8px;margin-top:10px;overflow-x:auto;padding-bottom:2px;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+.shots::-webkit-scrollbar{display:none}
+.shot{position:relative;width:84px;height:84px;flex:none;border-radius:14px;
+  overflow:hidden;background:var(--fill);border:1px solid var(--line)}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.shots.look .shot{width:104px;height:104px}
+/* The add tile is a label wrapping a hidden file input — the whole square is
+   the target, which on a phone matters more than it looks. */
+.shot.add{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;border-style:dashed;cursor:pointer;
+  color:var(--sub);font-size:22px;font-weight:700}
+.shot.add input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:200px}
+.shot .x,.shot .flag{position:absolute;top:4px;right:4px;width:24px;height:24px;
+  border-radius:50%;background:rgba(10,8,13,.62);color:#fff;font-size:14px;
+  line-height:1;display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);cursor:pointer}
+.shot .flag{font-size:12px;opacity:.55}
+.shot .flag:hover,.shot .flag:focus-visible{opacity:1}
+/* The tick box above the menu. Asked once, not once per upload. */
+.own{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;
+  border-radius:14px;background:var(--fill);font-size:12.8px;color:var(--sub);
+  line-height:1.45;margin:10px 0 4px;cursor:pointer}
+.own input{margin-top:2px;flex:none;width:17px;height:17px;accent-color:var(--pink)}
+.own b{color:var(--ink)}
+
+/* ═══ a service, as a card ════════════════════════════
+   Kamsy, 9 Sep 2026, with a reference: the photograph IS the card. Her work
+   fills it, her name and her price sit on top of it, and the whole thing is
+   one tap.
+
+   Every service gets the same shape whether or not she has photographs. One
+   with none gets the Oma gradient rather than a grey box with a broken-image
+   icon in it — that reads as designed instead of as missing, and mixing tall
+   photo cards with small text rows down one page reads as neither. */
+.svccard{position:relative;border-radius:26px;overflow:hidden;cursor:pointer;
+  display:block;background:var(--grad);isolation:isolate;
+  box-shadow:0 18px 40px -20px rgba(24,18,32,.5);
+  transition:transform .16s,box-shadow .16s}
+.svccard:active{transform:scale(.99)}
+.svccard input{position:absolute;opacity:0;pointer-events:none}
+/* Chosen. A ring rather than a tint, so it never fights the photograph. */
+.svccard.on{box-shadow:0 0 0 3px var(--pink),0 18px 40px -20px rgba(240,81,141,.6)}
+.svcpix{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;aspect-ratio:4/5}
+.svcpix::-webkit-scrollbar{display:none}
+.svcpix .pane{flex:0 0 100%;scroll-snap-align:center;position:relative}
+.svcpix img{width:100%;height:100%;object-fit:cover;display:block}
+/* The scrim. Neutral black rather than a colour sampled from the photo —
+   it has to hold white text legibly over a photograph nobody has seen yet,
+   and a guessed hue fails on the first dark one. */
+.svccard.haspix::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.28) 0%,rgba(0,0,0,0) 26%,
+    rgba(0,0,0,.55) 62%,rgba(0,0,0,.88) 100%)}
+/* The caption only LIES OVER a photograph when there is one. On a tech who
+   has posted none the same block sits in the flow and gives the card its
+   height — otherwise the gallery is empty, an absolute caption measures
+   nothing, and her service vanishes off the page entirely. */
+.svcfoot{position:relative;z-index:2;padding:18px 16px 15px;
+  color:#fff;display:flex;flex-direction:column;gap:9px}
+.svccard.haspix .svcfoot{position:absolute;left:0;right:0;bottom:0;padding-top:16px}
+.svcfoot .top{display:flex;align-items:flex-end;gap:10px}
+.svcfoot h3{flex:1;min-width:0;margin:0;font-size:22px;font-weight:800;
+  letter-spacing:-.03em;line-height:1.12;color:#fff}
+.pricepill{flex:none;padding:7px 14px;border-radius:99px;font-size:14.5px;
+  font-weight:800;color:#fff;background:rgba(0,0,0,.42);
+  backdrop-filter:blur(8px);font-variant-numeric:tabular-nums}
+.svcfoot .sub{font-size:13.5px;color:rgba(255,255,255,.82);font-weight:500}
+.svcchips{display:flex;gap:7px;flex-wrap:wrap}
+.svcchips i{font-style:normal;padding:4px 11px;border-radius:99px;font-size:11.5px;
+  font-weight:700;color:rgba(255,255,255,.92);background:rgba(0,0,0,.34);
+  backdrop-filter:blur(8px)}
+/* The big white pill of the reference. It is not a second control — the whole
+   card is the control — so it reflects state rather than inviting a separate
+   tap, and it says which of the two states you are in. */
+.pickbtn{margin-top:3px;width:100%;padding:14px;border-radius:99px;background:#fff;
+  color:#17131e;font-size:15.5px;font-weight:800;text-align:center;
+  display:flex;align-items:center;justify-content:center;gap:8px}
+.svccard.on .pickbtn{background:var(--pink);color:#fff}
+/* Which photograph of the three. Only drawn when there is more than one. */
+.svcdots{position:absolute;left:0;right:0;z-index:2;bottom:calc(100% - 62%);
+  display:flex;justify-content:center;gap:6px;pointer-events:none}
+.svcdots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.45);
+  transition:background .2s,width .2s}
+.svcdots i.on{background:#fff;width:18px;border-radius:99px}
+.svcflag{position:absolute;top:10px;right:10px;z-index:3;width:30px;height:30px;
+  border-radius:50%;background:rgba(0,0,0,.34);color:#fff;font-size:13px;
+  display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);
+  opacity:.7}
+.svcflag:hover,.svcflag:focus-visible{opacity:1}
+
+/* The map's scope: near me, or the whole state. */
+.scope{position:absolute;top:calc(74px + env(safe-area-inset-top));left:50%;
+  transform:translateX(-50%);z-index:420;display:flex;gap:4px;padding:4px;
+  border-radius:99px;background:var(--card);border:1px solid var(--line);
+  box-shadow:0 6px 18px rgba(0,0,0,.16);max-width:min(92vw,340px)}
+.scope button,.scope select{padding:7px 14px;border-radius:99px;font-size:12.5px;
+  font-weight:700;color:var(--sub);background:transparent;border:0;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-family:inherit;
+  -webkit-appearance:none;appearance:none;max-width:170px}
+.scope button.on,.scope select.on{background:var(--pink);color:var(--onpink)}
+
 /* ═══ empty states ═══════════════════════════════════════ */
 /* ═══ the live lists ══════════════════════════════════
    A section heading inside a list, and the two status colours a booking row
@@ -647,9 +836,26 @@ h3{font-size:16px}
 .bars .b span{font-size:10px;font-weight:700;color:var(--sub)}
 .bars .b.now span{font-weight:800;color:var(--pinkd)}
 
+/* ═══ O points ═════════════════════════════════════════ */
+.tabs2{display:flex;gap:6px;padding:4px;border-radius:99px;background:var(--fill);
+  border:1px solid var(--line)}
+.tabs2 button{flex:1;padding:9px 12px;border-radius:99px;border:0;background:none;
+  font:inherit;font-size:14px;font-weight:700;color:var(--sub);cursor:pointer}
+.tabs2 button.on{background:var(--grad);color:#fff}
+.mb12{margin-bottom:12px}
+.prow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;
+  background:var(--card);border:1px solid var(--line)}
+.prow.me{border-color:var(--pink);background:var(--tint)}
+.prow .pplace{width:26px;flex:none;text-align:center;font-size:13px;font-weight:800;
+  color:var(--faint)}
+.prow.me .pplace{color:var(--pinkd)}
+.prow .pname{flex:1;min-width:0;font-size:15px;font-weight:700;letter-spacing:-.015em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .ppts{font-size:15px;font-weight:800;letter-spacing:-.02em}
+
 /* ═══ the scan, which owns the whole screen ═════════════ */
 #scan{
-  position:fixed;inset:0;z-index:60;background:#14101a;color:#fff;
+  position:fixed;inset:0;z-index:60;background:var(--sc-bg);color:var(--sc-ink);
   display:none;flex-direction:column;
 }
 #scan.live{display:flex}
@@ -658,35 +864,35 @@ h3{font-size:16px}
 }
 #scan::before{
   content:"";position:absolute;inset:0;
-  background:radial-gradient(120% 70% at 50% 28%,#2f2638 0%,#14101a 72%);
+  background:var(--sc-glow);
 }
 .scanhead{position:relative;flex:none;display:flex;align-items:center;
   justify-content:space-between;gap:12px;
   padding:calc(14px + env(safe-area-inset-top)) 20px 4px}
 .scanhead .t{font-size:14.5px;font-weight:700}
-.scanhead .iconbtn{background:rgba(255,255,255,.12);color:#fff}
+.scanhead .iconbtn{background:var(--sc-soft);color:var(--sc-ink)}
 .step{display:none;position:relative;flex:1;min-height:0;flex-direction:column}
 .step.live{display:flex}
 .scanbody{flex:1;min-height:0;overflow-y:auto;padding:0 20px}
 .scanfoot{position:relative;flex:none;padding:14px 20px calc(20px + env(safe-area-inset-bottom))}
-.scanfoot .btn.ghost{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18);
+.scanfoot .btn.ghost{background:var(--sc-soft);color:var(--sc-ink);border-color:var(--sc-line);
   box-shadow:none}
-#scan .sub,#scan .muted{color:rgba(255,255,255,.62)}
-#scan .faint{color:rgba(255,255,255,.45)}
+#scan .sub,#scan .muted{color:var(--sc-sub)}
+#scan .faint{color:var(--sc-faint)}
 
 /* the framing box on the capture step */
 .frame{
   position:relative;flex:1;min-height:170px;margin:16px 0 0;border-radius:28px;
-  background:linear-gradient(160deg,#3a2f42,#221b2c);overflow:hidden;
-  border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;
+  background:var(--sc-frame);overflow:hidden;
+  border:1px solid var(--sc-line2);display:flex;align-items:center;justify-content:center;
 }
-.frame .dash{position:absolute;inset:24px;border-radius:20px;border:2px dashed rgba(255,255,255,.28)}
+.frame .dash{position:absolute;inset:24px;border-radius:20px;border:2px dashed var(--sc-dash)}
 .frame .c{position:absolute;width:34px;height:34px}
 .frame .c.tl{left:24px;top:24px;border-left:3px solid #ff7fae;border-top:3px solid #ff7fae;border-radius:14px 0 0 0}
 .frame .c.tr{right:24px;top:24px;border-right:3px solid #ff7fae;border-top:3px solid #ff7fae;border-radius:0 14px 0 0}
 .frame .c.bl{left:24px;bottom:24px;border-left:3px solid #ff7fae;border-bottom:3px solid #ff7fae;border-radius:0 0 0 14px}
 .frame .c.br{right:24px;bottom:24px;border-right:3px solid #ff7fae;border-bottom:3px solid #ff7fae;border-radius:0 0 14px 0}
-.frame .mid{position:relative;text-align:center;padding:40px 30px;color:rgba(255,255,255,.68);
+.frame .mid{position:relative;text-align:center;padding:40px 30px;color:var(--sc-frame-ink);
   font-size:13.5px;font-weight:600;line-height:1.5;display:flex;flex-direction:column;
   align-items:center;gap:12px}
 .hint{position:absolute;left:0;right:0;bottom:14px;display:flex;justify-content:center}
@@ -695,7 +901,7 @@ h3{font-size:16px}
 
 /* the photo you tap on */
 .stagewrap{position:relative;margin-top:14px;border-radius:24px;overflow:hidden;
-  border:1px solid rgba(255,255,255,.12);background:#0e0b13;touch-action:none}
+  border:1px solid var(--sc-line);background:var(--sc-stage);touch-action:none}
 .stagewrap img{display:block;width:100%;height:auto}
 .stagewrap svg{position:absolute;inset:0;width:100%;height:100%}
 .bx{fill:rgba(255,127,174,.16);stroke:#ff7fae;stroke-width:.35%;vector-effect:non-scaling-stroke}
@@ -717,40 +923,40 @@ h3{font-size:16px}
 .ftabs{display:flex;gap:7px;margin-top:14px}
 .ftabs button{
   flex:1;padding:9px 0;border-radius:12px;text-align:center;font-size:12px;font-weight:700;
-  background:rgba(255,255,255,.09);color:rgba(255,255,255,.62);text-transform:capitalize;
+  background:var(--sc-soft3);color:var(--sc-sub);text-transform:capitalize;
 }
-.ftabs button.has{color:#fff}
+.ftabs button.has{color:var(--sc-ink)}
 .ftabs button.has::after{content:" ●";color:#63dc9a;font-size:9px;vertical-align:1px}
-.ftabs button.on{background:#fff;color:#1a0f16}
+.ftabs button.on{background:var(--sc-tabon-bg);color:var(--sc-tabon-ink)}
 .ftabs button.on.has::after{color:#1b9e5a}
 .glass{
-  position:relative;margin-top:14px;border-radius:22px;background:rgba(255,255,255,.07);
-  border:1px solid rgba(255,255,255,.12);padding:16px 18px;
+  position:relative;margin-top:14px;border-radius:22px;background:var(--sc-soft2);
+  border:1px solid var(--sc-line);padding:16px 18px;
 }
-.glass .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.14);margin-top:10px;
+.glass .bar{height:8px;border-radius:99px;background:var(--sc-bar);margin-top:10px;
   overflow:hidden}
 .glass .bar i{display:block;height:100%;border-radius:99px;
   background:linear-gradient(90deg,#ff8fba,#f0518d);transition:width .25s}
-.tick{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.72);
+.tick{display:flex;align-items:center;gap:10px;color:var(--sc-sub);
   font-size:13px;font-weight:600}
 #readList .tick{text-transform:capitalize}
-.tick i{width:20px;height:20px;flex:none;border-radius:50%;background:rgba(255,255,255,.12);
+.tick i{width:20px;height:20px;flex:none;border-radius:50%;background:var(--sc-tick-i);
   display:flex;align-items:center;justify-content:center}
-.tick.done{color:#fff}
+.tick.done{color:var(--sc-ink)}
 .tick.done i{background:rgba(120,220,160,.2);color:#63dc9a}
 .tick.miss i{background:rgba(224,169,68,.2);color:#e0a944}
 .choice{
   display:flex;gap:13px;align-items:flex-start;padding:15px;border-radius:18px;
-  background:rgba(255,255,255,.06);border:1.5px solid transparent;margin-bottom:10px;
+  background:var(--sc-soft2);border:1.5px solid transparent;margin-bottom:10px;
   cursor:pointer;
 }
 .choice.on{border-color:#ff7fae;background:rgba(255,127,174,.12)}
 .choice .rd{width:22px;height:22px;flex:none;border-radius:50%;
-  border:2px solid rgba(255,255,255,.35);margin-top:1px;display:flex;
+  border:2px solid var(--sc-rd-line);margin-top:1px;display:flex;
   align-items:center;justify-content:center;color:transparent}
 .choice.on .rd{background:#ff7fae;border-color:transparent;color:#1a0f16}
 .choice b{font-size:15px;font-weight:700;display:block}
-.choice em{font-style:normal;font-size:12.5px;color:rgba(255,255,255,.6);font-weight:500;
+.choice em{font-style:normal;font-size:12.5px;color:var(--sc-sub);font-weight:500;
   display:block;margin-top:3px;line-height:1.45}
 .filebtn{position:relative;overflow:hidden}
 .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:200px}
@@ -1006,7 +1212,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "8cd1d4d29d";
+const BUILD_ID = "470075cc3b";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -3140,11 +3346,43 @@ if (typeof module !== "undefined") module.exports = QR;
 const API = (() => {
   const CFG_KEY = "oma-cfg";
   const SESS_KEY = "oma-session";
+  const PRACTICE_KEY = "oma-practice";
+
+  /* Baked in at build time from oma-config.js. Nobody should have to paste a
+     URL and a key into a phone to use the app — that step is why three real
+     accounts signed up, filled in a listing, and had every word of it written
+     to their own device and nowhere else. Kamsy, 9 Sep 2026.
+
+     The anon key belongs here. It is PUBLIC BY DESIGN: it identifies the
+     project, not the person, and every function it can reach checks who is
+     calling before it answers. The service_role key is the opposite of that
+     and build.py refuses to build if it sees one. */
+  const BUILT_IN = { url: "", anon: "" };
+  // Both tests fail on the un-substituted placeholders, so a build without the
+  // details still produces a working practice app rather than a broken live one.
+  const hasBuiltIn = () =>
+    /^https:\/\/.+/.test(BUILT_IN.url) && (BUILT_IN.anon || "").length > 40;
+
+  const practice = () => localStorage.getItem(PRACTICE_KEY) === "1";
 
   const cfg = () => {
-    try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch { return {}; }
+    if (practice()) return {};                       // her choice wins
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch { stored = {}; }
+    if (stored.url && stored.anon) return stored;    // a hand-entered project
+    return hasBuiltIn() ? BUILT_IN : {};             // otherwise the shipped one
   };
   const live = () => !!(cfg().url && cfg().anon);
+
+  /* Same reasoning as configure() below: a session belongs to the backend that
+     issued it. The practice version mints one with the literal token "mock",
+     and carrying that into live would leave the app believing it is signed in
+     while Supabase quietly refuses every call. */
+  function setPractice(on) {
+    if (on) localStorage.setItem(PRACTICE_KEY, "1");
+    else localStorage.removeItem(PRACTICE_KEY);
+    setSession(null);
+  }
 
   function configure(url, anon) {
     const next = { url: (url || "").replace(/\/$/, ""), anon };
@@ -3238,16 +3476,98 @@ const API = (() => {
   const rpc = (fn, args) => call(`/rest/v1/rpc/${fn}`, args || {});
   const edge = (fn, body) => call(`/functions/v1/${fn}`, body || {});
 
-  /* ── signing in ───────────────────────────────────────── */
-  async function sendOtp(phone) {
-    if (!live()) return MOCK.sendOtp(phone);
-    await call("/auth/v1/otp", { phone }, { auth: false });
+  /* ── Storage ───────────────────────────────────────────────
+     Portfolio photographs. Not JSON and not RPC: raw bytes go straight to
+     Supabase Storage, so these do not go through call() — a 150 kB image has
+     no business being base64'd into a JSON body.
+
+     The bucket is public to READ, which is why photoUrl needs no token: these
+     are advertising, meant to be seen by people who have not signed in. WRITING
+     is another matter — the storage policy in photo.sql only accepts an upload
+     into a folder named after the caller's own user id. */
+  function photoUrl(path) {
+    if (!live()) return path;               // the practice app keeps data URLs
+    return `${cfg().url}/storage/v1/object/public/portfolio/${path}`;
+  }
+
+  async function storagePut(path, blob, type) {
+    if (!SESSION) throw new Error("sign in first");
+    const r = await fetch(`${cfg().url}/storage/v1/object/portfolio/${path}`, {
+      method: "POST",
+      headers: {
+        apikey: cfg().anon,
+        Authorization: `Bearer ${SESSION.access_token}`,
+        "Content-Type": type || "image/jpeg",
+        // Never overwrite silently. Every path carries a random part, so a
+        // collision means something is wrong and should say so.
+        "x-upsert": "false",
+      },
+      body: blob,
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      let m = "That photo would not upload.";
+      try { m = (JSON.parse(t) || {}).message || m; } catch (e) { /* not json */ }
+      throw new Error(m);
+    }
+    return path;
+  }
+
+  async function storageDelete(path) {
+    if (!SESSION) return;
+    // Best effort. The ROW is what a listing reads, and it has already gone by
+    // the time this runs; a file left behind is a few kilobytes nobody sees.
+    try {
+      await fetch(`${cfg().url}/storage/v1/object/portfolio/${path}`, {
+        method: "DELETE",
+        headers: { apikey: cfg().anon, Authorization: `Bearer ${SESSION.access_token}` },
+      });
+    } catch (e) { /* orphaned, and harmless */ }
+  }
+
+  /* ── signing in ───────────────────────────────────────────
+     By EMAIL, with a six-digit code. It used to be a phone number and an SMS,
+     which needs a Termii sender ID, which needs CAC — so nobody could sign in
+     at all while that was pending. Supabase sends the email itself.
+
+     Supabase sends a magic LINK by default; it sends a code instead only if
+     the Magic Link email template contains {{ .Token }}. If somebody gets a
+     link rather than a six-digit code, that template is the thing to fix, not
+     this code. */
+  async function sendOtp(email) {
+    if (!live()) return MOCK.sendOtp(email);
+    await call("/auth/v1/otp", { email }, { auth: false });
     return { sent: true };
   }
 
-  async function verifyOtp(phone, token) {
-    if (!live()) return MOCK.verifyOtp(phone, token);
-    const s = stamp(await call("/auth/v1/verify", { type: "sms", phone, token }, { auth: false }));
+  async function verifyOtp(email, token) {
+    if (!live()) return MOCK.verifyOtp(email, token);
+    // "email", not "sms" — the verify endpoint keys off this and answers
+    // "Token has expired or is invalid" for the wrong one, which reads like a
+    // typed code being wrong rather than a mismatched type.
+    //
+    // And a FIRST sign-in is a different case again. Supabase sends a brand
+    // new account its code from the "Confirm signup" template, not "Magic
+    // Link", and there are reports of that code refusing to verify as "email"
+    // while verifying happily as "signup". Which one a given project wants is
+    // not something worth being confident about from documentation, so both
+    // are tried. The cost is one extra request on a first sign-in only; the
+    // alternative is somebody staring at "token has expired or is invalid"
+    // while holding a code that is neither expired nor invalid.
+    let s;
+    try {
+      s = stamp(await call("/auth/v1/verify",
+                           { type: "email", email, token }, { auth: false }));
+    } catch (first) {
+      try {
+        s = stamp(await call("/auth/v1/verify",
+                             { type: "signup", email, token }, { auth: false }));
+      } catch (second) {
+        // Report the FIRST failure: for a genuinely wrong code both say the
+        // same thing, and the first is the ordinary path.
+        throw first;
+      }
+    }
     setSession(s);
     return s;
   }
@@ -3279,12 +3599,41 @@ const API = (() => {
   /* ── what the screens actually call ───────────────────── */
   const A = {
     configure, live, signedIn, userId, signOut, googleUrl, captureRedirect,
+    practice, setPractice, hasBuiltIn,
     sendOtp, verifyOtp,
 
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
     nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.nearby(lat, lng, km),
     search:        (q, lat, lng)            => live() ? rpc("api_search", { p_q: q || "", p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng }) : MOCK.search(q, lat, lng),
+
+    /* Where a nail tech who has no shop is RIGHT NOW. A salon has an address
+       and never touches any of these; see live.sql for why a travelling tech
+       gets a heartbeat instead of a pin, and p20_live.js for what sends it. */
+    pingPosition:  (lat, lng, acc)          => live() ? rpc("api_ping_position", { p_lat: lat, p_lng: lng, p_acc: acc == null ? null : acc }) : MOCK.pingPosition(lat, lng, acc),
+    goOffline:     ()                       => live() ? rpc("api_go_offline") : MOCK.goOffline(),
+    myPresence:    ()                       => live() ? rpc("api_my_presence") : MOCK.myPresence(),
+    setMobility:   (hasSalon, state)        => live() ? rpc("api_set_mobility", { p_has_salon: !!hasSalon, p_state: state || null }) : MOCK.setMobility(!!hasSalon, state),
+
+    /* The whole-state map. api_nearby answers "who is within 15 km of me";
+       this answers "who does Oma have in Lagos at all". */
+    stateTechs:    (state, lat, lng)        => live() ? rpc("api_state_techs", { p_state: state, p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng, p_limit: 300 }) : MOCK.stateTechs(state, lat, lng),
+    states:        ()                       => live() ? rpc("api_states") : MOCK.states(),
+
+    /* She comes to you. The QUOTE is asked of the server, never worked out
+       here: the tech's real coordinates never leave the database, so the
+       distance cannot be measured on a phone even if it were wise to let it.
+       See home.sql. */
+    // Does she travel at all, and on what terms. Read beside her services so
+    // the "she comes to me" choice is only offered when it is real.
+    homeTerms:     (techId)                 => live() ? rpc("api_home_terms", { p_tech: techId }) : MOCK.homeTerms(techId),
+    homeQuote:     (techId, ids, lat, lng)  => live() ? rpc("api_home_quote", { p_tech: techId, p_service_ids: ids || [], p_lat: lat, p_lng: lng }) : MOCK.homeQuote(techId, ids, lat, lng),
+    bookAtHome:    (techId, startsAt, ids, lat, lng, address, area, note, shape) => live() ? rpc("api_book_at_home", { p_tech: techId, p_starts: new Date(startsAt).toISOString(), p_service_ids: ids, p_lat: lat, p_lng: lng, p_address: address, p_area: area || null, p_note: note || null, p_shape: shape || null }) : MOCK.bookAtHome(techId, startsAt, ids, lat, lng, address, area, note, shape),
+    // The customer's street, released to the tech only once the money is in
+    // escrow. One function for both sides; the server decides what each sees.
+    bookingWhere:  (bookingId)              => live() ? rpc("api_booking_where", { p_booking: bookingId }) : MOCK.bookingWhere(bookingId),
+    setHomeService:(on, callout, perKm, maxKm) => live() ? rpc("api_set_home_service", { p_on: !!on, p_callout_kobo: callout, p_per_km_kobo: perKm, p_max_km: maxKm }) : MOCK.setHomeService(!!on, callout, perKm, maxKm),
+    setServiceHomePrice: (id, kobo)         => live() ? rpc("api_set_service_home_price", { p_service: id, p_home_kobo: kobo }) : MOCK.setServiceHomePrice(id, kobo),
     // A device, not a subscription. The database is deliberately incurious
     // about which kind of token this is; see push.sql.
     registerDevice:(platform, token, label)  => live() ? rpc("api_register_device", { p_platform: platform, p_token: token, p_label: label || null }) : MOCK.registerDevice(platform, token, label),
@@ -3301,6 +3650,18 @@ const API = (() => {
     setListed:     (on)                     => live() ? rpc("api_set_listed", { p_listed: !!on }) : MOCK.setListed(!!on),
     scan:          (code)                   => live() ? rpc("api_scan", { p_code: code })   : MOCK.scan(code),
     scanShort:     (bookingId, code)        => live() ? rpc("api_scan_short", { p_booking: bookingId, p_code: code }) : MOCK.scanShort(bookingId, code),
+    /* Reviews. api_search and api_nearby deliberately do NOT carry the score:
+       adding it would have meant redefining their return types in a second
+       SQL file, and whichever file ran last would win. One extra call for a
+       whole screen of results is the cheaper mistake. */
+    ratings:       (ids)                    => live() ? rpc("api_ratings", { p_techs: ids || [] }) : MOCK.ratings(ids),
+    techReviews:   (techId, limit)          => live() ? rpc("api_tech_reviews", { p_tech: techId, p_limit: limit || 20 }) : MOCK.techReviews(techId),
+    leaveReview:   (bookingId, stars, words) => live() ? rpc("api_leave_review", { p_booking: bookingId, p_stars: stars, p_words: words || null }) : MOCK.leaveReview(bookingId, stars, words),
+    myReview:      (bookingId)              => live() ? rpc("api_my_review", { p_booking: bookingId }) : MOCK.myReview(bookingId),
+    reviewable:    ()                       => live() ? rpc("api_reviewable") : MOCK.reviewable(),
+
+    earnings:      (limit)                  => live() ? rpc("api_earnings", { p_limit: limit || 30 }) : MOCK.earnings(limit),
+
     wallet:        ()                       => live() ? rpc("api_wallet")          : MOCK.wallet(),
     requestPayout: (kobo)                   => live() ? rpc("api_request_payout", { p_amount: kobo }) : MOCK.requestPayout(kobo),
 
@@ -3313,6 +3674,30 @@ const API = (() => {
     // These two go to edge functions, because they talk to somebody else's API.
     payInit:       (bookingId)              => live() ? edge("pay-init", { booking_id: bookingId }) : MOCK.payInit(bookingId),
     verifyNin:     (vnin)                   => live() ? edge("kyc", { vnin })      : MOCK.verifyNin(vnin),
+
+    /* HER WHOLE MENU, in one call. Add/edit/delete as three endpoints would
+       mean the phone working out the difference and firing a burst of them —
+       and a listing left half-saved when one fails. See menu.sql, and the bug
+       it exists for: nothing ever sent her services to the server at all. */
+    syncServices:  (menu)                   => live() ? rpc("api_sync_services", { p_menu: menu }) : MOCK.syncServices(menu),
+    myServices:    ()                       => live() ? rpc("api_my_services") : MOCK.myServices(),
+
+    /* O points. Every figure on that screen comes from here — the rate, the
+       prizes and the cap all live on the season row, so changing a prize is
+       one UPDATE rather than a rebuild and a re-upload. */
+    myPoints:      ()                       => live() ? rpc("api_my_points") : MOCK.myPoints(),
+    leaderboard:   (role, limit)            => live() ? rpc("api_leaderboard", { p_role: role || "tech", p_limit: limit || 20 }) : MOCK.leaderboard(role, limit),
+    myReferralCode:()                       => live() ? rpc("api_my_referral_code") : MOCK.myReferralCode(),
+    useReferral:   (code)                   => live() ? rpc("api_use_referral", { p_code: code }) : MOCK.useReferral(code),
+
+    /* Her work, under each service. The bytes go to Storage first and this
+       registers the fact of them — see photo.sql for why those are two steps
+       rather than one. */
+    techPhotos:    (techId)                 => live() ? rpc("api_tech_photos", { p_tech: techId }) : MOCK.techPhotos(techId),
+    addPhoto:      (serviceId, path, w, h, bytes, own) => live() ? rpc("api_add_service_photo", { p_service: serviceId, p_path: path, p_w: w, p_h: h, p_bytes: bytes, p_own_work: own !== false }) : MOCK.addPhoto(serviceId, path, w, h, bytes, own),
+    removePhoto:   (id)                     => live() ? rpc("api_remove_service_photo", { p_id: id }) : MOCK.removePhoto(id),
+    reportPhoto:   (id, why)                => live() ? rpc("api_report_photo", { p_id: id, p_why: why || null }) : MOCK.reportPhoto(id, why),
+    photoUrl, storagePut, storageDelete,
 
     // Only the mock has this: it is how the demo pretends money arrived.
     pretendPaid:   (bookingId)              => MOCK.pretendPaid(bookingId),
@@ -3391,7 +3776,11 @@ const API = (() => {
       RAW = cur;
       try { S = JSON.parse(cur); } catch { S = null; }
       if (!S) S = { user: null, techs: [], services: [], bookings: [], ledger: [],
-                    attempts: {}, seeded: false };
+                    reviews: [], attempts: {}, seeded: false };
+      // A store written before reviews existed has no array to push into, and
+      // the first rating would throw rather than save. Same for photos.
+      if (!S.reviews) S.reviews = [];
+      if (!S.photos) S.photos = [];
       seed();
       return S;
     };
@@ -3429,9 +3818,18 @@ const API = (() => {
       ];
       names.forEach(([name, area, lat, lng, years]) => {
         const id = uid();
-        S.techs.push({ id, business_name: name, area, address: area + ", Lagos",
+        // Pretty Tips has no shop — she travels, and she is working now. The
+        // practice app needs one of each or the map cannot be checked.
+        const roams = name === "Pretty Tips";
+        S.techs.push({ id, business_name: name, area, address: roams ? null : area + ", Lagos",
                        lat, lng, years, currency: "NGN", opens: "09:00", closes: "18:00",
-                       kyc: "verified", listed: true });
+                       kyc: "verified", listed: true, state: "Lagos",
+                       // Two of the five travel, so the practice app can show
+                       // both a salon and a home visit without any setting up.
+                       home_service: roams || name === "The Nail Room",
+                       callout_kobo: 300000, per_km_kobo: 130000, home_max_km: 15,
+                       has_salon: !roams,
+                       live_at: roams ? new Date().toISOString() : null });
         [["Acrylic full set", 120, 900000], ["Gel overlay", 75, 550000],
          ["Refill", 90, 650000], ["Soak off", 30, 200000]].forEach(([n, m, k]) => {
           S.services.push({ id: uid(), tech_id: id, name: n, minutes: m, price_kobo: k, active: true });
@@ -3506,11 +3904,11 @@ const API = (() => {
 
     return {
       sendOtp: async () => ({ sent: true, mock: true }),
-      verifyOtp: async (phone, token) => {
+      verifyOtp: async (email, token) => {
         if (String(token).replace(/\D/g, "").length !== 6) fail("that code is six digits");
         const s = load();
         s.user = s.user || {};
-        Object.assign(s.user, { id: s.user.id || "me", phone, full_name: s.user.full_name || "" });
+        Object.assign(s.user, { id: s.user.id || "me", email, full_name: s.user.full_name || "" });
         save();
         setSession({ access_token: "mock", refresh_token: "mock", user: { id: s.user.id } });
         return { mock: true };
@@ -3526,9 +3924,265 @@ const API = (() => {
         if (lat != null) { u.lat = lat; u.lng = lng; }
         save(); return await MOCK.me();
       },
+      /* live.sql's tech_visible(), in the practice app. A salon is visible
+         once she has listed herself; a travelling tech only while her phone
+         is still saying where she is. 45 minutes, the same window. */
+      visible: (t) => !!t && !!t.listed && (t.has_salon !== false ||
+        (!!t.live_at && Date.now() - new Date(t.live_at).getTime() < 45 * 60000)),
+
+      pingPosition: async (lat, lng) => {
+        const s = load(), t = myTech();
+        if (!t) throw new Error("list yourself first");
+        if (t.has_salon !== false) throw new Error("this listing is a salon — its address does not move");
+        const moved = t.lat == null ? null : km(t.lat, t.lng, lat, lng) * 1000;
+        if (moved != null && moved > 100000) {
+          throw new Error("that fix is " + Math.round(moved / 1000) + " km from your last one");
+        }
+        t.lat = lat; t.lng = lng; t.live_at = new Date().toISOString();
+        save();
+        return [{ live_at: t.live_at, moved_m: moved, listed: t.listed }];
+      },
+      goOffline: async () => {
+        const t = myTech();
+        if (t && t.has_salon === false) { t.live_at = null; save(); }
+        return [{ live_at: (t && t.live_at) || null }];
+      },
+      myPresence: async () => {
+        const t = myTech();
+        if (!t) return [];
+        return [{ has_salon: t.has_salon !== false, state: t.state || null,
+                  live_at: t.live_at || null, listed: !!t.listed,
+                  visible: MOCK.visible(t),
+                  seconds_ago: t.live_at
+                    ? (Date.now() - new Date(t.live_at).getTime()) / 1000 : null }];
+      },
+      setMobility: async (hasSalon, state) => {
+        const t = myTech();
+        if (!t) throw new Error("list yourself first");
+        t.has_salon = !!hasSalon;
+        if (state) t.state = state;
+        if (hasSalon) t.live_at = null;
+        save();
+        return [{ has_salon: t.has_salon, state: t.state || null, live_at: t.live_at || null }];
+      },
+      stateTechs: async (state, lat, lng) => {
+        const s = load(), want = String(state || "").toLowerCase().trim();
+        return s.techs.filter(MOCK.visible)
+          .filter((t) => (t.state || "").toLowerCase() === want ||
+                         (!t.state && (t.area || "").toLowerCase().includes(want)))
+          .map((t) => {
+            const pin = HEX.snap(t.lat, t.lng);
+            return { ...t, address: null,
+                     km: lat == null ? null : km(lat, lng, t.lat, t.lng),
+                     lat: pin.lat, lng: pin.lng, cell: pin.cell, boundary: pin.boundary,
+                     from_kobo: Math.min(...s.services.filter((x) => x.tech_id === t.id).map((x) => x.price_kobo)) };
+          })
+          .sort((a, b) => (a.km == null ? 1 : b.km == null ? -1 : a.km - b.km));
+      },
+      states: async () => {
+        const out = {};
+        load().techs.filter(MOCK.visible).forEach((t) => {
+          const k = (t.state || "").trim() || "(not said)";
+          out[k] = (out[k] || 0) + 1;
+        });
+        return Object.keys(out).map((state) => ({ state, techs: out[state] }))
+          .sort((a, b) => b.techs - a.techs || a.state.localeCompare(b.state));
+      },
+
+      /* home.sql, in the practice app. Deliberately the same arithmetic and
+         the same refusals, so the demo and the real thing behave alike. */
+      fareKm: (km) => Math.max(1, Math.ceil((km || 0) * 2) / 2),
+
+      homeTerms: async (techId) => {
+        const t = load().techs.find((x) => x.id === techId && x.listed);
+        if (!t) return null;
+        return { home_service: !!t.home_service,
+                 callout_kobo: t.callout_kobo == null ? 300000 : t.callout_kobo,
+                 per_km_kobo: t.per_km_kobo == null ? 130000 : t.per_km_kobo,
+                 home_max_km: t.home_max_km == null ? 15 : t.home_max_km };
+      },
+
+      homeQuote: async (techId, ids, lat, lng) => {
+        const s = load();
+        const t = s.techs.find((x) => x.id === techId);
+        if (!t || !t.listed) throw new Error("that tech is not listed");
+        const svcs = s.services.filter((x) => ids.includes(x.id) && x.tech_id === techId && x.active);
+        if (svcs.length !== (ids || []).length || !svcs.length) {
+          throw new Error("one of those services is not available from that tech");
+        }
+        const base = svcs.reduce((a, x) => a + (x.home_kobo || x.price_kobo), 0);
+        const salon = svcs.reduce((a, x) => a + x.price_kobo, 0);
+        if (!t.home_service) {
+          return { ok: false, why: "not_offered", base_kobo: base,
+                   says: t.business_name + " does not travel to customers." };
+        }
+        if (lat == null || lng == null) {
+          return { ok: false, why: "no_position", base_kobo: base,
+                   says: "Oma needs to know where you are to work out the travel." };
+        }
+        const d = km(lat, lng, t.lat, t.lng);
+        const max = t.home_max_km == null ? 15 : t.home_max_km;
+        if (d > max) {
+          return { ok: false, why: "too_far", km: Math.round(d * 10) / 10, max_km: max,
+                   base_kobo: base,
+                   says: t.business_name + " travels up to " + max + " km, and you are "
+                         + (Math.round(d * 10) / 10) + " km away." };
+        }
+        const callout = t.callout_kobo == null ? 300000 : t.callout_kobo;
+        const perKm = t.per_km_kobo == null ? 130000 : t.per_km_kobo;
+        const cKm = MOCK.fareKm(d);
+        const fare = Math.round(cKm * perKm);
+        return { ok: true, km: Math.round(d * 10) / 10, charged_km: cKm,
+                 base_kobo: base, callout_kobo: callout, per_km_kobo: perKm,
+                 fare_kobo: fare, total_kobo: base + callout + fare, salon_kobo: salon };
+      },
+
+      bookAtHome: async (techId, startsAt, ids, lat, lng, address, area, note, shapeName) => {
+        if (!String(address || "").trim()) throw new Error("she needs an address to come to");
+        const q = await MOCK.homeQuote(techId, ids, lat, lng);
+        if (!q.ok) throw new Error(q.says || "she cannot come to you");
+        const s = load();
+        const svcs = s.services.filter((x) => ids.includes(x.id));
+        const items = svcs.map((x) => ({ service_id: x.id, name: x.name, minutes: x.minutes,
+                                         price_kobo: x.home_kobo || x.price_kobo }));
+        // The two lines with no service_id. That is the whole mechanism by
+        // which Oma's fee stays off the tech's petrol — see booking_base_kobo.
+        if (q.callout_kobo) items.push({ service_id: null, name: "Home visit", minutes: 0,
+                                         price_kobo: q.callout_kobo });
+        if (q.fare_kobo) items.push({ service_id: null, name: "Travel (" + q.charged_km + " km)",
+                                      minutes: 0, price_kobo: q.fare_kobo });
+        const b = await MOCK.bookItems(techId, startsAt, items, note, shapeName);
+        b.at_home = true; b.cust_address = String(address).trim();
+        b.cust_area = area || null; b.cust_lat = lat; b.cust_lng = lng; b.km = q.km;
+        save();
+        return Object.assign({}, shape(b), { at_home: true, km: q.km, quote: q });
+      },
+
+      bookingWhere: async (bookingId) => {
+        const s = load();
+        const b = s.bookings.find((x) => x.id === bookingId);
+        const mine = (s.user || {}).id;
+        if (!b || (b.customer_id !== mine && b.tech_id !== mine)) throw new Error("no such booking");
+        if (!b.at_home) return { at_home: false };
+        const open = b.customer_id === mine
+          || ["paid", "released", "disputed"].includes(b.status);
+        return { at_home: true, km: b.km, area: b.cust_area,
+                 address: open ? b.cust_address : null,
+                 lat: open ? b.cust_lat : null, lng: open ? b.cust_lng : null,
+                 why: open ? null : "The address comes through once the appointment is paid for." };
+      },
+
+      setHomeService: async (on, callout, perKm, maxKm) => {
+        const t = myTech();
+        if (!t) throw new Error("list yourself first");
+        t.home_service = !!on;
+        if (callout != null) t.callout_kobo = callout;
+        if (perKm != null) t.per_km_kobo = perKm;
+        if (maxKm != null) t.home_max_km = maxKm;
+        save();
+        return { home_service: t.home_service, callout_kobo: t.callout_kobo,
+                 per_km_kobo: t.per_km_kobo, home_max_km: t.home_max_km };
+      },
+
+      setServiceHomePrice: async (id, kobo) => {
+        const s = load(), t = myTech();
+        const sv = s.services.find((x) => x.id === id && t && x.tech_id === t.id);
+        if (!sv) throw new Error("that is not one of your services");
+        sv.home_kobo = kobo == null ? null : kobo;
+        save();
+        return { id, home_kobo: sv.home_kobo };
+      },
+
+      /* menu.sql, in the practice app: the same reconcile, so the demo and
+         the real thing agree about what a second Save does. */
+      syncServices: async (menu) => {
+        const s = load(), t = myTech();
+        if (!t) throw new Error("set up your listing first");
+        if (!Array.isArray(menu)) throw new Error("that is not a menu");
+        const keep = [];
+        for (const it of menu) {
+          const nm = String((it && it.name) || "").trim();
+          if (!nm) continue;                       // started and abandoned
+          const kobo = Number(it.price_kobo) || 0;
+          if (kobo <= 0) throw new Error(nm + " needs a price");
+          if (kobo > 100000000) throw new Error(nm + " costs more than a million naira — check the price");
+          let row = it.id ? s.services.find((x) => x.id === it.id && x.tech_id === t.id) : null;
+          if (!row) {
+            row = { id: uid(), tech_id: t.id };
+            s.services.push(row);
+          }
+          row.name = nm;
+          row.minutes = Math.max(1, Math.min(1440, Number(it.minutes) || 60));
+          row.price_kobo = kobo;
+          row.shapes = Array.isArray(it.shapes) ? it.shapes : [];
+          row.home_kobo = it.home_kobo || null;
+          row.active = true;
+          keep.push(row.id);
+        }
+        s.services.forEach((x) => {
+          if (x.tech_id === t.id && !keep.includes(x.id)) x.active = false;
+        });
+        save();
+        return keep.map((id) => {
+          const x = s.services.find((y) => y.id === id);
+          return { id: x.id, name: x.name, minutes: x.minutes,
+                   price_kobo: x.price_kobo, shapes: x.shapes || [],
+                   home_kobo: x.home_kobo || null };
+        });
+      },
+      myServices: async () => {
+        const s = load(), t = myTech();
+        if (!t) return [];
+        return s.services.filter((x) => x.tech_id === t.id && x.active)
+          .map((x) => ({ id: x.id, name: x.name, minutes: x.minutes,
+                         price_kobo: x.price_kobo, shapes: x.shapes || [],
+                         home_kobo: x.home_kobo || null }));
+      },
+
+      /* photo.sql, in the practice app. The "path" here is a data URL rather
+         than an object in Storage — the demo has no Storage — but everything
+         above it behaves the same, including the cap and the reporting. */
+      techPhotos: async (techId) => {
+        const s = load();
+        const out = {};
+        (s.photos || []).filter((p) => p.tech_id === techId && !p.hidden_at)
+          .forEach((p) => {
+            (out[p.service_id] = out[p.service_id] || [])
+              .push({ id: p.id, path: p.path, w: p.w, h: p.h });
+          });
+        return out;
+      },
+      addPhoto: async (serviceId, path, w, h, bytes, own) => {
+        const s = load(), t = myTech();
+        const sv = s.services.find((x) => x.id === serviceId);
+        if (!sv || !t || sv.tech_id !== t.id) throw new Error("that is not one of your services");
+        s.photos = s.photos || [];
+        const n = s.photos.filter((p) => p.service_id === serviceId && !p.hidden_at).length;
+        if (n >= 3) throw new Error("that service already has 3 photos — remove one first");
+        const row = { id: uid(), service_id: serviceId, tech_id: t.id, path,
+                      w: w || null, h: h || null, bytes: bytes || null,
+                      own_work: own !== false, reports: 0, hidden_at: null,
+                      created_at: new Date().toISOString() };
+        s.photos.push(row); save();
+        return { id: row.id, path };
+      },
+      removePhoto: async (id) => {
+        const s = load(), t = myTech();
+        const i = (s.photos || []).findIndex((p) => p.id === id && t && p.tech_id === t.id);
+        if (i < 0) throw new Error("that is not one of your photos");
+        const [gone] = s.photos.splice(i, 1); save();
+        return { path: gone.path };
+      },
+      reportPhoto: async (id) => {
+        const s = load();
+        const p = (s.photos || []).find((x) => x.id === id);
+        if (p) { p.reports = (p.reports || 0) + 1; save(); }
+        return { ok: true };
+      },
+
       nearby: async (lat, lng, radius) => {
         const s = load();
-        return s.techs.filter((t) => t.listed)
+        return s.techs.filter(MOCK.visible)
           .map((t) => {
             // Distance from where she really is; position from her hexagon.
             // The address is withheld exactly as the real one withholds it.
@@ -3551,7 +4205,10 @@ const API = (() => {
         const toks = query ? query.split(/\s+/) : null;
         const out = [];
         for (const t of s.techs) {
-          if (!t.listed) continue;
+          // Not just "listed": a travelling tech whose phone stopped reporting
+          // is off the map, and being searchable by name would be a way round
+          // that. See MOCK.visible and live.sql's tech_visible.
+          if (!MOCK.visible(t)) continue;
           const svcs = s.services.filter((x) => x.tech_id === t.id && x.active);
           const n = (t.business_name || "").toLowerCase();
           const a = (t.area || "").toLowerCase();
@@ -3659,25 +4316,43 @@ const API = (() => {
         s.reads[whoAmI() + "|" + bookingId] = Date.now();
         save();
       },
-      book: async (techId, startsAt, ids, note, shapeName) => {
+      /* The same seam create_booking gives the server: hand it a list of
+         itemised lines and it makes the appointment. A home visit is that
+         list plus two lines with no service_id, and NOTHING else about
+         booking, escrow or the scan needs to know. */
+      bookItems: async (techId, startsAt, items, note, shapeName) => {
         const s = load(); expire();
         const at = new Date(startsAt).getTime();
         if (at <= Date.now()) fail("that time has already passed");
-        const chosen = s.services.filter((x) => ids.includes(x.id) && x.tech_id === techId && x.active);
-        if (chosen.length !== ids.length) fail("one of those services is not available from that tech");
         const clash = s.bookings.find((b) => b.tech_id === techId && b.starts_at_ms === at &&
           ["awaiting_payment", "paid", "released"].includes(b.status));
         if (clash) fail("somebody has just taken that slot");
         const b = {
           id: uid(), customer_id: meRow().id, tech_id: techId, starts_at_ms: at,
-          minutes: chosen.reduce((a, x) => a + x.minutes, 0),
-          total_kobo: chosen.reduce((a, x) => a + x.price_kobo, 0),
+          minutes: Math.max(1, items.reduce((a, x) => a + (x.minutes || 0), 0)),
+          total_kobo: items.reduce((a, x) => a + x.price_kobo, 0),
           status: "awaiting_payment", note: note || null, scan_shape: shapeName || null,
           pay_deadline_ms: Date.now() + 30 * 60000,
-          items: chosen.map((x) => ({ name: x.name, minutes: x.minutes, price_kobo: x.price_kobo })),
+          items: items.map((x) => ({ service_id: x.service_id == null ? null : x.service_id,
+                                     name: x.name, minutes: x.minutes || 0,
+                                     price_kobo: x.price_kobo })),
         };
         s.bookings.push(b); save();
-        return shape(b);
+        return b;
+      },
+      book: async (techId, startsAt, ids, note, shapeName) => {
+        const s = load();
+        const chosen = s.services.filter((x) => ids.includes(x.id) && x.tech_id === techId && x.active);
+        if (chosen.length !== ids.length) fail("one of those services is not available from that tech");
+        return shape(await MOCK.bookItems(techId, startsAt,
+          chosen.map((x) => ({ service_id: x.id, name: x.name, minutes: x.minutes,
+                               price_kobo: x.price_kobo })), note, shapeName));
+      },
+      /* fee.sql's booking_base_kobo(): the lines that ARE services. The
+         call-out and the fare are not Oma's to charge on. */
+      baseKobo: (b) => {
+        const svc = (b.items || []).filter((i) => i.service_id != null);
+        return svc.length ? svc.reduce((a, i) => a + i.price_kobo, 0) : b.total_kobo;
       },
       bookings: async (past) => {
         const s = load(); expire();
@@ -3742,6 +4417,28 @@ const API = (() => {
                            lat: o.lat, lng: o.lng, years: o.years });
         save(); return await MOCK.me();
       },
+      /* The practice version keeps a score for the phone it is on and calls
+         the board what it is. It does NOT invent rivals: a fake leaderboard
+         with invented names is the one thing on this screen that would still
+         look true after somebody screenshotted it. */
+      myPoints: async () => {
+        const s = load(); s.opoints = s.opoints || { code: null, used: false, milli: 0 };
+        return { season: "Practice season", ends_at: null,
+                 role: myTech() ? "tech" : "customer",
+                 points: +(s.opoints.milli / 1000).toFixed(2), place: null,
+                 code: s.opoints.code, used_code: s.opoints.used, referrals: 0,
+                 per_point: 700000, pair_cap: 10,
+                 tech_prize_kobo: 0, customer_prize_kobo: 0, lines: [] };
+      },
+      leaderboard: async () => [],
+      myReferralCode: async () => {
+        const s = load(); s.opoints = s.opoints || { code: null, used: false, milli: 0 };
+        if (!s.opoints.code) { s.opoints.code = "PRACTICE"; save(); }
+        return s.opoints.code;
+      },
+      useReferral: async () => {
+        throw new Error("Codes only count on the real Oma. Turn off practice mode in Settings.");
+      },
       addService: async (name, mins, kobo, shapes) => {
         const s = load(), t = myTech();
         if (!t) fail("set up your tech profile first");
@@ -3791,6 +4488,96 @@ const API = (() => {
         save();
         return { ok: true, ...release(b) };
       },
+      /* ── reviews ──────────────────────────────────────────────
+         The same rule the database enforces, enforced here too, so the
+         screens behave identically against the mock: only the customer, only
+         on a released appointment, one review per appointment. A mock that is
+         more permissive than the server teaches the UI to do things the
+         server will refuse. */
+      leaveReview: async (bookingId, stars, words) => {
+        const s = load();
+        if (!(stars >= 1 && stars <= 5)) fail("a review is one to five stars");
+        const b = s.bookings.find((x) => x.id === bookingId);
+        if (!b) fail("no such appointment");
+        if (b.status !== "released") {
+          fail("you can review an appointment once it has been completed");
+        }
+        const w = (words || "").trim() || null;
+        if (w && w.length > 600) fail("that review is too long");
+        const had = s.reviews.find((r) => r.booking_id === bookingId);
+        if (had) {
+          had.stars = stars; had.words = w; had.edited_at = new Date().toISOString();
+        } else {
+          s.reviews.push({ booking_id: bookingId, tech_id: b.tech_id,
+                           customer_id: (s.user && s.user.id) || "me",
+                           stars, words: w, created_at: new Date().toISOString(),
+                           edited_at: null });
+        }
+        save();
+        return s.reviews.find((r) => r.booking_id === bookingId);
+      },
+      myReview: async (bookingId) =>
+        load().reviews.find((r) => r.booking_id === bookingId) || null,
+      reviewable: async () => {
+        const s = load();
+        return s.bookings
+          .filter((b) => b.status === "released" &&
+                         !s.reviews.some((r) => r.booking_id === b.id))
+          .map((b) => ({ booking_id: b.id, tech_id: b.tech_id,
+                         business_name: (s.techs.find((t) => t.id === b.tech_id) || {}).business_name,
+                         // Stored bookings keep a millisecond stamp; shape()
+                         // is what turns it into the ISO string the app sees.
+                         starts_at: new Date(b.starts_at_ms).toISOString() }));
+      },
+      ratings: async (ids) => {
+        const s = load(), want = ids || [];
+        const out = [];
+        want.forEach((id) => {
+          const mine = s.reviews.filter((r) => r.tech_id === id);
+          // No row rather than a zero, exactly as the SQL does — "not rated
+          // yet" and "rated zero" must not look the same to a screen.
+          if (!mine.length) return;
+          const avg = mine.reduce((a, r) => a + r.stars, 0) / mine.length;
+          out.push({ tech_id: id, stars: Math.round(avg * 10) / 10, reviews: mine.length });
+        });
+        return out;
+      },
+      techReviews: async (techId) => {
+        const s = load();
+        const who = (id) => {
+          const n = ((id === ((s.user && s.user.id) || "me")
+                       ? (s.user && s.user.full_name) : null) || "").trim();
+          if (!n) return "Someone";
+          const p = n.split(/\s+/);
+          return p.length < 2 ? p[0] : p[0] + " " + p[1][0] + ".";
+        };
+        return s.reviews.filter((r) => r.tech_id === techId)
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+          .map((r) => ({ stars: r.stars, words: r.words,
+                         who: who(r.customer_id), created_at: r.created_at }));
+      },
+
+      /* Her record of what she was actually paid, appointment by appointment,
+         with the deductions set out. Mirrors api_earnings in fee.sql. */
+      earnings: async (limit) => {
+        const s = load();
+        return (s.fees || [])
+          .slice()
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+          .slice(0, limit || 30)
+          .map((f) => {
+            // Paystack IS on the full amount — that is what the card was
+            // charged. Oma is on the base. The two really are different.
+            const ps = paystackFeeKobo(f.total_kobo);
+            const base = f.base_kobo == null ? f.total_kobo : f.base_kobo;
+            return { booking_id: f.booking_id, paid_at: f.created_at,
+                     total_kobo: f.total_kobo, base_kobo: base,
+                     travel_kobo: f.total_kobo - base,
+                     oma_kobo: f.fee_kobo, paystack_kobo: ps,
+                     net_kobo: f.total_kobo - f.fee_kobo - ps };
+          });
+      },
+
       wallet: async () => {
         const s = load(), t = myTech();
         return {
@@ -3824,6 +4611,24 @@ const API = (() => {
                       delta_kobo: -b.total_kobo, kind: "release_out", at: Date.now() });
       s.ledger.push({ tech_id: b.tech_id, booking_id: b.id, bucket: "available",
                       delta_kobo: b.total_kobo, kind: "release_in", at: Date.now() });
+      // Oma's fee, charged at the scan exactly as the trigger in fee.sql
+      // charges it. A mock that released the whole amount would show a tech a
+      // balance the real system will never pay her.
+      // On the SERVICES, not the sale: a home visit's call-out and fare are
+      // the tech's time and petrol, and charging a percentage of those is
+      // what this whole design avoids. Same rule as booking_base_kobo().
+      const base = MOCK.baseKobo(b);
+      const fee = omaFeeKobo(base);
+      if (fee > 0) {
+        s.fees = s.fees || [];
+        if (!s.fees.some((f) => f.booking_id === b.id)) {
+          s.fees.push({ booking_id: b.id, tech_id: b.tech_id,
+                        total_kobo: b.total_kobo, base_kobo: base, fee_kobo: fee,
+                        created_at: new Date().toISOString() });
+          s.ledger.push({ tech_id: b.tech_id, booking_id: b.id, bucket: "available",
+                          delta_kobo: -fee, kind: "oma_fee", at: Date.now() });
+        }
+      }
       save();
       return { booking: shape(b), released_kobo: b.total_kobo,
                customer_name: (s.user || {}).full_name || "your client" };
@@ -5001,7 +5806,7 @@ function vProfile() {
       <button class="avatar lg" data-a="go" data-v="editme">${esc(initials(me.name))}</button>
       <div>
         <div style="font-size:19px;font-weight:800;letter-spacing:-.025em">${esc(me.name || "Add your name")}</div>
-        <div class="small sub" style="margin-top:2px">${esc([me.area, me.phone ? "+" + waNumber(me.phone, DB.dial) : null].filter(Boolean).join(" · ") || "Tap to fill in your details")}</div>
+        <div class="small sub" style="margin-top:2px">${esc([me.area, me.email].filter(Boolean).join(" · ") || "Tap to fill in your details")}</div>
       </div>
     </div>
     <div style="display:flex;gap:9px;margin-top:18px">
@@ -5175,12 +5980,10 @@ function vEditMe() {
   <div class="pad">
     <label class="field"><span class="lab">Your name</span>
       <span class="inp"><input id="fName" value="${esc(m.name || "")}" placeholder="Your name"></span></label>
-    <label class="field"><span class="lab">Phone number</span>
-      <span class="inp"><span class="pre">+<input id="fDial" value="${esc(DB.dial)}" inputmode="numeric" style="width:3ch;font-weight:600"></span>
-        <span class="bar"></span><input id="fPhone" value="${esc(m.phone || "")}" inputmode="tel"></span></label>
     <label class="field"><span class="lab">Your area</span>
-      <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos">
-        <span class="act" data-a="gps" data-t="me">${myPos() ? "Pinned" : "GPS"}</span></span></label>
+      <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
+    <div class="tiny faint" style="margin:-8px 0 16px">A label for your bookings.
+      How far away a tech is comes from your phone each time you search.</div>
     <button class="btn" data-a="saveMe" data-back="1">Save</button>
   </div>`;
 }
@@ -5191,19 +5994,35 @@ function vSettings() {
     <div class="menu">
       <button data-a="theme"><span class="ic">${I.moon()}</span><span style="flex:1">Dark mode</span>
         <span class="switch ${isDark() ? "on" : ""}"><i></i></span></button>
+      ${pushRow()}
       <button data-a="switchRole"><span class="ic">${I.shop()}</span>
         <span style="flex:1">Use Oma as a ${DB.role === "tech" ? "customer" : "nail tech"}</span>${I.chev()}</button>
+      <button data-a="go" data-v="points"><span class="ic">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M6 4h12v5a6 6 0 0 1-12 0V4ZM18 5h2a2 2 0 0 1 0 4h-2M6 5H4a2 2 0 0 0 0 4h2"/></svg></span>
+        <span style="flex:1">O points and the board</span>${I.chev()}</button>
       <button data-a="go" data-v="sheet"><span class="ic">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9V4h12v5M6 18h12v-5H6v5ZM6 13H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/></svg></span>
         <span style="flex:1">Print the guide sheet</span>${I.chev()}</button>
+      ${API.hasBuiltIn() ? `
+      <!-- The app ships knowing its own backend, so this is a switch and not a
+           form. Asking a nail tech to paste a project URL and a key was the
+           step that quietly kept three real accounts on the practice version. -->
+      <button data-a="practice"><span class="ic">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+        <span style="flex:1">Practice mode<span class="tiny faint" style="display:block">${
+          API.practice()
+            ? "Nothing leaves this phone"
+            : "Off — you are on the real Oma"}</span></span>
+        <span class="switch ${API.practice() ? "on" : ""}"><i></i></span></button>`
+      : `
       <button data-a="go" data-v="backend"><span class="ic">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
         <span style="flex:1">Connect to your backend</span>
         <span class="tiny ${API.live() ? "" : "faint"}" style="margin-right:6px">${
-          API.live() ? "Live" : "Practice"}</span>${I.chev()}</button>
+          API.live() ? "Live" : "Practice"}</span>${I.chev()}</button>`}
       ${API.signedIn() ? `<button data-a="signout"><span class="ic">${I.user()}</span>
-        <span style="flex:1">Sign out${DB.me && DB.me.phone
-          ? ` · +${esc(waNumber(DB.me.phone, DB.dial))}` : ""}</span>${I.chev()}</button>` : ""}
+        <span style="flex:1">Sign out${DB.me && DB.me.email
+          ? ` · ${esc(DB.me.email)}` : ""}</span>${I.chev()}</button>` : ""}
       <button data-a="export"><span class="ic">${I.chart()}</span>
         <span style="flex:1">Export my scans as JSON</span>${I.chev()}</button>
       <button data-a="wipe"><span class="ic">
@@ -5223,6 +6042,12 @@ function vSettings() {
     <div class="tiny faint" style="text-align:center;margin-top:18px;line-height:1.6">
       Ruleset ${esc(RULES.version || "—")} · thresholds are salon convention, not calibrated
       measurement.<br>Detector mean error 0.25 against hand-annotated ground truth on eight hands.
+      <!-- The build id, on screen on purpose. Twice now a bug has been chased that
+           was already fixed, because the phone was quietly running an older
+           app.html behind a stale service worker and there was no way to tell by
+           looking. Now there is: this line and the first line of /sw.js must
+           match, and if they do not, the upload is the problem, not the code. -->
+      <br>Build <b>${esc(BUILD_ID)}</b>
     </div>
   </div>
   <div style="height:20px"></div>`;
@@ -5383,7 +6208,10 @@ function vListing() {
     </div>
     <div style="display:flex;gap:8px;margin-top:12px">
       <div class="tile" style="flex:1"><div class="k">From</div>
-        <div class="v">${(b.services || []).length ? esc(b.cur || DB.cur) + Math.min(...b.services.map(s => +s.p || Infinity)).toLocaleString("en") : "—"}</div></div>
+        <div class="v">${(() => {
+          const lo = fromPrice(b.services);
+          return lo === null ? "—" : esc(b.cur || DB.cur) + lo.toLocaleString("en");
+        })()}</div></div>
       <div class="tile" style="flex:1"><div class="k">Services</div><div class="v">${(b.services || []).length}</div></div>
       <div class="tile" style="flex:1"><div class="k">Hours</div><div class="v">${esc(b.opens || "—")}–${esc(b.closes || "—")}</div></div>
     </div>
@@ -8156,6 +8984,185 @@ async function reportPhoto(id) {
   }
 }
 
+/* ══ O points ═════════════════════════════════════════
+   The leaderboard, her own score, and her referral code.
+
+   Everything on this screen comes from api_my_points and api_leaderboard.
+   Nothing is computed here — a score worked out on the phone is a score
+   that disagrees with the one the prize is paid against, and the phone
+   is the copy she will screenshot.
+
+   The rate, the prizes and the pair cap all arrive from the season row
+   rather than being written into the app, so changing the prize is one
+   UPDATE and not a rebuild.                                            */
+
+let PTS = null, PBOARD = null, PROLE = "tech", PBUSY = false;
+
+/* The share link carries the code, because reading six characters down a
+   phone is how a referral quietly stops happening. Stashed at load and used
+   to prefill the box — never applied on its own, since it has to be her
+   choice and she has to be signed in for it to mean anything. */
+try {
+  const m = /[#&]r=([A-Za-z0-9]+)/.exec(location.hash || "");
+  if (m) localStorage.setItem("oma-ref", m[1].toUpperCase());
+} catch (e) { /* private mode */ }
+function pendingRef() {
+  try { return localStorage.getItem("oma-ref") || ""; } catch (e) { return ""; }
+}
+
+function naira(kobo) {
+  if (kobo == null) return "—";
+  return "₦" + Math.round(kobo / 100).toLocaleString("en");
+}
+function daysLeft(iso) {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  if (!isFinite(ms)) return null;
+  return Math.max(0, Math.ceil(ms / 86400000));
+}
+
+async function loadPoints() {
+  if (PBUSY) return;
+  PBUSY = true;
+  try {
+    PTS = await API.myPoints();
+    PBOARD = await API.leaderboard(PROLE, 20);
+  } catch (e) {
+    PTS = PTS || { error: e.message };
+  }
+  PBUSY = false;
+  if (ROUTE.v === "points") paint();
+}
+
+function vPoints() {
+  // First paint has nothing yet; the fetch repaints when it lands.
+  if (!PTS) { loadPoints(); }
+  const p = PTS || {};
+  const live = !!p.season;
+  const left = daysLeft(p.ends_at);
+  const board = PBOARD || [];
+
+  return `
+  ${head("O points")}
+  <div class="pad">
+
+    ${!live ? `
+      <div class="empty" style="margin-top:8px">
+        <b>No season running</b>
+        There is no competition open at the moment. When one starts, every
+        booking you complete starts counting toward it.
+      </div>`
+    : `
+      <!-- her own standing. The place is deliberately quieter than the
+           score: the score is a fact about her work, the place is a fact
+           about everybody else's and it moves while she is asleep. -->
+      <div class="card" style="background:var(--grad);color:#fff;padding:22px 20px">
+        <div class="eyebrow" style="color:rgba(255,255,255,.85)">${esc(p.season)}${
+          left != null ? ` · ${left} day${left === 1 ? "" : "s"} left` : ""}</div>
+        <div style="display:flex;align-items:flex-end;gap:14px;margin-top:8px">
+          <div style="font-size:44px;font-weight:800;letter-spacing:-.045em;line-height:1">${
+            Number(p.points || 0).toLocaleString("en", { maximumFractionDigits: 2 })}</div>
+          <div style="font-size:15px;font-weight:700;padding-bottom:7px;opacity:.9">
+            O point${Number(p.points) === 1 ? "" : "s"}</div>
+        </div>
+        <div style="margin-top:6px;font-size:13.5px;opacity:.9">${
+          p.place ? `You are <b>#${p.place}</b> among ${
+            p.role === "tech" ? "nail techs" : "customers"}`
+          : "Complete a booking and you are on the board"}</div>
+      </div>
+
+      <div class="note mt16">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.1"/></svg>
+        <div><b>1 O point = ${naira(p.per_point)} of work.</b> ${
+          p.role === "tech"
+            ? "Counted on the services you did, never on travel or the call-out."
+            : "Counted on the services you booked, never on travel."}
+          Points land when the appointment is scanned, and come back off if it
+          is refunded.</div>
+      </div>
+
+      ${(p.tech_prize_kobo > 0 || p.customer_prize_kobo > 0) ? `
+      <div class="grid2 mt12">
+        <div class="tile"><div class="k">Top nail tech</div>
+          <div class="v">${naira(p.tech_prize_kobo)}</div></div>
+        <div class="tile"><div class="k">Top customer</div>
+          <div class="v">${naira(p.customer_prize_kobo)}</div></div>
+      </div>` : ""}
+
+      <!-- ── the referral code ── -->
+      <div class="seehead" style="padding-left:0;padding-right:0"><h3>Your code</h3></div>
+      ${p.code ? `
+        <div class="card" style="text-align:center;padding:18px">
+          <div style="font-size:30px;font-weight:800;letter-spacing:.14em;
+                      font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(p.code)}</div>
+          <div class="small sub" style="margin-top:8px">
+            They get <b>0.1</b>, you get <b>0.3</b> — when they finish their
+            first booking, not when they sign up.</div>
+        </div>
+        <div class="btnrow mt12">
+          <button class="btn sm" data-a="shareCode">${I.share()} Share</button>
+          <button class="btn sm ghost" data-a="copyCode">Copy</button>
+        </div>
+        ${p.referrals ? `<div class="small sub" style="margin-top:10px;text-align:center">
+          <b>${p.referrals}</b> ${p.referrals === 1 ? "person has" : "people have"}
+          joined on your code and booked.</div>` : ""}
+      ` : `
+        <button class="btn mt8" data-a="makeCode">Get my code</button>
+      `}
+
+      ${!p.used_code ? `
+      <div class="card mt16">
+        <div style="font-size:15px;font-weight:700">Someone gave you a code?</div>
+        <div class="small sub" style="margin-top:4px;margin-bottom:10px">
+          You can only ever use one, so make it the right one.</div>
+        <div class="btnrow">
+          <input id="fRefCode" placeholder="ABC123" autocapitalize="characters"
+                 value="${esc(pendingRef())}"
+                 maxlength="12" style="flex:1;text-transform:uppercase;
+                 letter-spacing:.1em;font-family:ui-monospace,Menlo,monospace">
+          <button class="btn sm" data-a="useCode">Use it</button>
+        </div>
+      </div>` : ""}
+
+      <!-- ── the board ── -->
+      <div class="seehead" style="padding-left:0;padding-right:0"><h3>The board</h3></div>
+      <div class="tabs2 mb12">
+        <button data-a="pboard" data-id="tech"${
+          PROLE === "tech" ? ' class="on"' : ""}>Nail techs</button>
+        <button data-a="pboard" data-id="customer"${
+          PROLE === "customer" ? ' class="on"' : ""}>Customers</button>
+      </div>
+
+      ${board.length ? `
+      <div class="stack gap8">
+        ${board.map((r) => `
+          <div class="prow${r.is_me ? " me" : ""}">
+            <span class="pplace">${r.place}</span>
+            <span class="pname">${esc(r.label)}${r.is_me ? " · you" : ""}</span>
+            <span class="ppts">${Number(r.points).toLocaleString("en",
+              { maximumFractionDigits: 2 })}</span>
+          </div>
+          <!-- How many DIFFERENT people that score came from. A big total
+               from one person is what collusion looks like, and it belongs
+               beside the score rather than being noticed after a prize has
+               been paid. -->
+          <div class="small faint" style="margin:-4px 0 4px 46px">${
+            r.partners} ${r.partners === 1 ? "person" : "people"}</div>`).join("")}
+      </div>`
+      : `<div class="empty"><b>Nobody has scored yet</b>
+           The first completed booking of the season puts somebody here.</div>`}
+
+      <div class="small sub" style="margin-top:16px;line-height:1.55">
+        Only appointments that were actually scanned count, and a booking
+        between the same two people stops counting past ${
+          p.pair_cap || 10} points — so the board rewards being busy with
+        many people rather than one.
+      </div>
+    `}
+  </div>
+  <div style="height:24px"></div>`;
+}
+
 /* ══ being told something happened ═══════════════════
    Kamsy: "oma is not gonna be a web app forever i am just using it as a
    physical model and when we are done i publish it on playstore and app store
@@ -8386,8 +9393,13 @@ function paint() {
     case "welcome": html = vWelcome(); break;
     case "role": html = vRole(); break;
     case "signup": html = vSignup(); break;
-    case "setup": html = vSetup(false); break;
-    case "editbiz": html = vSetup(true); break;
+    // The listing editor states Oma's TERMS in a sentence and shows no
+    // arithmetic. The breakdown belongs on her earnings screen, after she has
+    // been paid — see p19_fee.js.
+    // Her photographs are fetched after the paint, like everything else that
+    // needs the network, and the strips redraw themselves when they arrive.
+    case "setup": html = vSetup(false); setTimeout(loadMyPhotos, 0); break;
+    case "editbiz": html = vSetup(true); setTimeout(loadMyPhotos, 0); break;
     // The bottom bar used to lead to a second, device-only app. Every one
     // of these now reads the database instead. See oma-two-apps.md.
     case "home": html = vHomeLive(); break;
@@ -8405,6 +9417,7 @@ function paint() {
     case "scan": html = vScan(ROUTE.a); break;
     case "editme": html = vEditMe(); break;
     case "settings": html = vSettings(); break;
+    case "points": html = vPoints(); break;
     case "sheet": html = vSheet(); break;
     case "requests": html = vRequestsLive(); break;
     case "diary": html = vDiaryLive(); break;
@@ -8422,6 +9435,7 @@ function paint() {
     case "backend": html = vBackend(); break;
     case "job": html = vJob(ROUTE.a); break;
     case "chat": html = vChat(ROUTE.a); break;
+    case "review": html = vReview(ROUTE.a); break;
     default: html = DB.role === "tech" ? vRequestsLive() : vFind();
   }
   if (typeof stopCamera === "function") stopCamera();
@@ -8455,7 +9469,7 @@ document.getElementById("shell").addEventListener("click", e => {
   const a = el.dataset.a;
   const id = el.dataset.id;
   const fields = {};
-  ["fName", "fPhone", "fArea", "fDial"].forEach(k => {
+  ["fName", "fArea"].forEach(k => {
     const n = document.getElementById(k); if (n) fields[k] = n.value.trim();
   });
 
@@ -8492,6 +9506,42 @@ document.getElementById("shell").addEventListener("click", e => {
         paint();
       });
   }
+  if (a === "pboard") { PROLE = id; PBOARD = null; loadPoints(); return paint(); }
+  if (a === "makeCode") {
+    return API.myReferralCode()
+      .then(() => { PTS = null; loadPoints(); toast("That is your code."); })
+      .catch((e) => toast(e.message));
+  }
+  if (a === "copyCode" || a === "shareCode") {
+    const c = PTS && PTS.code; if (!c) return;
+    // The link carries the code, because reading six characters down a phone
+    // is how a referral quietly stops happening.
+    const link = location.origin + location.pathname + "#r=" + encodeURIComponent(c);
+    const text = "Join me on Oma — book a nail tech and pay safely. My code is "
+               + c + "\n" + link;
+    if (a === "shareCode" && navigator.share) {
+      return navigator.share({ title: "Oma", text }).catch(() => {});
+    }
+    return copy(text, "Copied — send it to anyone.");
+  }
+  if (a === "useCode") {
+    const el = document.getElementById("fRefCode");
+    const v = ((el && el.value) || "").trim().toUpperCase();
+    if (v.length < 4) return toast("That code looks too short.");
+    return API.useReferral(v)
+      .then((r) => { PTS = null; loadPoints();
+                     toast("You are in" + (r && r.from ? " — thanks to " + r.from : "") + "."); })
+      .catch((e) => toast(e.message));
+  }
+  if (a === "practice") {
+    const on = !API.practice();
+    API.setPractice(on);
+    // Signed out either way — setPractice drops the session, because a session
+    // belongs to the backend that issued it.
+    toast(on ? "Practice mode. Nothing leaves this phone."
+             : "You are on the real Oma. Sign in to use your account.");
+    return paint();
+  }
   if (a === "cfg-clear") {
     API.configure("", "");
     API.signOut();
@@ -8500,18 +9550,42 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "otp-send") {
-    const n = document.getElementById("fSignPhone");
-    const phone = (n ? n.value : "").trim();
-    if (phone.replace(/\D/g, "").length < 7) return toast("That does not look like a phone number.");
-    SIGNIN.phone = phone;
-    return API.sendOtp(phone).then(() => { SIGNIN.sent = true; paint(); })
+    const n = document.getElementById("fSignEmail");
+    // Lower-cased and trimmed: a phone keyboard loves to capitalise the first
+    // letter, and Supabase treats Amaka@ and amaka@ as two different accounts.
+    const email = (n ? n.value : "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      return toast("That does not look like an email address.");
+    }
+    SIGNIN.email = email;
+    return API.sendOtp(email).then(() => { SIGNIN.sent = true; paint(); })
       .catch(err => toast(err.message));
+  }
+  if (a === "signin-mode") {
+    // The screen is about to be repainted from SIGNIN, so anything already
+    // typed has to be carried into it first. Being made to type your address
+    // again because you tapped the wrong door is a small insult, and the sort
+    // that makes people give up on a sign-up.
+    const typed = document.getElementById("fSignEmail");
+    if (typed) SIGNIN.email = typed.value;
+    SIGNIN.mode = el.dataset.v || null;
+    SIGNIN.sent = false;
+    return paint();
   }
   if (a === "otp-again") { SIGNIN.sent = false; return paint(); }
   if (a === "otp-check") {
     const n = document.getElementById("fOtp");
-    return API.verifyOtp(SIGNIN.phone, (n ? n.value : "").trim())
-      .then(() => { toast("Signed in."); nav("nearby"); })
+    return API.verifyOtp(SIGNIN.email, (n ? n.value : "").trim())
+      .then(() => {
+        // She has just proved she owns this address, so it is the one thing
+        // about her identity this device can state without asking the server.
+        // Settings shows it, and without this the row read "Sign out" with
+        // nothing after it.
+        DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
+        dbSave();
+        toast("Signed in.");
+        nav("nearby");
+      })
       .catch(err => toast(err.message));
   }
   if (a === "google") {
@@ -8528,6 +9602,11 @@ document.getElementById("shell").addEventListener("click", e => {
     return nav("techlive", el.dataset.id);
   }
   // The map: tapping Close puts the short list back, and the arrow re-centres.
+  /* reviews */
+  if (a === "rate-open") return nav("review", el.dataset.id);
+  if (a === "rate-star") return setStars(el.dataset.n);
+  if (a === "rate-save") return saveReview();
+
   if (a === "send-msg") return sendMessage(el.dataset.id);
   if (a === "map-clear") return choosePin(null);
   if (a === "map-me") return recentreMap();
@@ -8540,14 +9619,38 @@ document.getElementById("shell").addEventListener("click", e => {
     el.classList.add("on");
     return;
   }
+  if (a === "home-where") {
+    HOME.at = el.dataset.v === "1";
+    paintHome();
+    // The quote is only worth asking for once she has actually chosen it —
+    // it costs a GPS fix and a round trip.
+    if (HOME.at && !HOME.quote) askHomeQuote();
+    return;
+  }
   if (a === "mslot") {
     const day = document.querySelector("#dayChips .chip.on");
     if (!day) return toast("Pick a day first.");
     const at = new Date(Number(day.dataset.ts));
     at.setHours(Number(el.dataset.h), 0, 0, 0);
+    const shape = (DB.scans && DB.scans[0] && DB.scans[0].shape) || null;
+
+    if (HOME.at) {
+      const typed = document.getElementById("hAddr");
+      HOME.addr = typed ? typed.value.trim() : HOME.addr;
+      if (!HOME.addr) return toast("She needs an address to come to.");
+      if (!HOME.quote || !HOME.quote.ok) {
+        return toast((HOME.quote && HOME.quote.says) || "Working out the travel — one moment.");
+      }
+      el.disabled = true;
+      return API.bookAtHome(PICKED.techId, at.getTime(), PICKED.ids,
+                            HOME.pos.lat, HOME.pos.lng, HOME.addr,
+                            (DB.me && DB.me.area) || null, null, shape)
+        .then(b => nav("pay", b.id))
+        .catch(err => { el.disabled = false; toast(err.message); });
+    }
+
     el.disabled = true;
-    return API.book(PICKED.techId, at.getTime(), PICKED.ids, null,
-                    (DB.scans && DB.scans[0] && DB.scans[0].shape) || null)
+    return API.book(PICKED.techId, at.getTime(), PICKED.ids, null, shape)
       .then(b => nav("pay", b.id))
       .catch(err => { el.disabled = false; toast(err.message); });
   }
@@ -8635,21 +9738,22 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "gps") {
-    const t = el.dataset.t;
+    // Techs only. A salon is a place and stays where it is; a customer moves,
+    // so her distance is asked of the phone when a screen needs it rather than
+    // pinned once and trusted for ever.
+    if (el.dataset.t !== "biz") return;
     return locate(ll => {
       if (!ll) return;
-      if (t === "biz") { DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll }); }
-      else { DB.me = Object.assign({}, DB.me, { name: fields.fName, phone: fields.fPhone, area: fields.fArea, ll }); }
-      dbSave(); toast("Location pinned."); paint();
+      DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll });
+      dbSave(); toast("Shop location pinned."); paint();
     });
   }
   if (a === "saveMe") {
     if (!fields.fName) return toast("Your name, at least — techs need something to call you.");
-    DB.dial = (fields.fDial || DB.dial).replace(/\D/g, "") || DB.dial;
     DB.me = Object.assign({}, DB.me, {
-      name: fields.fName, phone: fields.fPhone, area: fields.fArea,
-      ll: (DB.me && DB.me.ll) || null
+      name: fields.fName, area: fields.fArea,
     });
+    delete DB.me.ll;      // a customer has no pin; see myPos()
     dbSave();
     return el.dataset.back ? (toast("Saved."), back()) : nav("home");
   }
@@ -8674,10 +9778,30 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "saveBiz") {
     const b = Object.assign({ services: [] }, DB.biz, readBiz());
     if (!b.name) return toast("Your business needs a name.");
-    if (!b.phone) return toast("Add a WhatsApp number — that is how customers reach you.");
+    // There WAS a check here demanding a WhatsApp number. The field it guarded
+    // was removed when sign-in moved to email, and nothing removed the check —
+    // so every nail tech who tried to publish was told to fill in a box that is
+    // not on the screen, with no way past it. Customers reach her through the
+    // conversation in the app now, so there is nothing to replace it with.
     b.services = (b.services || []).filter(s => (s.n || "").trim());
+    if (b.hasSalon === false) {
+      // No address to show, and keeping the one she typed before changing her
+      // answer would put a street on a listing that has no street.
+      b.address = "";
+      if (!b.state) return toast("Pick your state — it is how customers in your state find you.");
+    }
     DB.biz = b; DB.cur = b.cur || DB.cur; dbSave();
-    toast("Listing saved.");
+
+    // Saved on the phone. Now put it where a CUSTOMER can see it — which
+    // until this existed simply never happened. saveBiz wrote the menu
+    // locally and told the server nothing about it, so on the real backend a
+    // tech published a listing with zero services and became unbookable
+    // without a word on screen. See menu.sql.
+    if (!API.signedIn()) {
+      toast("Saved on this phone. Sign in to publish it.");
+      return nav("listing");
+    }
+    publishListing(b);
     return nav("listing");
   }
   if (a === "shareMine" || a === "copyLink") {
@@ -8700,6 +9824,39 @@ document.getElementById("shell").addEventListener("click", e => {
       b64e(JSON.stringify({ n: t.n, a: t.a, ad: t.ad, p: t.p, d: t.d, y: t.y, c: t.c, ll: t.ll, o: t.o, cl: t.cl, s: t.s }));
     return copy(link, "Her link is copied — send it on.");
   }
+  /* Shop, or no shop. The answer reshapes the form, so what she has already
+     typed is read back out first — repainting over a half-filled listing and
+     losing it is the sort of thing that makes people give up on an app. */
+  if (a === "has-salon") {
+    const want = el.dataset.v === "1";
+    DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { hasSalon: want });
+    if (want) LIVE.on = false;          // a shop does not broadcast
+    dbSave();
+    return paint();
+  }
+  if (a === "work-toggle") return toggleWorking();
+  if (a === "photo-del") return deleteMyPhoto(el.dataset.id);
+  if (a === "photo-report") {
+    // The flag sits inside the <label> that IS the service card, so without
+    // this a tap on it would also tick the service she was trying to report.
+    e.preventDefault();
+    return reportPhoto(el.dataset.id);
+  }
+  if (a === "home-toggle") {
+    DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(),
+                           { homeService: !(DB.biz && DB.biz.homeService) });
+    dbSave();
+    return paint();
+  }
+  /* Near me, or the whole state. Repainting home is what re-fetches and
+     re-frames the map; there is no separate "reload the pins" path, so there
+     is no second copy of that logic to fall out of step. */
+  if (a === "map-scope") {
+    MSCOPE.all = el.dataset.v === "all";
+    return paint();
+  }
+  if (a === "push-toggle") return togglePush();
+  if (a === "push-why") return toast(el.dataset.v || "Notifications are not available here.");
   if (a === "find-clear") { FQ = ""; paint(); const el = document.getElementById("qFind"); if (el) el.focus(); return; }
   // The bridge from a scan result to somebody who does that shape.
   if (a === "find-for") return findFor(el.dataset.v);
@@ -8811,11 +9968,103 @@ document.getElementById("shell").addEventListener("input", e => {
 });
 
 /* ══ actions ═════════════════════════════════════════ */
+/* Choosing a state on the map. A <select> does not click, so it cannot go
+   through the delegated handler with everything else. Her choice is kept on
+   the device, because "all of Lagos" should still mean Lagos tomorrow. */
+document.addEventListener("change", (e) => {
+  const n = e.target;
+  if (!n || n.id !== "mState") return;
+  MSCOPE.state = n.value;
+  MSCOPE.all = true;
+  DB.me = Object.assign({}, DB.me, { state: n.value });
+  dbSave();
+  paint();
+});
+
+/* ── putting a listing where customers can see it ─────────────────────
+   The order matters and each step depends on the one before it:
+
+     1. the tech row has to exist before it can own a service
+     2. the services have to exist before they can carry a price or a photo
+     3. the ids that come back are stored on the DEVICE, so the next save
+        UPDATES her menu rather than adding a second copy of it
+
+   Anything that fails is reported once, in her words, and never throws away
+   what she typed — the local copy is already saved before any of this runs. */
+async function publishListing(b) {
+  try {
+    await API.becomeTech({
+      name: b.name,
+      address: b.hasSalon === false ? null : (b.address || null),
+      area: b.area || null,
+      lat: (b.ll && b.ll[0]) || null,
+      lng: (b.ll && b.ll[1]) || null,
+      years: Number(String(b.years || "").replace(/\D/g, "")) || null,
+    });
+  } catch (e) {
+    return toast(e.message || "Saved here, but Oma could not publish it.");
+  }
+
+  try {
+    await API.setMobility(b.hasSalon !== false, b.state || null);
+    if (b.hasSalon === false) liveResume();
+  } catch (e) {
+    toast(e.message || "Saved, but Oma did not get the salon setting.");
+  }
+
+  // A salon with no coordinates can never actually be listed — the database
+  // refuses it, because a listing nobody can be sorted by distance from is a
+  // listing nobody finds. Said here rather than letting her discover it at
+  // the ID check, which is the wrong screen to learn it on.
+  if (b.hasSalon !== false && !(b.ll && b.ll.length === 2)) {
+    toast("Tap “Pin me” next to your area — customers are sorted by distance.");
+  }
+
+  // The menu, with her home prices carried in the same call rather than a
+  // second one per service.
+  const menu = (b.services || []).map((sv) => ({
+    id: sv.id || null,
+    name: (sv.n || "").trim(),
+    minutes: Number(String(sv.m || "").replace(/\D/g, "")) || 60,
+    price_kobo: Math.round(Number(String(sv.p || "").replace(/[^\d.]/g, "")) * 100) || 0,
+    shapes: sv.sh || [],
+    home_kobo: sv.hp
+      ? Math.round(Number(String(sv.hp).replace(/[^\d.]/g, "")) * 100) || null
+      : null,
+  })).filter((x) => x.name);
+
+  try {
+    const saved = await API.syncServices(menu);
+    // Write the ids back onto the device's copy. Without this every save is a
+    // fresh insert and her menu doubles, and a photograph has nothing to
+    // attach itself to.
+    (saved || []).forEach((row, i) => {
+      if (DB.biz.services[i]) DB.biz.services[i].id = row.id;
+    });
+    dbSave();
+    if (typeof loadMyPhotos === "function") loadMyPhotos();
+  } catch (e) {
+    return toast(e.message || "Saved, but your services did not reach Oma.");
+  }
+
+  try {
+    await saveHomeSettings(b);
+  } catch (e) {
+    toast(e.message || "Saved, but Oma did not get the travel settings.");
+  }
+
+  toast("Listing published.");
+}
+
 function readBiz() {
   const g = k => { const n = document.getElementById(k); return n ? n.value.trim() : undefined; };
   const out = {};
-  const map = { bName: "name", bAddr: "address", bArea: "area", bPhone: "phone",
-                bDial: "dial", bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes" };
+  // No phone or dial any more: signing in is by email and techs are reached
+  // through the in-app conversation, not WhatsApp.
+  const map = { bName: "name", bAddr: "address", bArea: "area", bState: "state",
+                bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes",
+                // Going to customers: the call-out, the per-km and how far.
+                hCallout: "calloutNaira", hPerKm: "perKmNaira", hMaxKm: "maxKm" };
   for (const k in map) { const v = g(k); if (v !== undefined) out[map[k]] = v; }
   const svc = [];
   document.querySelectorAll("#svcList [data-s]").forEach(n => {
@@ -9038,6 +10287,12 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
   }
   ROUTE = { v: DB.role ? (DB.role === "tech" ? "requests" : "home") : "welcome", a: null };
   paint();
+
+  /* A nail tech who was working when she last closed the app is still working
+     now — she did not stop, the browser did. This asks the SERVER whether she
+     is a travelling tech before broadcasting anything, so a salon can never be
+     started by a stale flag on a phone. See p20_live.js. */
+  if (typeof liveResume === "function") liveResume();
 })();
 
 </script>
