@@ -59,60 +59,38 @@ function afterPaint() {
 const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
 
 /* ── 20 sign in ───────────────────────────────────────── */
-/* mode: null until she picks a door, then "up" (new account) or "in".
-
-   Under the surface these are the SAME thing — an email, a six-digit code, and
-   Supabase makes the account if there is not one. One button would work, and
-   it is what was built first.
-
-   It is still wrong. Somebody arriving at a screen that says only "Sign in"
-   with no account does not think "I expect this will register me"; she thinks
-   she is in the wrong place and leaves. Two doors cost one tap and remove that
-   doubt. Nothing here pretends the mechanism differs — the words change, the
-   code path does not. */
-let SIGNIN = { email: "", sent: false, mode: null };
+let SIGNIN = { phone: "", sent: false };
 
 function vSignIn() {
   const s = SIGNIN;
-  const up = s.mode === "up";
-  const title = !s.mode ? "Your account" : up ? "Create an account" : "Sign in";
   return `
-  ${head(title, "So your bookings follow you, not this phone")}
+  ${head("Sign in", "So your bookings follow you, not this phone")}
   <div class="pad stack gap12">
     ${API.isMock() ? `<div class="note">
       <div>No backend is configured, so this is the practice version. Any
       six-digit code will let you in and no message is sent.</div></div>` : ""}
 
-    ${!s.mode ? `
-      <button class="btn" data-a="signin-mode" data-v="up">Create an account</button>
-      <button class="btn ghost" data-a="signin-mode" data-v="in">I already have one</button>
-      <div class="tiny sub" style="text-align:center;line-height:1.55;margin-top:4px">
-        Either way it is your email and a six-digit code — no password to
-        forget, and nothing else to fill in.</div>
-    ` : !s.sent ? `
+    ${!s.sent ? `
       <label class="fld">
-        <span class="lbl">Email address</span>
-        <input id="fSignEmail" type="email" inputmode="email" autocomplete="email"
-               autocapitalize="none" spellcheck="false"
-               placeholder="you@example.com" value="${esc(s.email)}">
+        <span class="lbl">Phone number</span>
+        <input id="fSignPhone" type="tel" inputmode="tel" autocomplete="tel"
+               placeholder="0801 234 5678" value="${esc(s.phone)}">
       </label>
-      <button class="btn" data-a="otp-send">${
-        up ? "Create my account" : "Send me a code"}</button>
-      <button class="btn ghost sm" data-a="signin-mode" data-v="${up ? "in" : "up"}">${
-        up ? "I already have an account" : "I need to create one"}</button>
+      <button class="btn" data-a="otp-send">Send me a code</button>
+      <div class="or"><span>or</span></div>
+      <button class="btn ghost" data-a="google">Continue with Google</button>
       <div class="tiny sub" style="text-align:center">
         We only ever use this to know it is you.</div>
     ` : `
       <div class="note"><div>We sent a six-digit code to
-        <b>${esc(s.email)}</b>. It can take a minute, and it may land in spam.</div></div>
+        <b>${esc(s.phone)}</b>.</div></div>
       <label class="fld">
         <span class="lbl">The code</span>
         <input id="fOtp" type="text" inputmode="numeric" autocomplete="one-time-code"
                maxlength="6" placeholder="000000" style="letter-spacing:.4em;font-size:22px">
       </label>
-      <button class="btn" data-a="otp-check">${
-        up ? "Create my account" : "Sign in"}</button>
-      <button class="btn ghost sm" data-a="otp-again">Use a different email</button>
+      <button class="btn" data-a="otp-check">Sign in</button>
+      <button class="btn ghost sm" data-a="otp-again">Use a different number</button>
     `}
   </div>`;
 }
@@ -164,58 +142,29 @@ function vNearby() {
 }
 
 /* ── 22 one tech, and her services ────────────────────── */
-let PICKED = { techId: null, name: "", ids: [], at: null, terms: null };
+let PICKED = { techId: null, name: "", ids: [], at: null };
 
 function vTechLive(id) {
   load(async () => {
-    // The reviews are asked for beside the services rather than after them:
-    // this is the screen where somebody decides whether to book, so the score
-    // should arrive with the prices, not a beat later.
-    const [list, revs, rate, terms] = await Promise.all([
-      API.services(id),
-      API.techReviews(id, 8).catch(() => []),
-      API.ratings([id]).catch(() => []),
-      // Whether she travels. Asked here so the next screen can offer "she
-      // comes to me" only when it is a real option.
-      API.homeTerms(id).catch(() => null),
-    ]);
-    const r = (rate || []).find((x) => x.tech_id === id);
-    PICKED = { techId: id, name: PICKED.name, ids: [], at: null, terms };
-    resetHome();
+    const list = await API.services(id);
+    PICKED = { techId: id, name: PICKED.name, ids: [], at: null };
     fillHost(`
       <div class="pad stack gap12">
-        <div class="rowbetween">
-          <div class="tiny sub">Choose what you want done.</div>
-          <div>${ratingLine(r)}</div>
-        </div>
-        <!-- The photograph IS the card. Filled in after the paint, because
-             the pictures come from a second call — until they arrive the card
-             is the Oma gradient, which is what a service with no photographs
-             stays as. Same shape either way: mixing tall photo cards with
-             small text rows down one page reads as neither. -->
+        <div class="tiny sub">Choose what you want done.</div>
         ${list.map((s) => `
-          <label class="svccard" data-svc="${esc(s.id)}">
+          <label class="card row" style="cursor:pointer">
             <input type="checkbox" class="svc" value="${esc(s.id)}"
                    data-mins="${s.minutes}" data-kobo="${s.price_kobo}">
-            <div data-shotslot="${esc(s.id)}"></div>
-            <div class="svcfoot">
-              <div class="top">
-                <h3>${esc(s.name)}</h3>
-                <span class="pricepill">${kobo(s.price_kobo)}</span>
-              </div>
-              <div class="sub">${mins(s.minutes)}</div>
-              ${(s.shapes || []).length ? `<div class="svcchips">${
-                (s.shapes || []).slice(0, 4).map((x) => `<i>${esc(x)}</i>`).join("")
-              }</div>` : ""}
-              <span class="pickbtn">Choose this</span>
+            <div style="flex:1;min-width:0;text-align:left">
+              <div class="ttl">${esc(s.name)}</div>
+              <div class="tiny sub">${mins(s.minutes)}</div>
             </div>
+            <div style="font-weight:700">${kobo(s.price_kobo)}</div>
           </label>`).join("")}
         <div id="svcTotal" class="tiny sub" style="text-align:right"></div>
         <button class="btn" data-a="pick-time" disabled id="toTime">Choose a time</button>
-        ${reviewsBlock(revs, r)}
       </div>`);
     wireServicePicker();
-    fillTechPhotos(id);
   });
   return head(PICKED.name || "Services", "Prices are hers, not ours") + host();
 }
@@ -247,7 +196,6 @@ function vTimeLive() {
   return `
   ${head("Pick a time", PICKED.name)}
   <div class="pad">
-    ${homeBlock(PICKED.terms)}
     <div class="chips" id="dayChips">
       ${days.map((d, i) => `<button class="chip${i === 0 ? " on" : ""}" data-a="mday"
          data-ts="${d.getTime()}">${dayLabel(d.getTime())}</button>`).join("")}
@@ -485,10 +433,8 @@ function vWallet() {
         <button class="btn" data-a="payout" ${w.available <= 0 ? "disabled" : ""}>
           Withdraw ${kobo(w.available)}</button>
 
-        <div id="paidList"></div>
-
         ${!w.recent.length ? "" : `
-          <div class="tiny sub mt16">Every movement</div>
+          <div class="tiny sub mt16">Recent</div>
           <div class="menu">
             ${w.recent.slice(0, 12).map((l) => `
               <div style="display:flex;gap:10px;align-items:center;padding:12px 14px">
@@ -498,9 +444,6 @@ function vWallet() {
               </div>`).join("")}
           </div>`}
       </div>`);
-    // The bill for each completed appointment, filled in after the balances so
-    // the numbers she came for are on screen first.
-    drawEarnings();
   });
   return head("Earnings", "Held, and yours") + host();
 }
@@ -512,9 +455,6 @@ const LEDGER_WORDS = {
   payout: "Withdrawn",
   refund: "Refunded to client",
   auto_refund_no_scan: "Auto-refunded — never scanned",
-  // Named, not hidden. A deduction a tech cannot point at is a deduction she
-  // assumes is bigger than it is.
-  oma_fee: "Oma's fee",
 };
 const ledgerWords = (k) => LEDGER_WORDS[k] || k.replace(/_/g, " ");
 

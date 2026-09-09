@@ -18,6 +18,7 @@ they agree only when the pair that was built together is the pair that is live.
 import hashlib
 import json
 import pathlib
+import re
 import sys
 
 HERE = pathlib.Path(__file__).parent
@@ -58,6 +59,48 @@ js = "\n".join([
     push, read("p8_wire.js"),
 ])
 
+# ── the app's own backend details ────────────────────────────────────
+#
+# Baked in so nobody has to paste a project URL and a key into a phone. That
+# step is why real accounts signed up, filled in a listing, and had every word
+# of it saved to their own device and nowhere else.
+#
+# The ANON key belongs in here. It is public by design: it names the project,
+# not the person, and every function it can reach checks who is calling before
+# it answers — it is already printed inside every copy of every Supabase app on
+# every phone. The service_role key bypasses all of that, and this refuses to
+# build if it sees one.
+#
+# One place to fill in: the website's oma-config.js, which has to carry the same
+# two values anyway. src/supabase_public.txt (url on line 1, anon on line 2)
+# overrides it when the app and the site need different projects.
+url = anon = ""
+pub = SRC / "supabase_public.txt"
+if pub.exists():
+    lines = [l.strip() for l in pub.read_text(encoding="utf-8").splitlines() if l.strip()]
+    if len(lines) >= 2:
+        url, anon = lines[0], lines[1]
+else:
+    # root, beside build.py, and inside src/ — oma-config.js lives at the
+    # repo root while build.py may sit in src/, so look both ways.
+    for candidate in (HERE / "oma-config.js", HERE.parent / "oma-config.js",
+                      SRC / "oma-config.js", SRC.parent / "oma-config.js"):
+        if candidate.exists():
+            t = candidate.read_text(encoding="utf-8")
+            m_url = re.search(r'url\s*:\s*["\']([^"\']*)["\']', t)
+            m_anon = re.search(r'anon\s*:\s*["\']([^"\']*)["\']', t)
+            if m_url and m_anon:
+                url, anon = m_url.group(1).strip(), m_anon.group(1).strip()
+            break
+
+if "service_role" in anon or "service_role" in url:
+    sys.exit("REFUSING TO BUILD: that is the service_role key. It bypasses every "
+             "permission check in the database and must never ship in the app. "
+             "Use the anon / publishable key.")
+
+url = url.rstrip("/")
+js = js.replace("__SUPABASE_URL__", url).replace("__SUPABASE_ANON__", anon)
+
 # The decoder rides in a text/plain script and is eval'd only when a HEIC photo
 # actually arrives, so a closing tag inside it would end the block early.
 heif = read("libheif-bundle.js").replace("</script", "<\\/script")
@@ -83,3 +126,4 @@ html = html.replace("__BUILD__", stamp)
 print(f"build {stamp}")
 print(f"  app.html  {(HERE / 'app.html').stat().st_size / 1e6:.2f} MB")
 print(f"  sw.js     {(HERE / 'sw.js').stat().st_size} bytes")
+print(f"  backend   {url or 'NOT SET — the app will ship in practice mode'}")

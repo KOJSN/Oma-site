@@ -3,11 +3,13 @@
 Everything that needs to go anywhere is in here. Not the
 `ios-background-location` folder — that one waits for the App Store build.
 
-Build id in this batch: **fc1d6a62d6**
+Build id: whatever your Actions log prints. It is a hash of an `app.html`
+that now carries your own project URL, so it will not match mine — see
+section 4.
 
 ---
 
-## 1. Supabase — ten SQL blocks, in this order
+## 1. Supabase — eleven SQL blocks, in this order
 
 Open the SQL editor and run each one. Each is safe to run twice.
 
@@ -23,6 +25,7 @@ Open the SQL editor and run each one. Each is safe to run twice.
 | 8 | `contact.sql` | **contact** | The contact form. |
 | 9 | `photo.sql` | **photo** | **New.** Her work under each service. |
 | 10 | `menu.sql` | **menu** | **New. This one is urgent — read the box below.** |
+| 11 | `psp.sql` | **psp** | **New. The tech pays Paystack's fee, not Oma. Read the box below.** |
 
 **Order matters.** Out of order you get *"function ... does not exist"* — not
 damage, just run them again in order.
@@ -42,7 +45,29 @@ damage, just run them again in order.
 > this needs to open her listing and press Save once, which now actually sends
 > the menu up.
 
-### Then three more things, on their own
+> ### Why `psp.sql` matters before live keys
+>
+> The tech was supposed to pay both fees — Oma's and Paystack's. The
+> **screens already said so**: the fee quote and the earnings list both showed
+> `net = total − oma − paystack`. The **ledger never did.** `release()` moved
+> the whole sale into her balance and exactly one deduction followed it, Oma's
+> ₦250. Paystack had already taken its cut out of Oma's balance on the way in,
+> so **Oma was quietly paying it.**
+>
+> On your own numbers that is fine on a ₦5,000 set and upside down from about
+> ₦10,000: a ₦20,000 booking cost Oma ₦150, a ₦30,000 one cost ₦300. Worst on
+> home appointments, and for a reason you chose on purpose — Oma's fee is on
+> the services only, never on a tech's petrol, but Paystack's is on the whole
+> sale including the call-out and the fare.
+>
+> `psp.sql` adds the missing second deduction, and takes the figure from what
+> **Paystack actually reported** rather than from our copy of its price list —
+> so the two can never drift when Paystack reprices. It also re-revokes
+> `mark_paid` from `anon`: re-creating a function hands EXECUTE back to PUBLIC,
+> and without that line the key inside every copy of the app could mark a
+> booking paid without paying.
+
+### Then four more things, on their own
 
 **Set your admin passphrase.** It is at the bottom of `admin.sql`, commented
 out. Change the words to your own — **four unrelated words**, long beats
@@ -55,6 +80,11 @@ anywhere.** I have never seen it and never should.
 select id, email from auth.users order by created_at desc limit 5;
 insert into admin_owner (user_id) values ('YOUR-ID-HERE') on conflict do nothing;
 ```
+
+**Redeploy the payment webhook.** Supabase → Edge Functions → `paystack-webhook`
+→ paste `paystack-webhook.ts` from this folder → Deploy. It now reads
+Paystack's `data.fees` and passes it to `mark_paid`; without it the ledger
+falls back to the modelled fee, which is close but not exact.
 
 **Make the photo bucket.** It is the commented block at the very bottom of
 `photo.sql` — a public `portfolio` bucket plus the four storage policies that
@@ -98,9 +128,23 @@ Commit, then wait for the green tick on the Actions tab.
 
 ---
 
-## 3. Connecting the form and the admin page — `oma-config.js`
+## 3. `oma-config.js` — now the ONLY place the backend is named
 
-This is the only file on the website you edit, and it is two lines.
+This is the one file you edit, and it is two lines. It used to configure just
+the website. **It now configures the app as well**: `build.py` reads it and
+bakes the two values into `app.html`, so nothing has to be typed into a phone
+ever again.
+
+That typing step is what caused the listing bug. Three real accounts signed up,
+filled in a listing, pressed Save — and because the app had never been pointed
+at Supabase, every call went to the practice backend, which stores everything
+on the device and cheerfully reports success. The listing looked right on the
+phone and the server had no `tech` row at all, which is why Share kept saying
+*"list yourself first."* Filling this in fixes that for everyone at once.
+
+In the app, **Settings** now has a single **Practice mode** switch instead of a
+form. Off by default, which means a nail tech is on the real Oma from the
+moment she opens it.
 
 Open **Supabase → your Oma project → Settings → API** and copy:
 
@@ -145,9 +189,22 @@ anything but the file that actually ships.
 
 ## 4. Check it landed
 
+The build id is now a hash of an `app.html` that contains **your** project URL
+and anon key, so I cannot tell you in advance what it will be — my build and
+yours will never match, and that is correct. What still has to match is these
+two against **each other**:
+
 1. `https://omaa.com.ng/` — the site should be there instead of nothing
-2. `https://omaa.com.ng/sw.js?x=9` — first line ends in **fc1d6a62d6**
-3. The app → **Settings** → the bottom line says `Build fc1d6a62d6` — **must match**
+2. `https://omaa.com.ng/sw.js?x=9` — note the id on the first line
+3. The app → **Settings** → the bottom line — **must be the same id**
+
+If those two disagree, the phone is running an old app behind a stale service
+worker and the Update bar is what fixes it. That was always what this check
+was for.
+
+4. Also in the Actions log: the build prints `backend  https://…supabase.co`.
+   If it says **NOT SET**, `oma-config.js` was not filled in and the app has
+   shipped in practice mode again.
 
 ---
 

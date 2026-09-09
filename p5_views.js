@@ -26,10 +26,6 @@ function dbLoad() {
   }
   d.scans = d.scans || []; d.techs = d.techs || [];
   d.bookings = d.bookings || []; d.jobs = d.jobs || [];
-  // A customer's pinned coordinates, from before distance was asked live.
-  // Dropped rather than migrated: a stale pin is exactly the thing that made
-  // "2 km away" wrong for anybody who had moved since tapping GPS.
-  if (d.me && d.me.ll) delete d.me.ll;
   return d;
 }
 function dbSave() {
@@ -68,11 +64,7 @@ function bearing(a, b) {
     Math.sin(a[0] * r) * Math.cos(b[0] * r) * Math.cos((b[1] - a[1]) * r);
   return Math.atan2(y, x);
 }
-/* A TECH has a pin, because a salon is a place. A customer does not: she
-   moves, so her distance is asked of the phone each time it is needed rather
-   than remembered from whenever she last tapped GPS. DB.me.ll is no longer
-   read anywhere, and dbLoad drops it. */
-function myPos() { return (DB.biz && DB.biz.ll) || null; }
+function myPos() { return (DB.me && DB.me.ll) || (DB.biz && DB.biz.ll) || null; }
 function locate(cb) {
   if (!navigator.geolocation) { cb(null); return; }
   toast("Asking your browser for your location…");
@@ -96,18 +88,21 @@ function sortedTechs() {
   });
 }
 
-/* ══ phone numbers are gone ══════════════════════════
-   waOpen went on 29 Aug 2026: it opened wa.me with a pre-written message,
-   which was how a tech heard about a booking before Oma had a server, and a
-   conversation Oma cannot see is a booking that can arrive nowhere.
-
-   waNumber followed it on 3 Sep, along with the phone number itself. Signing
-   in is by email now — an SMS needs a Termii sender ID, which needs CAC, so
-   for as long as that was pending NOBODY could sign in at all. The contact
-   route phone numbers used to provide is the in-app conversation.
-
-   app_user.phone stays in the database, unused. Dropping a column is
-   destructive and buys nothing.                                          */
+/* ══ phone numbers ═══════════════════════════════════
+   People write their number the way they say it — 0803… — and share it the
+   way it dials — 234803…. wa.me wants the second.                        */
+function waNumber(raw, dial) {
+  let n = String(raw || "").replace(/[^\d+]/g, "").replace(/^\+/, "");
+  const d = String(dial || DB.dial || "234");
+  if (n.startsWith(d)) return n;
+  if (n.startsWith("0")) return d + n.slice(1);
+  return n.length <= 10 ? d + n : n;
+}
+/* waOpen lived here. It opened wa.me with a pre-written message, which was
+   how a tech heard about a booking before Oma had a server. Removed on
+   29 Aug 2026: nothing leaves the app, and a conversation Oma cannot see is
+   a booking that can arrive nowhere. waNumber stays — it still formats a
+   number for display. */
 
 /* ══ tech links, the only way a listing travels ══════
    No server, no directory. A tech's whole listing is packed into the link
@@ -116,7 +111,7 @@ function sortedTechs() {
    have.                                                                   */
 function techPayload(b) {
   return {
-    n: b.name, a: b.area, ad: b.address,
+    n: b.name, a: b.area, ad: b.address, p: b.phone, d: b.dial || DB.dial,
     y: b.years, c: b.cur || DB.cur, ll: b.ll,
     o: b.opens, cl: b.closes,
     s: (b.services || []).map(s => ({ n: s.n, m: s.m, p: s.p, sh: s.sh || [] }))
@@ -198,7 +193,6 @@ const I = {
   share: () => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8 15.8 6.7M8.2 13.2l7.6 4.1"/></svg>`,
   cog: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H2.9a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.2Z"/></svg>`,
   moon: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>`,
-  bell: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 7-3 9h18c0-2-3-2-3-9M10.3 21a2 2 0 0 0 3.4 0"/></svg>`,
   find: () => `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>`,
   x: () => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>`,
   tick: (w) => `<svg viewBox="0 0 24 24" width="${w || 15}" height="${w || 15}" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg>`,
@@ -253,25 +247,10 @@ function head(title, sub, right) {
     </div>
   </div>`;
 }
-/* Prices are typed by hand, so "5000", "5,000" and "₦5,000" all arrive in
-   the same field. A bare `+s.p` turns the last two into NaN, and the
-   `NaN || Infinity` that followed is what put **From ₦∞** on a listing
-   whose price was perfectly good. Every place that reads a price goes
-   through here now, so there is one parser and not four.
-   Kamsy, 9 Sep 2026, with a screenshot of ₦∞. */
-function priceNum(v) {
-  const n = Number(String(v == null ? "" : v).replace(/[^\d.]/g, ""));
-  return isFinite(n) && n > 0 ? n : null;
-}
-/* The lowest real price in a menu, or null when nothing has one — never
-   Infinity, because Infinity is a number and gets printed like one. */
-function fromPrice(list) {
-  const p = (list || []).map(s => priceNum(s.p)).filter(n => n !== null);
-  return p.length ? Math.min(...p) : null;
-}
 function techRow(t, big) {
   const d = distText(t);
-  const from = fromPrice(t.s);
+  const from = (t.s || []).length
+    ? Math.min(...t.s.map(s => +s.p || Infinity)) : null;
   const bits = [t.a, d, from && isFinite(from) ? "from " + (t.c || "₦") + Number(from).toLocaleString("en") : null]
     .filter(Boolean).join(" · ");
   return `<button class="card tap" data-a="tech" data-id="${esc(t.id)}"
@@ -311,31 +290,28 @@ function bottomNav() {
 
 /* ══ 01 welcome ══════════════════════════════════════ */
 function vWelcome() {
-  // The mark is a pink tile, so the ground cannot also be pink or it vanishes
-  // into its own background. It used to be a hard-coded dark ground with white
-  // ink, which meant somebody whose phone is in light mode met a black screen
-  // as the very first thing Oma showed them. Every colour here is a token now
-  // — see --wel-* in p1_head.html — so this screen follows the phone like the
-  // rest of the app.
-  return `<div style="min-height:100dvh;background:var(--wel-bg);
-      color:var(--wel-ink);display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
-    <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow1),transparent 68%)"></div>
-    <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow2),transparent 70%)"></div>
+  // The mark is a pink tile. On the pink ground this screen used to have, it
+  // disappeared into its own background — so the ground goes dark and the
+  // brand colour is spent on the mark and the button instead.
+  return `<div style="min-height:100dvh;background:#120e17;
+      color:#fff;display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
+    <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(240,81,141,.55),transparent 68%)"></div>
+    <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,143,186,.28),transparent 70%)"></div>
     <div style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-top:calc(60px + env(safe-area-inset-top))">
       <div style="margin-bottom:auto">${logoMark(78)}</div>
       <div style="font-size:56px;font-weight:800;letter-spacing:-.05em;line-height:.9;margin-top:36px">oma</div>
-      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;color:var(--wel-sub);max-width:300px">
+      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;opacity:.72;max-width:300px">
         Scan your hands, find the nail shape that actually suits them, and book the tech who does it.
       </div>
       <div class="dots" style="margin:26px 0 22px;max-width:60px">
-        <i style="background:var(--wel-dot);flex:none;width:22px"></i>
-        <i style="background:var(--wel-dot-off);flex:none;width:5px"></i>
-        <i style="background:var(--wel-dot-off);flex:none;width:5px"></i>
+        <i style="background:#fff;flex:none;width:22px"></i>
+        <i style="background:rgba(255,255,255,.45);flex:none;width:5px"></i>
+        <i style="background:rgba(255,255,255,.45);flex:none;width:5px"></i>
       </div>
       <button class="btn" style="background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#e0447f);color:#fff"
         data-a="go" data-v="role">Get started ${I.arrow()}</button>
-      <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;color:var(--wel-sub);line-height:1.5">
-        Your photos are measured on this phone and never leave it.
+      <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;opacity:.7;line-height:1.5">
+        No account, no sign-in. Everything stays on this phone.
       </div>
     </div>
   </div>`;
@@ -390,15 +366,18 @@ function vSignup() {
     <label class="field"><span class="lab">Your name</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
         <input id="fName" value="${esc(m.name || "")}" placeholder="What should techs call you?"></span></label>
+    <label class="field"><span class="lab">Phone number</span>
+      <span class="inp"><span class="pre">+<input id="fDial" value="${esc(DB.dial)}" inputmode="numeric" style="width:3ch;font-weight:600"></span>
+        <span class="bar"></span>
+        <input id="fPhone" value="${esc(m.phone || "")}" inputmode="tel" placeholder="803 000 0000"></span></label>
     <label class="field"><span class="lab">Your area</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-        <input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
+        <input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos">
+        <span class="act" data-a="gps" data-t="me">${myPos() ? "Pinned" : "GPS"}</span></span></label>
     <div class="note pink">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>
-      <div>This is just a label for your bookings. <b>Distance comes from your
-        phone, fresh, each time you search</b> — so it is right wherever you
-        happen to be, not wherever you were when you filled this in. Nothing
-        reaches a tech until you send them a booking yourself.</div>
+      <div>Your area only sorts nail techs by distance. Nothing reaches a tech until you send
+        them a booking yourself.</div>
     </div>
     <div style="margin-top:auto;padding-top:24px">
       <button class="btn" data-a="saveMe">Save and continue ${I.arrow()}</button>
@@ -408,22 +387,8 @@ function vSignup() {
 
 /* ══ 04 the tech's listing ═══════════════════════════ */
 const SERVICE_SHAPES = ["oval", "round", "square", "squoval", "almond", "coffin", "stiletto"];
-
-/* The state is what the whole-state map is drawn from — "show me everyone in
-   Lagos", not only everyone within 15 km. All 36 and the FCT, because Oma is
-   not only a Lagos app and a list that stops at six states tells a tech in
-   Enugu she is not wanted. */
-const NG_STATES = ["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa",
-  "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu",
-  "FCT — Abuja", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi",
-  "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo",
-  "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"];
 function vSetup(edit) {
   const b = DB.biz || { services: [] };
-  // Default true: a listing made before this question existed described a
-  // shop, and quietly turning those techs into travelling ones would take
-  // every one of them off the map until she found this screen again.
-  const shop = b.hasSalon !== false;
   return `<div class="pad" style="min-height:100dvh;display:flex;flex-direction:column;
       padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(30px + env(safe-area-inset-bottom))">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
@@ -431,87 +396,43 @@ function vSetup(edit) {
       <div style="font-size:15px;font-weight:700">${edit ? "Edit your listing" : "Set up your listing"}</div>
     </div>
     ${edit ? "" : `<h2 style="font-size:24px;line-height:1.2;margin-bottom:18px">Tell customers where to find you</h2>`}
-
-    <!-- Asked FIRST, because the answer changes the rest of the form. A salon
-         is a place with an address; a tech who travels is not a place at all,
-         and giving her an address box to fill in is what produces a pin that
-         is wrong by Tuesday. -->
-    <div class="lbl" style="margin-bottom:7px">Do you have a salon?</div>
-    <div class="pick">
-      <button type="button" class="${shop ? "on" : ""}" data-a="has-salon" data-v="1">
-        <b>Yes, a shop</b><em>Customers come to one address. Oma shows it, and
-          it stays put.</em></button>
-      <button type="button" class="${shop ? "" : "on"}" data-a="has-salon" data-v="0">
-        <b>No, I travel</b><em>Oma shows where you are while you are working,
-          and takes you off the map when you stop.</em></button>
-    </div>
-    ${shop ? "" : `<div class="note pink" style="margin-bottom:14px">
-      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-      <div><b>You will not be found unless your phone is telling Oma where you
-        are.</b> There is a switch for it below — turn it on when you start
-        work and off when you finish. Oma keeps where you are now, and no
-        record of where you have been.</div></div>`}
-
     <label class="field"><span class="lab">Business name</span>
       <span class="inp">${I.shop()}<input id="bName" value="${esc(b.name || "")}" placeholder="Thandi Nails Studio"></span></label>
-    ${shop ? `<label class="field"><span class="lab">Street &amp; shop number</span>
+    <label class="field"><span class="lab">Street &amp; shop number</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>` : ""}
+        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>
+    <label class="field"><span class="lab">Area</span>
+      <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
+        <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span></span></label>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1;min-width:0"><span class="lab">Area</span>
-        <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
-          <!-- Only a shop gets a pin. A tech who travels has no fixed point to
-               pin, and a button offering her one would be a promise Oma
-               cannot keep. -->
-          ${shop ? `<span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>` : ""}
-        </span></label>
-      <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
-        <span class="inp"><select id="bState">
-          <option value="">Choose…</option>
-          ${NG_STATES.map(x => `<option ${(b.state || "") === x ? "selected" : ""}>${x}</option>`).join("")}
-        </select></span></label>
+      <label class="field" style="flex:1"><span class="lab">WhatsApp number</span>
+        <span class="inp"><span class="pre">+<input id="bDial" value="${esc(b.dial || DB.dial)}" inputmode="numeric" style="width:3ch;font-weight:600"></span>
+          <span class="bar"></span><input id="bPhone" value="${esc(b.phone || "")}" inputmode="tel" placeholder="803 000 0000"></span></label>
     </div>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1;min-width:0"><span class="lab">Currency</span>
+      <label class="field" style="flex:1"><span class="lab">Currency</span>
         <span class="inp"><select id="bCur">${["₦", "R", "$", "£", "€", "GH₵", "KSh"].map(c =>
           `<option ${(b.cur || DB.cur) === c ? "selected" : ""}>${c}</option>`).join("")}</select></span></label>
-      <label class="field" style="flex:1;min-width:0"><span class="lab">Years doing nails</span>
+      <label class="field" style="flex:1"><span class="lab">Years doing nails</span>
         <span class="inp"><input id="bYears" value="${esc(b.years || "")}" inputmode="numeric" placeholder="6"></span></label>
     </div>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1;min-width:0"><span class="lab">Opens</span>
+      <label class="field" style="flex:1"><span class="lab">Opens</span>
         <span class="inp"><input id="bOpen" type="time" value="${esc(b.opens || "09:00")}"></span></label>
-      <label class="field" style="flex:1;min-width:0"><span class="lab">Closes</span>
+      <label class="field" style="flex:1"><span class="lab">Closes</span>
         <span class="inp"><input id="bClose" type="time" value="${esc(b.closes || "18:00")}"></span></label>
     </div>
-
-    ${shop ? "" : `<div class="lbl" style="margin:4px 0 7px">Working right now</div>
-      ${workingCard()}<div style="height:14px"></div>`}
-
-    <!-- She comes to you. Under the menu on purpose: it is about the menu —
-         whether she travels, what the trip costs, and how far she will go. -->
-    ${homeSettings(b)}
 
     <div class="rowbetween" style="margin:6px 0 10px">
       <div style="font-size:14.5px;font-weight:800;letter-spacing:-.02em">Your service menu</div>
       <button class="tag" data-a="addSvc">+ Add service</button>
     </div>
-    ${(b.services || []).some(s => s.id) ? ownWorkBox() : ""}
     <div class="stack gap10" id="svcList">${svcEditor(b.services || [], b.cur || DB.cur)}</div>
 
     <div class="note mt16">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8.2v.1"/></svg>
-      <!-- The TERMS, in a sentence. Not a running total beside every price box:
-           setting a price is when a tech decides what she is worth, and a
-           deduction counting itself out while she does that is the wrong
-           screen for it. The arithmetic appears on her earnings screen once
-           an appointment is actually paid. -->
-      <div><b>Oma charges ₦250 for each completed service</b>, plus 2% of anything
-        a service costs above ₦30,000. It comes off when you scan the client's
-        code — if an appointment is refunded because you never scanned, you are
-        charged nothing. The card fee is Paystack's, not ours.
-        <b>You will see exactly what came off, on every appointment, in
-        Earnings.</b></div>
+      <div>Everything here travels inside the link you share. There is no Oma directory to be
+        listed in — a customer sees you because you sent them the link.</div>
     </div>
     <div style="margin-top:auto;padding-top:22px">
       <button class="btn" data-a="saveBiz">${edit ? "Save changes" : "Publish my listing"} ${I.arrow()}</button>
@@ -524,34 +445,17 @@ function svcEditor(list, cur) {
       when they book.</div>`;
   return list.map((s, i) => `<div class="card">
     <div style="display:flex;gap:10px;align-items:center">
-      <span class="inp" style="flex:1;min-width:0;min-height:46px"><input data-s="n" data-i="${i}" value="${esc(s.n || "")}" placeholder="Gel overlay"></span>
+      <span class="inp" style="flex:1;min-height:46px"><input data-s="n" data-i="${i}" value="${esc(s.n || "")}" placeholder="Gel overlay"></span>
       <button class="iconbtn" data-a="delSvc" data-i="${i}" aria-label="Remove">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></button>
     </div>
-    <div style="display:flex;gap:10px;margin-top:9px;align-items:flex-end">
-      <!-- min-width:0 is what stops these two boxes running off the edge. A
-           flex child will not shrink below the intrinsic width of the input
-           inside it unless it is told it may, and on a 320px phone the second
-           box — and the "min" after it — was simply clipped away. -->
-      <label class="field" style="flex:1;min-width:0;margin:0"><span class="lab">Price</span>
-        <span class="inp" style="min-height:46px"><span class="pre">${esc(cur)}</span>
-          <input data-s="p" data-i="${i}" value="${esc(s.p || "")}" inputmode="numeric" placeholder="3500"></span></label>
-      <!-- This box was just a number and a "min" that fell off the edge of a
-           narrow screen. Nobody should have to guess whether it means minutes
-           or a minimum price. -->
-      <label class="field" style="flex:1;min-width:0;margin:0"><span class="lab">How long</span>
-        <span class="inp" style="min-height:46px">
-          <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
-          <span class="tiny faint">min</span></span></label>
+    <div style="display:flex;gap:10px;margin-top:9px">
+      <span class="inp" style="flex:1;min-height:46px"><span class="pre">${esc(cur)}</span>
+        <input data-s="p" data-i="${i}" value="${esc(s.p || "")}" inputmode="numeric" placeholder="3500"></span>
+      <span class="inp" style="flex:1;min-height:46px">
+        <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
+        <span class="tiny faint">min</span></span>
     </div>
-    <!-- Only when she travels: a price for this service at somebody's house.
-         Blank means the same as above, which is both the default and the
-         plainest way to say it. -->
-    ${(DB.biz && DB.biz.homeService) ? svcHomeRow(s, i, cur) : ""}
-    <!-- "That's if she has" — a service with no photographs shows an
-         invitation, never an apology or a row of grey boxes. -->
-    ${svcPhotoRow(s, i)}
-
     <div class="pills mt12">${SERVICE_SHAPES.map(sh =>
       `<button class="pill ${(s.sh || []).includes(sh) ? "on" : ""}" data-a="svcShape" data-i="${i}" data-sh="${sh}"
         style="text-transform:capitalize">${sh}</button>`).join("")}</div>
