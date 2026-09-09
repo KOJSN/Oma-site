@@ -14,7 +14,7 @@ function vProfile() {
       <button class="avatar lg" data-a="go" data-v="editme">${esc(initials(me.name))}</button>
       <div>
         <div style="font-size:19px;font-weight:800;letter-spacing:-.025em">${esc(me.name || "Add your name")}</div>
-        <div class="small sub" style="margin-top:2px">${esc([me.area, me.phone ? "+" + waNumber(me.phone, DB.dial) : null].filter(Boolean).join(" · ") || "Tap to fill in your details")}</div>
+        <div class="small sub" style="margin-top:2px">${esc([me.area, me.email].filter(Boolean).join(" · ") || "Tap to fill in your details")}</div>
       </div>
     </div>
     <div style="display:flex;gap:9px;margin-top:18px">
@@ -188,12 +188,10 @@ function vEditMe() {
   <div class="pad">
     <label class="field"><span class="lab">Your name</span>
       <span class="inp"><input id="fName" value="${esc(m.name || "")}" placeholder="Your name"></span></label>
-    <label class="field"><span class="lab">Phone number</span>
-      <span class="inp"><span class="pre">+<input id="fDial" value="${esc(DB.dial)}" inputmode="numeric" style="width:3ch;font-weight:600"></span>
-        <span class="bar"></span><input id="fPhone" value="${esc(m.phone || "")}" inputmode="tel"></span></label>
     <label class="field"><span class="lab">Your area</span>
-      <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos">
-        <span class="act" data-a="gps" data-t="me">${myPos() ? "Pinned" : "GPS"}</span></span></label>
+      <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
+    <div class="tiny faint" style="margin:-8px 0 16px">A label for your bookings.
+      How far away a tech is comes from your phone each time you search.</div>
     <button class="btn" data-a="saveMe" data-back="1">Save</button>
   </div>`;
 }
@@ -204,19 +202,35 @@ function vSettings() {
     <div class="menu">
       <button data-a="theme"><span class="ic">${I.moon()}</span><span style="flex:1">Dark mode</span>
         <span class="switch ${isDark() ? "on" : ""}"><i></i></span></button>
+      ${pushRow()}
       <button data-a="switchRole"><span class="ic">${I.shop()}</span>
         <span style="flex:1">Use Oma as a ${DB.role === "tech" ? "customer" : "nail tech"}</span>${I.chev()}</button>
+      <button data-a="go" data-v="points"><span class="ic">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M6 4h12v5a6 6 0 0 1-12 0V4ZM18 5h2a2 2 0 0 1 0 4h-2M6 5H4a2 2 0 0 0 0 4h2"/></svg></span>
+        <span style="flex:1">O points and the board</span>${I.chev()}</button>
       <button data-a="go" data-v="sheet"><span class="ic">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9V4h12v5M6 18h12v-5H6v5ZM6 13H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/></svg></span>
         <span style="flex:1">Print the guide sheet</span>${I.chev()}</button>
+      ${API.hasBuiltIn() ? `
+      <!-- The app ships knowing its own backend, so this is a switch and not a
+           form. Asking a nail tech to paste a project URL and a key was the
+           step that quietly kept three real accounts on the practice version. -->
+      <button data-a="practice"><span class="ic">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+        <span style="flex:1">Practice mode<span class="tiny faint" style="display:block">${
+          API.practice()
+            ? "Nothing leaves this phone"
+            : "Off — you are on the real Oma"}</span></span>
+        <span class="switch ${API.practice() ? "on" : ""}"><i></i></span></button>`
+      : `
       <button data-a="go" data-v="backend"><span class="ic">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
         <span style="flex:1">Connect to your backend</span>
         <span class="tiny ${API.live() ? "" : "faint"}" style="margin-right:6px">${
-          API.live() ? "Live" : "Practice"}</span>${I.chev()}</button>
+          API.live() ? "Live" : "Practice"}</span>${I.chev()}</button>`}
       ${API.signedIn() ? `<button data-a="signout"><span class="ic">${I.user()}</span>
-        <span style="flex:1">Sign out${DB.me && DB.me.phone
-          ? ` · +${esc(waNumber(DB.me.phone, DB.dial))}` : ""}</span>${I.chev()}</button>` : ""}
+        <span style="flex:1">Sign out${DB.me && DB.me.email
+          ? ` · ${esc(DB.me.email)}` : ""}</span>${I.chev()}</button>` : ""}
       <button data-a="export"><span class="ic">${I.chart()}</span>
         <span style="flex:1">Export my scans as JSON</span>${I.chev()}</button>
       <button data-a="wipe"><span class="ic">
@@ -236,6 +250,12 @@ function vSettings() {
     <div class="tiny faint" style="text-align:center;margin-top:18px;line-height:1.6">
       Ruleset ${esc(RULES.version || "—")} · thresholds are salon convention, not calibrated
       measurement.<br>Detector mean error 0.25 against hand-annotated ground truth on eight hands.
+      <!-- The build id, on screen on purpose. Twice now a bug has been chased that
+           was already fixed, because the phone was quietly running an older
+           app.html behind a stale service worker and there was no way to tell by
+           looking. Now there is: this line and the first line of /sw.js must
+           match, and if they do not, the upload is the problem, not the code. -->
+      <br>Build <b>${esc(BUILD_ID)}</b>
     </div>
   </div>
   <div style="height:20px"></div>`;
@@ -396,7 +416,10 @@ function vListing() {
     </div>
     <div style="display:flex;gap:8px;margin-top:12px">
       <div class="tile" style="flex:1"><div class="k">From</div>
-        <div class="v">${(b.services || []).length ? esc(b.cur || DB.cur) + Math.min(...b.services.map(s => +s.p || Infinity)).toLocaleString("en") : "—"}</div></div>
+        <div class="v">${(() => {
+          const lo = fromPrice(b.services);
+          return lo === null ? "—" : esc(b.cur || DB.cur) + lo.toLocaleString("en");
+        })()}</div></div>
       <div class="tile" style="flex:1"><div class="k">Services</div><div class="v">${(b.services || []).length}</div></div>
       <div class="tile" style="flex:1"><div class="k">Hours</div><div class="v">${esc(b.opens || "—")}–${esc(b.closes || "—")}</div></div>
     </div>

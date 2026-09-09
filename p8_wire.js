@@ -9,8 +9,13 @@ function paint() {
     case "welcome": html = vWelcome(); break;
     case "role": html = vRole(); break;
     case "signup": html = vSignup(); break;
-    case "setup": html = vSetup(false); break;
-    case "editbiz": html = vSetup(true); break;
+    // The listing editor states Oma's TERMS in a sentence and shows no
+    // arithmetic. The breakdown belongs on her earnings screen, after she has
+    // been paid — see p19_fee.js.
+    // Her photographs are fetched after the paint, like everything else that
+    // needs the network, and the strips redraw themselves when they arrive.
+    case "setup": html = vSetup(false); setTimeout(loadMyPhotos, 0); break;
+    case "editbiz": html = vSetup(true); setTimeout(loadMyPhotos, 0); break;
     // The bottom bar used to lead to a second, device-only app. Every one
     // of these now reads the database instead. See oma-two-apps.md.
     case "home": html = vHomeLive(); break;
@@ -28,6 +33,7 @@ function paint() {
     case "scan": html = vScan(ROUTE.a); break;
     case "editme": html = vEditMe(); break;
     case "settings": html = vSettings(); break;
+    case "points": html = vPoints(); break;
     case "sheet": html = vSheet(); break;
     case "requests": html = vRequestsLive(); break;
     case "diary": html = vDiaryLive(); break;
@@ -45,6 +51,7 @@ function paint() {
     case "backend": html = vBackend(); break;
     case "job": html = vJob(ROUTE.a); break;
     case "chat": html = vChat(ROUTE.a); break;
+    case "review": html = vReview(ROUTE.a); break;
     default: html = DB.role === "tech" ? vRequestsLive() : vFind();
   }
   if (typeof stopCamera === "function") stopCamera();
@@ -78,7 +85,7 @@ document.getElementById("shell").addEventListener("click", e => {
   const a = el.dataset.a;
   const id = el.dataset.id;
   const fields = {};
-  ["fName", "fPhone", "fArea", "fDial"].forEach(k => {
+  ["fName", "fArea"].forEach(k => {
     const n = document.getElementById(k); if (n) fields[k] = n.value.trim();
   });
 
@@ -115,6 +122,42 @@ document.getElementById("shell").addEventListener("click", e => {
         paint();
       });
   }
+  if (a === "pboard") { PROLE = id; PBOARD = null; loadPoints(); return paint(); }
+  if (a === "makeCode") {
+    return API.myReferralCode()
+      .then(() => { PTS = null; loadPoints(); toast("That is your code."); })
+      .catch((e) => toast(e.message));
+  }
+  if (a === "copyCode" || a === "shareCode") {
+    const c = PTS && PTS.code; if (!c) return;
+    // The link carries the code, because reading six characters down a phone
+    // is how a referral quietly stops happening.
+    const link = location.origin + location.pathname + "#r=" + encodeURIComponent(c);
+    const text = "Join me on Oma — book a nail tech and pay safely. My code is "
+               + c + "\n" + link;
+    if (a === "shareCode" && navigator.share) {
+      return navigator.share({ title: "Oma", text }).catch(() => {});
+    }
+    return copy(text, "Copied — send it to anyone.");
+  }
+  if (a === "useCode") {
+    const el = document.getElementById("fRefCode");
+    const v = ((el && el.value) || "").trim().toUpperCase();
+    if (v.length < 4) return toast("That code looks too short.");
+    return API.useReferral(v)
+      .then((r) => { PTS = null; loadPoints();
+                     toast("You are in" + (r && r.from ? " — thanks to " + r.from : "") + "."); })
+      .catch((e) => toast(e.message));
+  }
+  if (a === "practice") {
+    const on = !API.practice();
+    API.setPractice(on);
+    // Signed out either way — setPractice drops the session, because a session
+    // belongs to the backend that issued it.
+    toast(on ? "Practice mode. Nothing leaves this phone."
+             : "You are on the real Oma. Sign in to use your account.");
+    return paint();
+  }
   if (a === "cfg-clear") {
     API.configure("", "");
     API.signOut();
@@ -123,18 +166,42 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "otp-send") {
-    const n = document.getElementById("fSignPhone");
-    const phone = (n ? n.value : "").trim();
-    if (phone.replace(/\D/g, "").length < 7) return toast("That does not look like a phone number.");
-    SIGNIN.phone = phone;
-    return API.sendOtp(phone).then(() => { SIGNIN.sent = true; paint(); })
+    const n = document.getElementById("fSignEmail");
+    // Lower-cased and trimmed: a phone keyboard loves to capitalise the first
+    // letter, and Supabase treats Amaka@ and amaka@ as two different accounts.
+    const email = (n ? n.value : "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      return toast("That does not look like an email address.");
+    }
+    SIGNIN.email = email;
+    return API.sendOtp(email).then(() => { SIGNIN.sent = true; paint(); })
       .catch(err => toast(err.message));
+  }
+  if (a === "signin-mode") {
+    // The screen is about to be repainted from SIGNIN, so anything already
+    // typed has to be carried into it first. Being made to type your address
+    // again because you tapped the wrong door is a small insult, and the sort
+    // that makes people give up on a sign-up.
+    const typed = document.getElementById("fSignEmail");
+    if (typed) SIGNIN.email = typed.value;
+    SIGNIN.mode = el.dataset.v || null;
+    SIGNIN.sent = false;
+    return paint();
   }
   if (a === "otp-again") { SIGNIN.sent = false; return paint(); }
   if (a === "otp-check") {
     const n = document.getElementById("fOtp");
-    return API.verifyOtp(SIGNIN.phone, (n ? n.value : "").trim())
-      .then(() => { toast("Signed in."); nav("nearby"); })
+    return API.verifyOtp(SIGNIN.email, (n ? n.value : "").trim())
+      .then(() => {
+        // She has just proved she owns this address, so it is the one thing
+        // about her identity this device can state without asking the server.
+        // Settings shows it, and without this the row read "Sign out" with
+        // nothing after it.
+        DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
+        dbSave();
+        toast("Signed in.");
+        nav("nearby");
+      })
       .catch(err => toast(err.message));
   }
   if (a === "google") {
@@ -151,6 +218,11 @@ document.getElementById("shell").addEventListener("click", e => {
     return nav("techlive", el.dataset.id);
   }
   // The map: tapping Close puts the short list back, and the arrow re-centres.
+  /* reviews */
+  if (a === "rate-open") return nav("review", el.dataset.id);
+  if (a === "rate-star") return setStars(el.dataset.n);
+  if (a === "rate-save") return saveReview();
+
   if (a === "send-msg") return sendMessage(el.dataset.id);
   if (a === "map-clear") return choosePin(null);
   if (a === "map-me") return recentreMap();
@@ -163,14 +235,38 @@ document.getElementById("shell").addEventListener("click", e => {
     el.classList.add("on");
     return;
   }
+  if (a === "home-where") {
+    HOME.at = el.dataset.v === "1";
+    paintHome();
+    // The quote is only worth asking for once she has actually chosen it —
+    // it costs a GPS fix and a round trip.
+    if (HOME.at && !HOME.quote) askHomeQuote();
+    return;
+  }
   if (a === "mslot") {
     const day = document.querySelector("#dayChips .chip.on");
     if (!day) return toast("Pick a day first.");
     const at = new Date(Number(day.dataset.ts));
     at.setHours(Number(el.dataset.h), 0, 0, 0);
+    const shape = (DB.scans && DB.scans[0] && DB.scans[0].shape) || null;
+
+    if (HOME.at) {
+      const typed = document.getElementById("hAddr");
+      HOME.addr = typed ? typed.value.trim() : HOME.addr;
+      if (!HOME.addr) return toast("She needs an address to come to.");
+      if (!HOME.quote || !HOME.quote.ok) {
+        return toast((HOME.quote && HOME.quote.says) || "Working out the travel — one moment.");
+      }
+      el.disabled = true;
+      return API.bookAtHome(PICKED.techId, at.getTime(), PICKED.ids,
+                            HOME.pos.lat, HOME.pos.lng, HOME.addr,
+                            (DB.me && DB.me.area) || null, null, shape)
+        .then(b => nav("pay", b.id))
+        .catch(err => { el.disabled = false; toast(err.message); });
+    }
+
     el.disabled = true;
-    return API.book(PICKED.techId, at.getTime(), PICKED.ids, null,
-                    (DB.scans && DB.scans[0] && DB.scans[0].shape) || null)
+    return API.book(PICKED.techId, at.getTime(), PICKED.ids, null, shape)
       .then(b => nav("pay", b.id))
       .catch(err => { el.disabled = false; toast(err.message); });
   }
@@ -258,21 +354,22 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "gps") {
-    const t = el.dataset.t;
+    // Techs only. A salon is a place and stays where it is; a customer moves,
+    // so her distance is asked of the phone when a screen needs it rather than
+    // pinned once and trusted for ever.
+    if (el.dataset.t !== "biz") return;
     return locate(ll => {
       if (!ll) return;
-      if (t === "biz") { DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll }); }
-      else { DB.me = Object.assign({}, DB.me, { name: fields.fName, phone: fields.fPhone, area: fields.fArea, ll }); }
-      dbSave(); toast("Location pinned."); paint();
+      DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll });
+      dbSave(); toast("Shop location pinned."); paint();
     });
   }
   if (a === "saveMe") {
     if (!fields.fName) return toast("Your name, at least — techs need something to call you.");
-    DB.dial = (fields.fDial || DB.dial).replace(/\D/g, "") || DB.dial;
     DB.me = Object.assign({}, DB.me, {
-      name: fields.fName, phone: fields.fPhone, area: fields.fArea,
-      ll: (DB.me && DB.me.ll) || null
+      name: fields.fName, area: fields.fArea,
     });
+    delete DB.me.ll;      // a customer has no pin; see myPos()
     dbSave();
     return el.dataset.back ? (toast("Saved."), back()) : nav("home");
   }
@@ -297,10 +394,30 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "saveBiz") {
     const b = Object.assign({ services: [] }, DB.biz, readBiz());
     if (!b.name) return toast("Your business needs a name.");
-    if (!b.phone) return toast("Add a WhatsApp number — that is how customers reach you.");
+    // There WAS a check here demanding a WhatsApp number. The field it guarded
+    // was removed when sign-in moved to email, and nothing removed the check —
+    // so every nail tech who tried to publish was told to fill in a box that is
+    // not on the screen, with no way past it. Customers reach her through the
+    // conversation in the app now, so there is nothing to replace it with.
     b.services = (b.services || []).filter(s => (s.n || "").trim());
+    if (b.hasSalon === false) {
+      // No address to show, and keeping the one she typed before changing her
+      // answer would put a street on a listing that has no street.
+      b.address = "";
+      if (!b.state) return toast("Pick your state — it is how customers in your state find you.");
+    }
     DB.biz = b; DB.cur = b.cur || DB.cur; dbSave();
-    toast("Listing saved.");
+
+    // Saved on the phone. Now put it where a CUSTOMER can see it — which
+    // until this existed simply never happened. saveBiz wrote the menu
+    // locally and told the server nothing about it, so on the real backend a
+    // tech published a listing with zero services and became unbookable
+    // without a word on screen. See menu.sql.
+    if (!API.signedIn()) {
+      toast("Saved on this phone. Sign in to publish it.");
+      return nav("listing");
+    }
+    publishListing(b);
     return nav("listing");
   }
   if (a === "shareMine" || a === "copyLink") {
@@ -323,6 +440,39 @@ document.getElementById("shell").addEventListener("click", e => {
       b64e(JSON.stringify({ n: t.n, a: t.a, ad: t.ad, p: t.p, d: t.d, y: t.y, c: t.c, ll: t.ll, o: t.o, cl: t.cl, s: t.s }));
     return copy(link, "Her link is copied — send it on.");
   }
+  /* Shop, or no shop. The answer reshapes the form, so what she has already
+     typed is read back out first — repainting over a half-filled listing and
+     losing it is the sort of thing that makes people give up on an app. */
+  if (a === "has-salon") {
+    const want = el.dataset.v === "1";
+    DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { hasSalon: want });
+    if (want) LIVE.on = false;          // a shop does not broadcast
+    dbSave();
+    return paint();
+  }
+  if (a === "work-toggle") return toggleWorking();
+  if (a === "photo-del") return deleteMyPhoto(el.dataset.id);
+  if (a === "photo-report") {
+    // The flag sits inside the <label> that IS the service card, so without
+    // this a tap on it would also tick the service she was trying to report.
+    e.preventDefault();
+    return reportPhoto(el.dataset.id);
+  }
+  if (a === "home-toggle") {
+    DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(),
+                           { homeService: !(DB.biz && DB.biz.homeService) });
+    dbSave();
+    return paint();
+  }
+  /* Near me, or the whole state. Repainting home is what re-fetches and
+     re-frames the map; there is no separate "reload the pins" path, so there
+     is no second copy of that logic to fall out of step. */
+  if (a === "map-scope") {
+    MSCOPE.all = el.dataset.v === "all";
+    return paint();
+  }
+  if (a === "push-toggle") return togglePush();
+  if (a === "push-why") return toast(el.dataset.v || "Notifications are not available here.");
   if (a === "find-clear") { FQ = ""; paint(); const el = document.getElementById("qFind"); if (el) el.focus(); return; }
   // The bridge from a scan result to somebody who does that shape.
   if (a === "find-for") return findFor(el.dataset.v);
@@ -434,11 +584,103 @@ document.getElementById("shell").addEventListener("input", e => {
 });
 
 /* ══ actions ═════════════════════════════════════════ */
+/* Choosing a state on the map. A <select> does not click, so it cannot go
+   through the delegated handler with everything else. Her choice is kept on
+   the device, because "all of Lagos" should still mean Lagos tomorrow. */
+document.addEventListener("change", (e) => {
+  const n = e.target;
+  if (!n || n.id !== "mState") return;
+  MSCOPE.state = n.value;
+  MSCOPE.all = true;
+  DB.me = Object.assign({}, DB.me, { state: n.value });
+  dbSave();
+  paint();
+});
+
+/* ── putting a listing where customers can see it ─────────────────────
+   The order matters and each step depends on the one before it:
+
+     1. the tech row has to exist before it can own a service
+     2. the services have to exist before they can carry a price or a photo
+     3. the ids that come back are stored on the DEVICE, so the next save
+        UPDATES her menu rather than adding a second copy of it
+
+   Anything that fails is reported once, in her words, and never throws away
+   what she typed — the local copy is already saved before any of this runs. */
+async function publishListing(b) {
+  try {
+    await API.becomeTech({
+      name: b.name,
+      address: b.hasSalon === false ? null : (b.address || null),
+      area: b.area || null,
+      lat: (b.ll && b.ll[0]) || null,
+      lng: (b.ll && b.ll[1]) || null,
+      years: Number(String(b.years || "").replace(/\D/g, "")) || null,
+    });
+  } catch (e) {
+    return toast(e.message || "Saved here, but Oma could not publish it.");
+  }
+
+  try {
+    await API.setMobility(b.hasSalon !== false, b.state || null);
+    if (b.hasSalon === false) liveResume();
+  } catch (e) {
+    toast(e.message || "Saved, but Oma did not get the salon setting.");
+  }
+
+  // A salon with no coordinates can never actually be listed — the database
+  // refuses it, because a listing nobody can be sorted by distance from is a
+  // listing nobody finds. Said here rather than letting her discover it at
+  // the ID check, which is the wrong screen to learn it on.
+  if (b.hasSalon !== false && !(b.ll && b.ll.length === 2)) {
+    toast("Tap “Pin me” next to your area — customers are sorted by distance.");
+  }
+
+  // The menu, with her home prices carried in the same call rather than a
+  // second one per service.
+  const menu = (b.services || []).map((sv) => ({
+    id: sv.id || null,
+    name: (sv.n || "").trim(),
+    minutes: Number(String(sv.m || "").replace(/\D/g, "")) || 60,
+    price_kobo: Math.round(Number(String(sv.p || "").replace(/[^\d.]/g, "")) * 100) || 0,
+    shapes: sv.sh || [],
+    home_kobo: sv.hp
+      ? Math.round(Number(String(sv.hp).replace(/[^\d.]/g, "")) * 100) || null
+      : null,
+  })).filter((x) => x.name);
+
+  try {
+    const saved = await API.syncServices(menu);
+    // Write the ids back onto the device's copy. Without this every save is a
+    // fresh insert and her menu doubles, and a photograph has nothing to
+    // attach itself to.
+    (saved || []).forEach((row, i) => {
+      if (DB.biz.services[i]) DB.biz.services[i].id = row.id;
+    });
+    dbSave();
+    if (typeof loadMyPhotos === "function") loadMyPhotos();
+  } catch (e) {
+    return toast(e.message || "Saved, but your services did not reach Oma.");
+  }
+
+  try {
+    await saveHomeSettings(b);
+  } catch (e) {
+    toast(e.message || "Saved, but Oma did not get the travel settings.");
+  }
+
+  toast("Listing published.");
+}
+
 function readBiz() {
   const g = k => { const n = document.getElementById(k); return n ? n.value.trim() : undefined; };
   const out = {};
-  const map = { bName: "name", bAddr: "address", bArea: "area", bPhone: "phone",
-                bDial: "dial", bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes" };
+  // No phone or dial any more: signing in is by email and techs are reached
+  // through the in-app conversation, not WhatsApp.
+  const map = { bName: "name", bAddr: "address", bArea: "area", bState: "state",
+                bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes",
+                // Going to customers: the call-out, the per-km and how far.
+                hCallout: "calloutNaira", hPerKm: "perKmNaira", hMaxKm: "maxKm" };
   for (const k in map) { const v = g(k); if (v !== undefined) out[map[k]] = v; }
   const svc = [];
   document.querySelectorAll("#svcList [data-s]").forEach(n => {
@@ -661,4 +903,10 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
   }
   ROUTE = { v: DB.role ? (DB.role === "tech" ? "requests" : "home") : "welcome", a: null };
   paint();
+
+  /* A nail tech who was working when she last closed the app is still working
+     now — she did not stop, the browser did. This asks the SERVER whether she
+     is a travelling tech before broadcasting anything, so a salon can never be
+     started by a stale flag on a phone. See p20_live.js. */
+  if (typeof liveResume === "function") liveResume();
 })();

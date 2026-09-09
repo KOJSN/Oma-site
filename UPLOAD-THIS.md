@@ -9,7 +9,7 @@ section 4.
 
 ---
 
-## 1. Supabase — eleven SQL blocks, in this order
+## 1. Supabase — twelve SQL blocks, in this order
 
 Open the SQL editor and run each one. Each is safe to run twice.
 
@@ -26,6 +26,7 @@ Open the SQL editor and run each one. Each is safe to run twice.
 | 9 | `photo.sql` | **photo** | **New.** Her work under each service. |
 | 10 | `menu.sql` | **menu** | **New. This one is urgent — read the box below.** |
 | 11 | `psp.sql` | **psp** | **New. The tech pays Paystack's fee, not Oma. Read the box below.** |
+| 12 | `points.sql` | **points** | **New.** O points and the leaderboard. Scores nothing until you open a season. |
 
 **Order matters.** Out of order you get *"function ... does not exist"* — not
 damage, just run them again in order.
@@ -93,19 +94,31 @@ upload button gives a 400 and nothing else breaks.
 
 ---
 
-## 2. GitHub — seventeen app files, plus five for the website
+## 2. GitHub — twenty app files, plus five for the website
 
-Drag these into `src/`, overwriting.
+Drag these into the **root of the repo**, beside `build.py` and
+`oma-config.js` — **not** into a `src/` folder. Your repo is flat
+(`github.com/KOJSN/Oma-site/blob/main/p3_core.js`), and earlier versions of
+this page said `src/`, which was wrong.
+
+`build.py` reads from `src/` **only if `src/p3_core.js` exists**, and otherwise
+from beside itself. So a half-filled `src/` folder is the worst thing that can
+happen to this repo: the build silently switches to it and ignores every file
+at the root. If one has appeared in there, delete it.
 
 **The app** (these are the ones `build.py` stitches into `app.html`):
 
 ```
-p1_head.html   p2_body.html   p4_result.js   p5_views.js
-p6_views2.js   p7_views3.js   p8_wire.js     p12_api.js
-p13_money.js   p14_live.js    p16_find.js    p18_review.js
-p19_fee.js     p20_live.js    p21_home.js    p22_photos.js
-build.py
+core_engine.js  p1_head.html    p2_body.html    p3_core.js
+p4_result.js    p5_views.js     p6_views2.js    p7_views3.js
+p8_wire.js      p12_api.js      p13_money.js    p14_live.js
+p16_find.js     p18_review.js   p19_fee.js      p20_live.js
+p21_home.js     p22_photos.js   p24_points.js   build.py
 ```
+
+**`p24_points.js` is a NEW file** — add it rather than looking for it to
+overwrite, and upload `build.py` in the same commit, because that is the file
+that has to know p24 exists.
 
 **The animation is gone.** If you already uploaded `p23_reveal.js`, `build.py`
 no longer reads it — it is a harmless orphan you can delete from the repo when
@@ -224,6 +237,83 @@ upload finishing and being abandoned.
 - A tech with **no photos looks deliberate, not broken** — her card is the Oma
   gradient with her name, her price and the same *Choose this* button. Not a
   grey box with a torn-picture icon. "That's if she has."
+
+### O points, on screen
+
+Settings → **O points and the board**. Her score, her place, the prize
+amounts, her referral code with Share and Copy, a box to enter somebody
+else's, and the two boards.
+
+Every figure comes from the database — the rate, the prizes, the cap. Nothing
+is worked out on the phone, because a score computed locally is a score that
+disagrees with the one the prize is actually paid against, and the phone is
+the copy she will screenshot. Changing the prize is one UPDATE on the season
+row, not a rebuild.
+
+The share link carries the code (`#r=CODE`) so nobody has to read six
+characters down a phone; it prefills the box rather than applying itself,
+since using a code is a once-ever decision and she has to be signed in for it
+to mean anything.
+
+Under every score on the board is how many **different people** it came from.
+A big total from one person is what collusion looks like, and it belongs
+beside the score rather than being noticed after a million naira has been
+paid out.
+
+Until you open a season the screen says so plainly and nothing else appears.
+
+### It stops saying squoval, and stops saying it is not sure
+
+Two lines of arithmetic were doing this, not the rules.
+
+`recommend()` scored confidence as `0.6 × primary + 0.4 × support`, where
+support is the average of the OTHER measurements. When the hand model does not
+run — which on real photographs is often, it finds no hand at all in roughly
+three out of seven — there are no other measurements, and the old code averaged
+in a hard **zero**. An absent reading is not a reading of zero. With support
+pinned at 0 the sum became `0.6 × primary`, so even a flawless scan topped out
+at **0.57**, and anything short of near-perfect agreement fell under the 0.45
+threshold and dropped into the squoval fallback.
+
+So it was almost always squoval — not because hands are squoval, but because
+the confidence sum punished every scan for a reading it had never asked for.
+With nothing to support it, the primary measurement's own confidence is now
+the figure, which is the honest one.
+
+**And the fallback is gone.** The ORDER of the ranking is far more robust than
+the number under it: the bed ratio moves about ±0.11 between two careful passes
+over the same photograph, but the rules score bands rather than points, so a
+hand has to sit right on a cut point before that wobble changes which shape
+comes first. Refusing to name the top of a ranking we do trust, in favour of a
+shape chosen because it offends nobody, threw the answer away.
+
+Your seven study hands, through the shipped engine:
+
+| Hand | Bed | Now says | Then |
+|---|---|---|---|
+| 1 | 1.20 | Squoval | Squoval |
+| 2 | 1.08 | **Oval** | Oval |
+| 3 | 1.21 | Squoval | Squoval — *not sure* |
+| 4 | 1.03 | **Oval** | Squoval — *not sure* |
+| 5 | 1.17 | Squoval | Squoval |
+| 6 | 1.19 | Squoval | Squoval — *not sure* |
+| 7 | 1.03 | **Oval** | Squoval — *not sure* |
+
+Each one now carries two alternates and a reason drawn from the measurement.
+
+**The "N% fit" badge is gone too.** It was the confidence score with a percent
+sign on it. It read as a mark out of a hundred for her nails and was really a
+statement about how well four outlines agreed with each other — a number
+nobody can act on, in the place on the screen she is most likely to believe.
+The badge now names her nail bed instead. The measurements are all still
+further down the screen, still saying exactly what they are.
+
+**What has NOT changed: the cut points.** 1.15 and 1.90 still come from the
+salon "50% rule" and not from anybody's hands. Every one of your seven measured
+between 1.03 and 1.21, which is why the answers cluster the way they do. Moving
+those numbers onto real expert judgement is what the two Google Forms are for —
+link their responses to a Sheet and I can recalibrate against actual techs
+rather than a rule of thumb.
 
 ### From ₦∞ — fixed
 

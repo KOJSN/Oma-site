@@ -55,7 +55,7 @@ js = "\n".join([
     read("p9_sheet.js"), read("p10_sheetpage.js"), read("p11_qr.js"),
     read("p12_api.js"), read("p4_result.js"), read("p5_views.js"),
     read("p6_views2.js"), read("p7_views3.js"), read("p13_money.js"),
-    read("p14_live.js"), read("p15_chat.js"), read("p16_find.js"), read("p18_review.js"), read("p19_fee.js"), read("p20_live.js"), read("p21_home.js"), read("p22_photos.js"),
+    read("p14_live.js"), read("p15_chat.js"), read("p16_find.js"), read("p18_review.js"), read("p19_fee.js"), read("p20_live.js"), read("p21_home.js"), read("p22_photos.js"), read("p24_points.js"),
     push, read("p8_wire.js"),
 ])
 
