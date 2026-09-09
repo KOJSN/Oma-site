@@ -28,6 +28,6 @@
    ══════════════════════════════════════════════════════════════════ */
 
 window.OMA_CFG = {
-  url:  "",
-  anon: "",
+  url:  "https://ucytdvycfkrbpaknoiuc.supabase.co",
+  anon: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjeXRkdnljZmtyYnBha25vaXVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5ODE5NDEsImV4cCI6MjEwMzU1Nzk0MX0.HgYvYVuOHtEQAlJMZCeHMTWFUMzr7TakVpx-c91cNxA",
 };
