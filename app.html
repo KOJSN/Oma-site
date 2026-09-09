@@ -1216,7 +1216,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "59721a57d6";
+const BUILD_ID = "f512dfed1d";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -4519,7 +4519,7 @@ const API = (() => {
         return { season: "Practice season", ends_at: null,
                  role: myTech() ? "tech" : "customer",
                  points: +(s.opoints.milli / 1000).toFixed(2), place: null,
-                 code: s.opoints.code, used_code: s.opoints.used, referrals: 0,
+                 code: s.opoints.code, used_code: s.opoints.used, can_use_code: !s.opoints.used, referrals: 0,
                  per_point: 700000, pair_cap: 10,
                  tech_prize_kobo: 0, customer_prize_kobo: 0, lines: [] };
       },
@@ -4833,7 +4833,7 @@ function renderResult(F, rec) {
                  still say what they are. -->
             <div class="band">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg>
-              ${esc(S.last.words)} nail bed
+              ${esc(S.last.words || "Measured")} nail bed
             </div>
           </div>
         </div>
@@ -4849,7 +4849,7 @@ function renderResult(F, rec) {
       </div>` : ""}
 
       <div class="grid2">
-        <div class="tile"><div class="k">Nail bed</div><div class="v">${esc(S.last.words)}</div></div>
+        <div class="tile"><div class="k">Nail bed</div><div class="v">${esc(S.last.words || "—")}</div></div>
         <div class="tile"><div class="k">Fingers</div><div class="v">${esc(S.last.fingers)}</div></div>
       </div>
 
@@ -5149,6 +5149,8 @@ const I = {
   chev: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--faint)" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>`,
   arrow: () => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg>`,
   share: () => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8 15.8 6.7M8.2 13.2l7.6 4.1"/></svg>`,
+  trophy: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4.5a2.5 2.5 0 0 0 2.5 2.5M17 6h2.5A2.5 2.5 0 0 1 17 8.5"/><path d="M12 14v3M9 20h6M10 17h4l.5 3h-5Z"/></svg>`,
+  more: (on) => `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="${on ? 2.6 : 2}" stroke-linecap="round"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>`,
   cog: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H2.9a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.2Z"/></svg>`,
   moon: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>`,
   bell: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 7-3 9h18c0-2-3-2-3-9M10.3 21a2 2 0 0 0 3.4 0"/></svg>`,
@@ -5166,7 +5168,7 @@ const TABS = {
     { k: "salons", t: "Search", i: I.find },
     { k: "__scan", t: "Scan" },
     { k: "bookings", t: "Bookings", i: I.cal },
-    { k: "profile", t: "Profile", i: I.user },
+    { k: "more", t: "More", i: I.more },
   ],
   tech: [
     { k: "requests", t: "Requests", i: I.inbox },
@@ -5530,7 +5532,7 @@ function vHome() {
         <div class="small sub" style="font-weight:600">${greet()}</div>
         <div style="font-size:22px;font-weight:800;letter-spacing:-.03em;margin-top:1px">${esc((me.name || "there").split(" ")[0])}</div>
       </div>
-      <button class="avatar" data-a="tab" data-v="profile">${esc(initials(me.name))}</button>
+      <button class="avatar" data-a="tab" data-v="more">${esc(initials(me.name))}</button>
     </div>
     <label class="search mt16">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
@@ -5979,87 +5981,57 @@ function vBooking(id) {
   <div style="height:20px"></div>`;
 }
 
-/* ══ 14 profile ══════════════════════════════════════ */
-function vProfile() {
+/* ══ 14 more ═════════════════════════════════════════
+   This was "Profile": a page that showed her own face back to her, then
+   buried Settings behind a cog in the corner and the leaderboard three
+   taps deep. Nobody opens an app to look at themselves. They open this
+   tab to GET somewhere, so it is now a list of destinations and nothing
+   else — every row one tap from the tab bar.                            */
+function vMore() {
   const me = DB.me || {};
-  const last = DB.scans[0];
-  const next = DB.bookings.filter(b => b.at > Date.now() && b.status !== "cancelled")
-    .sort((a, b) => a.at - b.at)[0];
+  const tech = DB.role === "tech";
+  const row = (v, icon, label, note) => `
+    <button data-a="go" data-v="${v}">
+      <span class="ic">${icon}</span>
+      <span style="flex:1;min-width:0">${label}${note
+        ? `<span class="tiny sub" style="display:block;font-weight:600;margin-top:1px">${note}</span>` : ""}</span>
+      ${I.chev()}</button>`;
+
   return `
-  <div class="topbar">
-    <div class="rowbetween">
-      <h2>Profile</h2>
-      <button class="iconbtn" data-a="go" data-v="settings" aria-label="Settings">${I.cog()}</button>
-    </div>
-    <div style="display:flex;align-items:center;gap:14px;margin-top:16px">
-      <button class="avatar lg" data-a="go" data-v="editme">${esc(initials(me.name))}</button>
-      <div>
-        <div style="font-size:19px;font-weight:800;letter-spacing:-.025em">${esc(me.name || "Add your name")}</div>
-        <div class="small sub" style="margin-top:2px">${esc([me.area, me.email].filter(Boolean).join(" · ") || "Tap to fill in your details")}</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:9px;margin-top:18px">
-      <div class="tile" style="flex:1;border-radius:16px;padding:12px">
-        <div style="font-size:18px;font-weight:800">${DB.scans.length}</div>
-        <div class="tiny sub" style="font-weight:600">Scans</div></div>
-      <div class="tile" style="flex:1;border-radius:16px;padding:12px">
-        <div style="font-size:18px;font-weight:800">${DB.bookings.length}</div>
-        <div class="tiny sub" style="font-weight:600">Bookings</div></div>
-      <div class="tile" style="flex:1;border-radius:16px;padding:12px;background:var(--tint)">
-        <div style="font-size:18px;font-weight:800;color:var(--pinkd);text-transform:capitalize">${last ? esc(last.shape) : "—"}</div>
-        <div class="tiny" style="font-weight:600;color:var(--pinkd);opacity:.8">Your shape</div></div>
-    </div>
-  </div>
+  <div class="topbar"><h2>More</h2></div>
+  <div class="pad mt16">
 
-  ${next ? `<div class="pad mt16">${bookingRow(next, true)}</div>` : ""}
+    ${API.signedIn() ? "" : `<div class="menu" style="margin-bottom:14px">
+      ${row("signin", I.user(), "Sign in to book and pay")}
+    </div>`}
 
-  <div class="seehead"><h3>Previous scans</h3>
-    ${DB.scans.length > 3 ? `<span class="seeall" data-a="go" data-v="history">See all</span>` : ""}</div>
-  <div class="pad">
-    ${DB.scans.length ? `<div class="grid3">
-      ${DB.scans.slice(0, 3).map(sc => `
-        <button class="card tap" data-a="scan" data-id="${esc(sc.id)}" style="flex:1;padding:12px;text-align:center">
-          <span style="display:flex;height:64px;border-radius:14px;background:${sc.id === DB.scans[0].id ? "var(--tint)" : "var(--fill)"};align-items:center;justify-content:center">
-            ${shapeSVG(sc.shape, 22, 33, sc.id === DB.scans[0].id ? "var(--pink)" : "var(--sub)", sc.id === DB.scans[0].id ? "var(--tint2)" : "var(--fill2)")}</span>
-          <span style="display:block;font-size:13.5px;font-weight:800;margin-top:9px">${esc(sc.label)}</span>
-          <span class="tiny sub" style="display:block;font-weight:600">${esc(when(sc.ts))} · ${sc.fit}%</span>
-        </button>`).join("")}
-    </div>` : `<div class="empty"><div class="ic">${I.scan().replace(/#fff/g, "currentColor")}</div>
-      <b>No scans yet</b>One photo and four taps gives you a shape and the reasoning behind it.
-      <div style="margin-top:14px"><button class="btn sm" data-a="startscan">Start a scan</button></div></div>`}
-  </div>
-
-  <div class="pad mt20">
-    <div class="menu" style="margin-bottom:16px">
-      ${API.signedIn() ? "" : `<button data-a="go" data-v="signin">
-        <span class="ic">${I.user()}</span>
-        <span style="flex:1">Sign in to book and pay</span>${I.chev()}</button>`}
-      <button data-a="go" data-v="nearby"><span class="ic">${I.shop()}</span>
-        <span style="flex:1">Nail techs near me</span>${I.chev()}</button>
-      ${/* Taking money, scanning a client's code and passing an ID check are
-            things a NAIL TECH does. They were on this menu for everyone, so a
-            customer was being offered earnings she can never have and an
-            identity check she never needs. */
-        DB.role === "tech" ? `
-      <button data-a="go" data-v="scanner"><span class="ic">${I.tick(16)}</span>
-        <span style="flex:1">Scan a client's code</span>${I.chev()}</button>
-      <button data-a="go" data-v="wallet"><span class="ic">${I.cal()}</span>
-        <span style="flex:1">Earnings and withdrawals</span>${I.chev()}</button>
-      <button data-a="go" data-v="kyc"><span class="ic">${I.user()}</span>
-        <span style="flex:1">Verify your identity</span>${I.chev()}</button>` : ""}
+    <div class="menu" style="margin-bottom:14px">
+      ${row("editme", I.user(), "Profile",
+            esc([me.name, me.area].filter(Boolean).join(" · ") || "Add your name and area"))}
+      ${row("points", I.trophy(), "Leaderboard", "O points, the board and your code")}
+      ${row("history", I.scan().replace(/#fff/g, "currentColor"), "Your scans",
+            DB.scans.length ? DB.scans.length + " scan" + (DB.scans.length === 1 ? "" : "s") : "No scans yet")}
     </div>
+
+    <div class="menu" style="margin-bottom:14px">
+      ${tech ? `
+        ${row("scanner", I.tick(16), "Scan a client's code")}
+        ${row("wallet", I.cal(), "Earnings and withdrawals")}
+        ${row("kyc", I.user(), "Verify your identity")}`
+      : row("nearby", I.shop(), "Nail techs near me")}
+    </div>
+
     <div class="menu">
       <button data-a="theme"><span class="ic">${I.moon()}</span>
         <span style="flex:1">Dark mode</span>
         <span class="switch ${isDark() ? "on" : ""}"><i></i></span></button>
-      <button data-a="go" data-v="editme"><span class="ic">${I.user()}</span>
-        <span style="flex:1">Your details</span>${I.chev()}</button>
       <button data-a="switchRole"><span class="ic">${I.shop()}</span>
-        <span style="flex:1">${DB.role === "tech"
-          ? "Switch to a customer account" : "Switch to a nail tech account"}</span>${I.chev()}</button>
+        <span style="flex:1">${tech ? "Switch to a customer account"
+                                    : "Switch to a nail tech account"}</span>${I.chev()}</button>
+      ${row("settings", I.cog(), "Settings")}
     </div>
   </div>
-  <div style="height:16px"></div>`;
+  <div style="height:20px"></div>`;
 }
 
 /* ══ 15 scan history ═════════════════════════════════
@@ -6102,7 +6074,7 @@ function vHistory() {
           <span style="display:flex;align-items:center;gap:7px">
             <b style="font-size:16.5px;letter-spacing:-.02em">${esc(sc.label)}</b>
             ${i === 0 ? `<span class="tag" style="font-size:10.5px">CURRENT</span>` : ""}</span>
-          <span class="small sub" style="display:block;margin-top:3px">${esc(when(sc.ts))} · ${esc(sc.words.toLowerCase())}${sc.counted < 4 ? " · " + sc.counted + " of 4 nails" : ""}</span>
+          <span class="small sub" style="display:block;margin-top:3px">${esc(when(sc.ts))}${sc.words ? " · " + esc(String(sc.words).toLowerCase()) : ""}${sc.counted < 4 ? " · " + sc.counted + " of 4 nails" : ""}</span>
         </span>
         <span style="text-align:right">
           <span style="display:block;font-size:16px;font-weight:800;color:${i === 0 ? "var(--pink)" : "var(--sub)"}">${sc.fit}%</span>
@@ -6131,7 +6103,7 @@ function vScan(id) {
       </span>
     </div>
     <div class="grid2 mt16">
-      <div class="tile"><div class="k">Nail bed</div><div class="v">${esc(sc.words)}</div></div>
+      <div class="tile"><div class="k">Nail bed</div><div class="v">${esc(sc.words || "—")}</div></div>
       <div class="tile"><div class="k">Fingers</div><div class="v">${esc(sc.fingers)}</div></div>
       <div class="tile"><div class="k">Also works</div><div class="v">${sc.alts.length ? esc(sc.alts.join(", ")) : "—"}</div></div>
       <div class="tile"><div class="k">Go easy on</div><div class="v">${sc.avoid.length ? esc(sc.avoid.join(", ")) : "—"}</div></div>
@@ -7404,7 +7376,7 @@ function vHomeLive() {
         <div class="small sub" style="font-weight:600">${greet()}</div>
         <div class="nm">${esc((me.name || "there").split(" ")[0])}</div>
       </div>
-      <button class="avatar" data-a="go" data-v="profile">${esc(initials(me.name))}</button>
+      <button class="avatar" data-a="go" data-v="more">${esc(initials(me.name))}</button>
     </div>
   </div>`;
 }
@@ -9455,11 +9427,12 @@ function vPoints() {
         <button class="btn mt8" data-a="makeCode">Get my code</button>
       `}
 
-      ${!p.used_code ? `
+      ${p.can_use_code ? `
       <div class="card mt16">
         <div style="font-size:15px;font-weight:700">Someone gave you a code?</div>
         <div class="small sub" style="margin-top:4px;margin-bottom:10px">
-          You can only ever use one, so make it the right one.</div>
+          One code, once, and only before your first booking — so make it
+          the right one.</div>
         <div class="btnrow">
           <input id="fRefCode" placeholder="ABC123" autocapitalize="characters"
                  value="${esc(pendingRef())}"
@@ -9826,7 +9799,7 @@ function paint() {
     case "booked": html = vPay(ROUTE.a); break;
     case "bookings": html = vBookingsLive(); break;
     case "booking": html = vJob(ROUTE.a); break;
-    case "profile": html = vProfile(); break;
+    case "more": html = vMore(); break;
     case "history": html = vHistory(); break;
     case "scan": html = vScan(ROUTE.a); break;
     case "editme": html = vEditMe(); break;
