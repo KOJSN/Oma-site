@@ -98,7 +98,7 @@ function renderResult(F, rec) {
                  still say what they are. -->
             <div class="band">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg>
-              ${esc(S.last.words)} nail bed
+              ${esc(S.last.words || "Measured")} nail bed
             </div>
           </div>
         </div>
@@ -114,7 +114,7 @@ function renderResult(F, rec) {
       </div>` : ""}
 
       <div class="grid2">
-        <div class="tile"><div class="k">Nail bed</div><div class="v">${esc(S.last.words)}</div></div>
+        <div class="tile"><div class="k">Nail bed</div><div class="v">${esc(S.last.words || "—")}</div></div>
         <div class="tile"><div class="k">Fingers</div><div class="v">${esc(S.last.fingers)}</div></div>
       </div>
 

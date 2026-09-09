@@ -1,84 +1,54 @@
-/* ══ 14 profile ══════════════════════════════════════ */
-function vProfile() {
+/* ══ 14 more ═════════════════════════════════════════
+   This was "Profile": a page that showed her own face back to her, then
+   buried Settings behind a cog in the corner and the leaderboard three
+   taps deep. Nobody opens an app to look at themselves. They open this
+   tab to GET somewhere, so it is now a list of destinations and nothing
+   else — every row one tap from the tab bar.                            */
+function vMore() {
   const me = DB.me || {};
-  const last = DB.scans[0];
-  const next = DB.bookings.filter(b => b.at > Date.now() && b.status !== "cancelled")
-    .sort((a, b) => a.at - b.at)[0];
+  const tech = DB.role === "tech";
+  const row = (v, icon, label, note) => `
+    <button data-a="go" data-v="${v}">
+      <span class="ic">${icon}</span>
+      <span style="flex:1;min-width:0">${label}${note
+        ? `<span class="tiny sub" style="display:block;font-weight:600;margin-top:1px">${note}</span>` : ""}</span>
+      ${I.chev()}</button>`;
+
   return `
-  <div class="topbar">
-    <div class="rowbetween">
-      <h2>Profile</h2>
-      <button class="iconbtn" data-a="go" data-v="settings" aria-label="Settings">${I.cog()}</button>
-    </div>
-    <div style="display:flex;align-items:center;gap:14px;margin-top:16px">
-      <button class="avatar lg" data-a="go" data-v="editme">${esc(initials(me.name))}</button>
-      <div>
-        <div style="font-size:19px;font-weight:800;letter-spacing:-.025em">${esc(me.name || "Add your name")}</div>
-        <div class="small sub" style="margin-top:2px">${esc([me.area, me.email].filter(Boolean).join(" · ") || "Tap to fill in your details")}</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:9px;margin-top:18px">
-      <div class="tile" style="flex:1;border-radius:16px;padding:12px">
-        <div style="font-size:18px;font-weight:800">${DB.scans.length}</div>
-        <div class="tiny sub" style="font-weight:600">Scans</div></div>
-      <div class="tile" style="flex:1;border-radius:16px;padding:12px">
-        <div style="font-size:18px;font-weight:800">${DB.bookings.length}</div>
-        <div class="tiny sub" style="font-weight:600">Bookings</div></div>
-      <div class="tile" style="flex:1;border-radius:16px;padding:12px;background:var(--tint)">
-        <div style="font-size:18px;font-weight:800;color:var(--pinkd);text-transform:capitalize">${last ? esc(last.shape) : "—"}</div>
-        <div class="tiny" style="font-weight:600;color:var(--pinkd);opacity:.8">Your shape</div></div>
-    </div>
-  </div>
+  <div class="topbar"><h2>More</h2></div>
+  <div class="pad mt16">
 
-  ${next ? `<div class="pad mt16">${bookingRow(next, true)}</div>` : ""}
+    ${API.signedIn() ? "" : `<div class="menu" style="margin-bottom:14px">
+      ${row("signin", I.user(), "Sign in to book and pay")}
+    </div>`}
 
-  <div class="seehead"><h3>Previous scans</h3>
-    ${DB.scans.length > 3 ? `<span class="seeall" data-a="go" data-v="history">See all</span>` : ""}</div>
-  <div class="pad">
-    ${DB.scans.length ? `<div class="grid3">
-      ${DB.scans.slice(0, 3).map(sc => `
-        <button class="card tap" data-a="scan" data-id="${esc(sc.id)}" style="flex:1;padding:12px;text-align:center">
-          <span style="display:flex;height:64px;border-radius:14px;background:${sc.id === DB.scans[0].id ? "var(--tint)" : "var(--fill)"};align-items:center;justify-content:center">
-            ${shapeSVG(sc.shape, 22, 33, sc.id === DB.scans[0].id ? "var(--pink)" : "var(--sub)", sc.id === DB.scans[0].id ? "var(--tint2)" : "var(--fill2)")}</span>
-          <span style="display:block;font-size:13.5px;font-weight:800;margin-top:9px">${esc(sc.label)}</span>
-          <span class="tiny sub" style="display:block;font-weight:600">${esc(when(sc.ts))} · ${sc.fit}%</span>
-        </button>`).join("")}
-    </div>` : `<div class="empty"><div class="ic">${I.scan().replace(/#fff/g, "currentColor")}</div>
-      <b>No scans yet</b>One photo and four taps gives you a shape and the reasoning behind it.
-      <div style="margin-top:14px"><button class="btn sm" data-a="startscan">Start a scan</button></div></div>`}
-  </div>
-
-  <div class="pad mt20">
-    <div class="menu" style="margin-bottom:16px">
-      ${API.signedIn() ? "" : `<button data-a="go" data-v="signin">
-        <span class="ic">${I.user()}</span>
-        <span style="flex:1">Sign in to book and pay</span>${I.chev()}</button>`}
-      <button data-a="go" data-v="nearby"><span class="ic">${I.shop()}</span>
-        <span style="flex:1">Nail techs near me</span>${I.chev()}</button>
-      ${/* Taking money, scanning a client's code and passing an ID check are
-            things a NAIL TECH does. They were on this menu for everyone, so a
-            customer was being offered earnings she can never have and an
-            identity check she never needs. */
-        DB.role === "tech" ? `
-      <button data-a="go" data-v="scanner"><span class="ic">${I.tick(16)}</span>
-        <span style="flex:1">Scan a client's code</span>${I.chev()}</button>
-      <button data-a="go" data-v="wallet"><span class="ic">${I.cal()}</span>
-        <span style="flex:1">Earnings and withdrawals</span>${I.chev()}</button>
-      <button data-a="go" data-v="kyc"><span class="ic">${I.user()}</span>
-        <span style="flex:1">Verify your identity</span>${I.chev()}</button>` : ""}
+    <div class="menu" style="margin-bottom:14px">
+      ${row("editme", I.user(), "Profile",
+            esc([me.name, me.area].filter(Boolean).join(" · ") || "Add your name and area"))}
+      ${row("points", I.trophy(), "Leaderboard", "O points, the board and your code")}
+      ${row("history", I.scan().replace(/#fff/g, "currentColor"), "Your scans",
+            DB.scans.length ? DB.scans.length + " scan" + (DB.scans.length === 1 ? "" : "s") : "No scans yet")}
     </div>
+
+    <div class="menu" style="margin-bottom:14px">
+      ${tech ? `
+        ${row("scanner", I.tick(16), "Scan a client's code")}
+        ${row("wallet", I.cal(), "Earnings and withdrawals")}
+        ${row("kyc", I.user(), "Verify your identity")}`
+      : row("nearby", I.shop(), "Nail techs near me")}
+    </div>
+
     <div class="menu">
       <button data-a="theme"><span class="ic">${I.moon()}</span>
         <span style="flex:1">Dark mode</span>
         <span class="switch ${isDark() ? "on" : ""}"><i></i></span></button>
-      <button data-a="go" data-v="editme"><span class="ic">${I.user()}</span>
-        <span style="flex:1">Your details</span>${I.chev()}</button>
       <button data-a="switchRole"><span class="ic">${I.shop()}</span>
-        <span style="flex:1">${DB.role === "tech"
-          ? "Switch to a customer account" : "Switch to a nail tech account"}</span>${I.chev()}</button>
+        <span style="flex:1">${tech ? "Switch to a customer account"
+                                    : "Switch to a nail tech account"}</span>${I.chev()}</button>
+      ${row("settings", I.cog(), "Settings")}
     </div>
   </div>
-  <div style="height:16px"></div>`;
+  <div style="height:20px"></div>`;
 }
 
 /* ══ 15 scan history ═════════════════════════════════
@@ -121,7 +91,7 @@ function vHistory() {
           <span style="display:flex;align-items:center;gap:7px">
             <b style="font-size:16.5px;letter-spacing:-.02em">${esc(sc.label)}</b>
             ${i === 0 ? `<span class="tag" style="font-size:10.5px">CURRENT</span>` : ""}</span>
-          <span class="small sub" style="display:block;margin-top:3px">${esc(when(sc.ts))} · ${esc(sc.words.toLowerCase())}${sc.counted < 4 ? " · " + sc.counted + " of 4 nails" : ""}</span>
+          <span class="small sub" style="display:block;margin-top:3px">${esc(when(sc.ts))}${sc.words ? " · " + esc(String(sc.words).toLowerCase()) : ""}${sc.counted < 4 ? " · " + sc.counted + " of 4 nails" : ""}</span>
         </span>
         <span style="text-align:right">
           <span style="display:block;font-size:16px;font-weight:800;color:${i === 0 ? "var(--pink)" : "var(--sub)"}">${sc.fit}%</span>
@@ -150,7 +120,7 @@ function vScan(id) {
       </span>
     </div>
     <div class="grid2 mt16">
-      <div class="tile"><div class="k">Nail bed</div><div class="v">${esc(sc.words)}</div></div>
+      <div class="tile"><div class="k">Nail bed</div><div class="v">${esc(sc.words || "—")}</div></div>
       <div class="tile"><div class="k">Fingers</div><div class="v">${esc(sc.fingers)}</div></div>
       <div class="tile"><div class="k">Also works</div><div class="v">${sc.alts.length ? esc(sc.alts.join(", ")) : "—"}</div></div>
       <div class="tile"><div class="k">Go easy on</div><div class="v">${sc.avoid.length ? esc(sc.avoid.join(", ")) : "—"}</div></div>

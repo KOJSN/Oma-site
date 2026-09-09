@@ -124,11 +124,12 @@ function vPoints() {
         <button class="btn mt8" data-a="makeCode">Get my code</button>
       `}
 
-      ${!p.used_code ? `
+      ${p.can_use_code ? `
       <div class="card mt16">
         <div style="font-size:15px;font-weight:700">Someone gave you a code?</div>
         <div class="small sub" style="margin-top:4px;margin-bottom:10px">
-          You can only ever use one, so make it the right one.</div>
+          One code, once, and only before your first booking — so make it
+          the right one.</div>
         <div class="btnrow">
           <input id="fRefCode" placeholder="ABC123" autocapitalize="characters"
                  value="${esc(pendingRef())}"

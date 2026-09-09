@@ -16,7 +16,7 @@ function vHome() {
         <div class="small sub" style="font-weight:600">${greet()}</div>
         <div style="font-size:22px;font-weight:800;letter-spacing:-.03em;margin-top:1px">${esc((me.name || "there").split(" ")[0])}</div>
       </div>
-      <button class="avatar" data-a="tab" data-v="profile">${esc(initials(me.name))}</button>
+      <button class="avatar" data-a="tab" data-v="more">${esc(initials(me.name))}</button>
     </div>
     <label class="search mt16">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>

@@ -370,7 +370,7 @@ function vHomeLive() {
         <div class="small sub" style="font-weight:600">${greet()}</div>
         <div class="nm">${esc((me.name || "there").split(" ")[0])}</div>
       </div>
-      <button class="avatar" data-a="go" data-v="profile">${esc(initials(me.name))}</button>
+      <button class="avatar" data-a="go" data-v="more">${esc(initials(me.name))}</button>
     </div>
   </div>`;
 }

@@ -238,7 +238,48 @@ upload finishing and being abandoned.
   gradient with her name, her price and the same *Choose this* button. Not a
   grey box with a torn-picture icon. "That's if she has."
 
-### O points, on screen
+#
+## "More" replaces the Profile tab
+
+The Profile tab is gone. In its place is **More** — a list of destinations
+and nothing else, because nobody opens an app to look at their own name.
+
+| Bar | Goes to |
+|---|---|
+| Profile | your details, the screen that was always behind the avatar |
+| Leaderboard | O points, the board, your referral code |
+| Your scans | scan history — this used to be buried under "See all" |
+| (tech) Scan a client's code / Earnings / Verify identity | unchanged |
+| (customer) Nail techs near me | unchanged |
+| Dark mode · Switch account · Settings | Settings was a cog in the corner |
+
+A nail tech's tab bar is full (Requests, Diary, Scan, Earnings, Listing), so
+techs reach More by tapping their avatar on Requests, exactly as before.
+
+**Fixed on the way past:** the scan history screen crashed on any scan saved
+before nail-bed wording existed — `sc.words.toLowerCase()` on an undefined
+value. It was unreachable enough to go unnoticed; the new "Your scans" bar
+put it one tap from the tab bar, so it had to be guarded.
+
+## Referral codes are for new accounts only
+
+Two rules now, and the database enforces both — the app only hides the box,
+which is politeness, not security.
+
+1. **One code per person, ever.** Unchanged.
+2. **Only before your first completed booking.** Checked on both sides of
+   the booking, so a nail tech cannot work a whole season and then be
+   "referred" by a friend on the last day.
+
+The payout half was already right and is unchanged: the sender gets 0.3 and
+the joiner 0.1, and only when the joiner **completes her first booking** —
+not when she installs the app. Proved against a real Postgres: a second
+booking does not pay the referral again.
+
+`api_my_points()` now also returns `can_use_code`, which is what the screen
+reads. **Re-run `points.sql`** — it is safe to run twice.
+
+## O points, on screen
 
 Settings → **O points and the board**. Her score, her place, the prize
 amounts, her referral code with Share and Copy, a box to enter somebody

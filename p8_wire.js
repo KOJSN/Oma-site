@@ -28,7 +28,7 @@ function paint() {
     case "booked": html = vPay(ROUTE.a); break;
     case "bookings": html = vBookingsLive(); break;
     case "booking": html = vJob(ROUTE.a); break;
-    case "profile": html = vProfile(); break;
+    case "more": html = vMore(); break;
     case "history": html = vHistory(); break;
     case "scan": html = vScan(ROUTE.a); break;
     case "editme": html = vEditMe(); break;
