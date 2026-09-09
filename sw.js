@@ -1,4 +1,4 @@
-/* Oma service worker — build 470075cc3b
+/* Oma service worker — build 59721a57d6
    Lives at the root of omaa.com.ng, next to app.html.
 
    This is NOT the pwa/ one. That worker was written for a folder whose shell
@@ -14,7 +14,7 @@
    the next launch is current — nobody is ever more than one launch behind, and
    nobody is ever stuck. */
 
-const CACHE = "oma-470075cc3b";
+const CACHE = "oma-59721a57d6";
 const SHELL = "/app.html";
 const CORE = [SHELL, "/manifest.webmanifest",
               "/icons/icon-192.png", "/icons/icon-512.png",

@@ -1039,7 +1039,7 @@ h3{font-size:16px}
       <div class="frame">
         <div class="dash"></div><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>
         <div class="mid">
-          <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.5" stroke-linecap="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12m0-.5V4.2a1.5 1.5 0 0 1 3 0V12m0-.2V6a1.5 1.5 0 0 1 3 0v7m-9 0V9.5a1.5 1.5 0 0 0-3 0V15a7 7 0 0 0 7 7h1.5a6.5 6.5 0 0 0 6.5-6.5V13"/></svg>
+          <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="currentColor" opacity=".55" stroke-width="1.5" stroke-linecap="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12m0-.5V4.2a1.5 1.5 0 0 1 3 0V12m0-.2V6a1.5 1.5 0 0 1 3 0v7m-9 0V9.5a1.5 1.5 0 0 0-3 0V15a7 7 0 0 0 7 7h1.5a6.5 6.5 0 0 0 6.5-6.5V13"/></svg>
           <div>Lay your hand flat, palm down,<br>fingers slightly apart</div>
         </div>
         <div class="hint"><span id="capBusy" hidden></span></div>
@@ -1098,6 +1098,10 @@ h3{font-size:16px}
         cover the <b>pink part</b> of each nail — the white tip is not measured, because
         it is length you can file off, not the shape of the nail bed.</div>
       <div id="autoNote" class="hidden" style="margin-top:14px"></div>
+      <!-- Off unless somebody opens the app with ?timing=1. Nobody using Oma
+           ever sees this; it exists so a scan on a real phone on real mobile
+           data produces numbers instead of "it felt slow". -->
+      <div id="autoTiming" class="hidden"></div>
     </div>
     <div class="scanfoot hidden" id="autoFoot">
       <div class="btnrow">
@@ -1146,9 +1150,9 @@ h3{font-size:16px}
     <div class="scanbody">
       <div style="font-size:22px;font-weight:800;letter-spacing:-.035em">Two things the photo cannot see</div>
       <div class="small sub" style="margin-top:6px">They decide whether a shape is one you can wear now, or one that needs an appointment first.</div>
-      <div class="eyebrow" style="color:rgba(255,255,255,.45);margin:22px 0 10px">Your nails right now</div>
+      <div class="eyebrow" style="color:var(--sc-faint);margin:22px 0 10px">Your nails right now</div>
       <div id="qNatural"></div>
-      <div class="eyebrow" style="color:rgba(255,255,255,.45);margin:22px 0 10px">Their length</div>
+      <div class="eyebrow" style="color:var(--sc-faint);margin:22px 0 10px">Their length</div>
       <div id="qLength"></div>
     </div>
     <div class="scanfoot">
@@ -1212,7 +1216,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "470075cc3b";
+const BUILD_ID = "59721a57d6";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -1765,6 +1769,75 @@ const LM_MCP = { index: 5, middle: 9, ring: 13, pinky: 17 };
 let MPHANDS = null;          // the loaded model, kept for the next scan
 let MPDEAD = null;           // why it cannot be used, if it cannot
 
+/* ══ measuring what has never been measured ══════════
+   Every number in the table above came from eight photographs on a desktop in
+   a container. Nobody has ever run this on a phone, over Nigerian mobile data,
+   which is where all of it actually has to work — and "about 9 MB" and "about
+   three seconds" are both estimates, not observations.
+
+   So the scan times itself. This is OFF for everybody: it shows nothing unless
+   the app was opened once with ?timing=1, which sets a flag this phone keeps.
+   A real customer never sees it. */
+const MPT = { script: 0, init: 0, find: 0, nails: 0, warm: false, bytes: null };
+
+function timingOn() {
+  try {
+    const q = (location.search || "") + (location.hash || "");
+    if (q.indexOf("timing=1") !== -1) localStorage.setItem("oma-timing", "1");
+    if (q.indexOf("timing=0") !== -1) localStorage.removeItem("oma-timing");
+    return !!localStorage.getItem("oma-timing");
+  } catch (e) { return false; }   // private mode: simply off
+}
+
+/* What actually came down the wire, from the browser's own resource timing.
+   transferSize is 0 when a response came from cache — which is the answer we
+   want on the second scan, and is worth distinguishing from "not reported". */
+function mpBytes() {
+  try {
+    if (!window.performance || !performance.getEntriesByType) return null;
+    const rs = performance.getEntriesByType("resource")
+      .filter(r => String(r.name).indexOf(MP_BASE) === 0);
+    if (!rs.length) return null;
+    let transfer = 0, body = 0, reported = 0;
+    for (const r of rs) {
+      transfer += r.transferSize || 0;
+      body += r.encodedBodySize || 0;
+      if (r.encodedBodySize) reported++;
+    }
+    // jsdelivr sends Timing-Allow-Origin, but if it ever stops, every size
+    // reads 0 and a "0 MB download" would be a lie. Say so instead.
+    return { files: rs.length, transfer, body, reported };
+  } catch (e) { return null; }
+}
+
+const mb = (n) => (n / 1048576).toFixed(2) + " MB";
+const secs = (ms) => ms >= 1000 ? (ms / 1000).toFixed(1) + " s" : Math.round(ms) + " ms";
+
+function showTiming(res) {
+  const el = document.getElementById("autoTiming");
+  if (!el) return;
+  if (!timingOn()) { el.className = "hidden"; return; }
+  const b = MPT.bytes;
+  const size = !b ? "not reported by this browser"
+    : !b.reported ? `${b.files} files, sizes hidden by the CDN`
+    : b.transfer === 0 ? `${mb(b.body)}, all from cache`
+    : `${mb(b.transfer)} over the wire (${mb(b.body)} unpacked, ${b.files} files)`;
+  const rows = [
+    ["Model", MPT.warm ? "already loaded, nothing downloaded" : size],
+    ["Download + start", MPT.warm ? "—" : secs(MPT.script + MPT.init)],
+    ["Finding the hand", MPT.find ? secs(MPT.find) : "—"],
+    ["Reading 4 nails", MPT.nails ? secs(MPT.nails) : "—"],
+    ["Result", res.ok ? `read ${res.read} of 4` : "failed: " + (res.why || "?")],
+  ];
+  el.className = "note";
+  el.style.marginTop = "14px";
+  el.innerHTML = `<div style="width:100%"><div class="tiny"
+      style="font-weight:700;margin-bottom:6px">Timing (only you see this)</div>`
+    + rows.map(r => `<div class="rowbetween tiny" style="padding:2px 0">
+         <span class="faint">${r[0]}</span><span>${esc(String(r[1]))}</span></div>`).join("")
+    + `</div>`;
+}
+
 function mpScript(src) {
   return new Promise((res, rej) => {
     const s = document.createElement("script");
@@ -1785,11 +1858,14 @@ function withTimeout(p, ms, msg) {
 }
 
 async function loadHandModel() {
-  if (MPHANDS) return MPHANDS;
+  if (MPHANDS) { MPT.warm = true; return MPHANDS; }
+  MPT.warm = false;
   if (MPDEAD) throw new Error(MPDEAD);
+  const t0 = performance.now();
   if (!window.Hands) {
     await withTimeout(mpScript(MP_BASE + "hands.js"), 40000, "the download stalled");
   }
+  MPT.script = performance.now() - t0;
   if (!window.Hands) throw new Error("the hand model did not start");
   const h = new window.Hands({ locateFile: f => MP_BASE + f });
   h.setOptions({
@@ -1803,7 +1879,12 @@ async function loadHandModel() {
   // connection it is the 9 MB arriving, and it CAN simply never finish. Without
   // a bound on it somebody sits on this screen forever, which is a worse
   // failure than being asked to tap. Two minutes, then hand over to tapping.
+  const t1 = performance.now();
   await withTimeout(h.initialize(), 120000, "the download stalled");
+  MPT.init = performance.now() - t1;
+  // Read after initialize(), because that is when the .wasm and the model
+  // weights actually arrive — hands.js on its own is a small fraction of it.
+  MPT.bytes = mpBytes();
   MPHANDS = h;
   return h;
 }
@@ -1887,11 +1968,14 @@ async function autoRead(say) {
   say("Finding your hand");
   await breathe();
   let pts = null;
+  const tFind = performance.now();
   try {
     pts = await findHand(S.src);
   } catch (e) {
+    MPT.find = performance.now() - tFind;
     return { ok: false, read: 0, why: "model", detail: e.message };
   }
+  MPT.find = performance.now() - tFind;
   if (!pts) return { ok: false, read: 0, why: "nohand" };
 
   // Finger length and palm width, straight off the skeleton. This is what the
@@ -1905,6 +1989,7 @@ async function autoRead(say) {
 
   S.boxes = {};
   let read = 0;
+  const tNails = performance.now();
   // Two passes, and the second almost never runs. The first insists on a
   // nail-sized region; if that leaves the WHOLE hand with nothing, the second
   // takes what it can get, because no reading at all is worse than a rough one.
@@ -1937,6 +2022,7 @@ async function autoRead(say) {
     drawAuto();
   }
   }
+  MPT.nails = performance.now() - tNails;
   return { ok: read > 0, read: read, why: read ? null : "noread" };
 }
 
@@ -1968,6 +2054,8 @@ async function runAuto() {
   document.getElementById("autoNote").className = "hidden";
   document.getElementById("autoFoot").className = "hidden";
   document.getElementById("autoWork").className = "";
+  document.getElementById("autoTiming").className = "hidden";
+  MPT.find = 0; MPT.nails = 0;
   autoBar(0.05);
   drawAuto();
 
@@ -1989,10 +2077,16 @@ async function runAuto() {
   autoBar(1);
   document.getElementById("autoWork").className = "hidden";
 
+  showTiming(res);
+
   if (res.ok) {
     autoSay(res.read === 4 ? "All four nails read"
                            : `Read ${res.read} of 4 — the rest were not clear enough`);
     document.getElementById("autoFoot").className = "";
+    // Moving on by itself is the point of the whole change — except while
+    // timing, where being carried off the screen before the numbers can be
+    // read defeats the reason for measuring.
+    if (timingOn()) return;
     // It moves on by itself. That is the whole point of the change: nobody has
     // to press anything to get past this screen. The pause is long enough to
     // see the outlines land and reach for Check them if they look wrong.
@@ -2392,7 +2486,6 @@ function recommend(F, natural, short) {
   }
   return out;
 }
-
 
 /* ══ the guide sheet ═════════════════════════════════
    One printed page removes the two unknowns that broke every real photo we
@@ -3357,7 +3450,7 @@ const API = (() => {
      project, not the person, and every function it can reach checks who is
      calling before it answers. The service_role key is the opposite of that
      and build.py refuses to build if it sees one. */
-  const BUILT_IN = { url: "", anon: "" };
+  const BUILT_IN = { url: "https://ucytdvycfkrbpaknoiuc.supabase.co", anon: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjeXRkdnljZmtyYnBha25vaXVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5ODE5NDEsImV4cCI6MjEwMzU1Nzk0MX0.HgYvYVuOHtEQAlJMZCeHMTWFUMzr7TakVpx-c91cNxA" };
   // Both tests fail on the un-substituted placeholders, so a build without the
   // details still produces a working practice app rather than a broken live one.
   const hasBuiltIn = () =>
@@ -4886,6 +4979,10 @@ function dbLoad() {
   }
   d.scans = d.scans || []; d.techs = d.techs || [];
   d.bookings = d.bookings || []; d.jobs = d.jobs || [];
+  // A customer's pinned coordinates, from before distance was asked live.
+  // Dropped rather than migrated: a stale pin is exactly the thing that made
+  // "2 km away" wrong for anybody who had moved since tapping GPS.
+  if (d.me && d.me.ll) delete d.me.ll;
   return d;
 }
 function dbSave() {
@@ -4924,7 +5021,11 @@ function bearing(a, b) {
     Math.sin(a[0] * r) * Math.cos(b[0] * r) * Math.cos((b[1] - a[1]) * r);
   return Math.atan2(y, x);
 }
-function myPos() { return (DB.me && DB.me.ll) || (DB.biz && DB.biz.ll) || null; }
+/* A TECH has a pin, because a salon is a place. A customer does not: she
+   moves, so her distance is asked of the phone each time it is needed rather
+   than remembered from whenever she last tapped GPS. DB.me.ll is no longer
+   read anywhere, and dbLoad drops it. */
+function myPos() { return (DB.biz && DB.biz.ll) || null; }
 function locate(cb) {
   if (!navigator.geolocation) { cb(null); return; }
   toast("Asking your browser for your location…");
@@ -4948,21 +5049,18 @@ function sortedTechs() {
   });
 }
 
-/* ══ phone numbers ═══════════════════════════════════
-   People write their number the way they say it — 0803… — and share it the
-   way it dials — 234803…. wa.me wants the second.                        */
-function waNumber(raw, dial) {
-  let n = String(raw || "").replace(/[^\d+]/g, "").replace(/^\+/, "");
-  const d = String(dial || DB.dial || "234");
-  if (n.startsWith(d)) return n;
-  if (n.startsWith("0")) return d + n.slice(1);
-  return n.length <= 10 ? d + n : n;
-}
-/* waOpen lived here. It opened wa.me with a pre-written message, which was
-   how a tech heard about a booking before Oma had a server. Removed on
-   29 Aug 2026: nothing leaves the app, and a conversation Oma cannot see is
-   a booking that can arrive nowhere. waNumber stays — it still formats a
-   number for display. */
+/* ══ phone numbers are gone ══════════════════════════
+   waOpen went on 29 Aug 2026: it opened wa.me with a pre-written message,
+   which was how a tech heard about a booking before Oma had a server, and a
+   conversation Oma cannot see is a booking that can arrive nowhere.
+
+   waNumber followed it on 3 Sep, along with the phone number itself. Signing
+   in is by email now — an SMS needs a Termii sender ID, which needs CAC, so
+   for as long as that was pending NOBODY could sign in at all. The contact
+   route phone numbers used to provide is the in-app conversation.
+
+   app_user.phone stays in the database, unused. Dropping a column is
+   destructive and buys nothing.                                          */
 
 /* ══ tech links, the only way a listing travels ══════
    No server, no directory. A tech's whole listing is packed into the link
@@ -4971,7 +5069,7 @@ function waNumber(raw, dial) {
    have.                                                                   */
 function techPayload(b) {
   return {
-    n: b.name, a: b.area, ad: b.address, p: b.phone, d: b.dial || DB.dial,
+    n: b.name, a: b.area, ad: b.address,
     y: b.years, c: b.cur || DB.cur, ll: b.ll,
     o: b.opens, cl: b.closes,
     s: (b.services || []).map(s => ({ n: s.n, m: s.m, p: s.p, sh: s.sh || [] }))
@@ -5053,6 +5151,7 @@ const I = {
   share: () => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8 15.8 6.7M8.2 13.2l7.6 4.1"/></svg>`,
   cog: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H2.9a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.2Z"/></svg>`,
   moon: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>`,
+  bell: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 7-3 9h18c0-2-3-2-3-9M10.3 21a2 2 0 0 0 3.4 0"/></svg>`,
   find: () => `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>`,
   x: () => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>`,
   tick: (w) => `<svg viewBox="0 0 24 24" width="${w || 15}" height="${w || 15}" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg>`,
@@ -5107,10 +5206,25 @@ function head(title, sub, right) {
     </div>
   </div>`;
 }
+/* Prices are typed by hand, so "5000", "5,000" and "₦5,000" all arrive in
+   the same field. A bare `+s.p` turns the last two into NaN, and the
+   `NaN || Infinity` that followed is what put **From ₦∞** on a listing
+   whose price was perfectly good. Every place that reads a price goes
+   through here now, so there is one parser and not four.
+   Kamsy, 9 Sep 2026, with a screenshot of ₦∞. */
+function priceNum(v) {
+  const n = Number(String(v == null ? "" : v).replace(/[^\d.]/g, ""));
+  return isFinite(n) && n > 0 ? n : null;
+}
+/* The lowest real price in a menu, or null when nothing has one — never
+   Infinity, because Infinity is a number and gets printed like one. */
+function fromPrice(list) {
+  const p = (list || []).map(s => priceNum(s.p)).filter(n => n !== null);
+  return p.length ? Math.min(...p) : null;
+}
 function techRow(t, big) {
   const d = distText(t);
-  const from = (t.s || []).length
-    ? Math.min(...t.s.map(s => +s.p || Infinity)) : null;
+  const from = fromPrice(t.s);
   const bits = [t.a, d, from && isFinite(from) ? "from " + (t.c || "₦") + Number(from).toLocaleString("en") : null]
     .filter(Boolean).join(" · ");
   return `<button class="card tap" data-a="tech" data-id="${esc(t.id)}"
@@ -5150,28 +5264,31 @@ function bottomNav() {
 
 /* ══ 01 welcome ══════════════════════════════════════ */
 function vWelcome() {
-  // The mark is a pink tile. On the pink ground this screen used to have, it
-  // disappeared into its own background — so the ground goes dark and the
-  // brand colour is spent on the mark and the button instead.
-  return `<div style="min-height:100dvh;background:#120e17;
-      color:#fff;display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
-    <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(240,81,141,.55),transparent 68%)"></div>
-    <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,143,186,.28),transparent 70%)"></div>
+  // The mark is a pink tile, so the ground cannot also be pink or it vanishes
+  // into its own background. It used to be a hard-coded dark ground with white
+  // ink, which meant somebody whose phone is in light mode met a black screen
+  // as the very first thing Oma showed them. Every colour here is a token now
+  // — see --wel-* in p1_head.html — so this screen follows the phone like the
+  // rest of the app.
+  return `<div style="min-height:100dvh;background:var(--wel-bg);
+      color:var(--wel-ink);display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
+    <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow1),transparent 68%)"></div>
+    <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow2),transparent 70%)"></div>
     <div style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-top:calc(60px + env(safe-area-inset-top))">
       <div style="margin-bottom:auto">${logoMark(78)}</div>
       <div style="font-size:56px;font-weight:800;letter-spacing:-.05em;line-height:.9;margin-top:36px">oma</div>
-      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;opacity:.72;max-width:300px">
+      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;color:var(--wel-sub);max-width:300px">
         Scan your hands, find the nail shape that actually suits them, and book the tech who does it.
       </div>
       <div class="dots" style="margin:26px 0 22px;max-width:60px">
-        <i style="background:#fff;flex:none;width:22px"></i>
-        <i style="background:rgba(255,255,255,.45);flex:none;width:5px"></i>
-        <i style="background:rgba(255,255,255,.45);flex:none;width:5px"></i>
+        <i style="background:var(--wel-dot);flex:none;width:22px"></i>
+        <i style="background:var(--wel-dot-off);flex:none;width:5px"></i>
+        <i style="background:var(--wel-dot-off);flex:none;width:5px"></i>
       </div>
       <button class="btn" style="background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#e0447f);color:#fff"
         data-a="go" data-v="role">Get started ${I.arrow()}</button>
-      <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;opacity:.7;line-height:1.5">
-        No account, no sign-in. Everything stays on this phone.
+      <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;color:var(--wel-sub);line-height:1.5">
+        Your photos are measured on this phone and never leave it.
       </div>
     </div>
   </div>`;
@@ -5226,18 +5343,15 @@ function vSignup() {
     <label class="field"><span class="lab">Your name</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
         <input id="fName" value="${esc(m.name || "")}" placeholder="What should techs call you?"></span></label>
-    <label class="field"><span class="lab">Phone number</span>
-      <span class="inp"><span class="pre">+<input id="fDial" value="${esc(DB.dial)}" inputmode="numeric" style="width:3ch;font-weight:600"></span>
-        <span class="bar"></span>
-        <input id="fPhone" value="${esc(m.phone || "")}" inputmode="tel" placeholder="803 000 0000"></span></label>
     <label class="field"><span class="lab">Your area</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-        <input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos">
-        <span class="act" data-a="gps" data-t="me">${myPos() ? "Pinned" : "GPS"}</span></span></label>
+        <input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
     <div class="note pink">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>
-      <div>Your area only sorts nail techs by distance. Nothing reaches a tech until you send
-        them a booking yourself.</div>
+      <div>This is just a label for your bookings. <b>Distance comes from your
+        phone, fresh, each time you search</b> — so it is right wherever you
+        happen to be, not wherever you were when you filled this in. Nothing
+        reaches a tech until you send them a booking yourself.</div>
     </div>
     <div style="margin-top:auto;padding-top:24px">
       <button class="btn" data-a="saveMe">Save and continue ${I.arrow()}</button>
@@ -5247,8 +5361,22 @@ function vSignup() {
 
 /* ══ 04 the tech's listing ═══════════════════════════ */
 const SERVICE_SHAPES = ["oval", "round", "square", "squoval", "almond", "coffin", "stiletto"];
+
+/* The state is what the whole-state map is drawn from — "show me everyone in
+   Lagos", not only everyone within 15 km. All 36 and the FCT, because Oma is
+   not only a Lagos app and a list that stops at six states tells a tech in
+   Enugu she is not wanted. */
+const NG_STATES = ["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa",
+  "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu",
+  "FCT — Abuja", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi",
+  "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo",
+  "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"];
 function vSetup(edit) {
   const b = DB.biz || { services: [] };
+  // Default true: a listing made before this question existed described a
+  // shop, and quietly turning those techs into travelling ones would take
+  // every one of them off the map until she found this screen again.
+  const shop = b.hasSalon !== false;
   return `<div class="pad" style="min-height:100dvh;display:flex;flex-direction:column;
       padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(30px + env(safe-area-inset-bottom))">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
@@ -5256,43 +5384,87 @@ function vSetup(edit) {
       <div style="font-size:15px;font-weight:700">${edit ? "Edit your listing" : "Set up your listing"}</div>
     </div>
     ${edit ? "" : `<h2 style="font-size:24px;line-height:1.2;margin-bottom:18px">Tell customers where to find you</h2>`}
+
+    <!-- Asked FIRST, because the answer changes the rest of the form. A salon
+         is a place with an address; a tech who travels is not a place at all,
+         and giving her an address box to fill in is what produces a pin that
+         is wrong by Tuesday. -->
+    <div class="lbl" style="margin-bottom:7px">Do you have a salon?</div>
+    <div class="pick">
+      <button type="button" class="${shop ? "on" : ""}" data-a="has-salon" data-v="1">
+        <b>Yes, a shop</b><em>Customers come to one address. Oma shows it, and
+          it stays put.</em></button>
+      <button type="button" class="${shop ? "" : "on"}" data-a="has-salon" data-v="0">
+        <b>No, I travel</b><em>Oma shows where you are while you are working,
+          and takes you off the map when you stop.</em></button>
+    </div>
+    ${shop ? "" : `<div class="note pink" style="margin-bottom:14px">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
+      <div><b>You will not be found unless your phone is telling Oma where you
+        are.</b> There is a switch for it below — turn it on when you start
+        work and off when you finish. Oma keeps where you are now, and no
+        record of where you have been.</div></div>`}
+
     <label class="field"><span class="lab">Business name</span>
       <span class="inp">${I.shop()}<input id="bName" value="${esc(b.name || "")}" placeholder="Thandi Nails Studio"></span></label>
-    <label class="field"><span class="lab">Street &amp; shop number</span>
+    ${shop ? `<label class="field"><span class="lab">Street &amp; shop number</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>
-    <label class="field"><span class="lab">Area</span>
-      <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
-        <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span></span></label>
+        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>` : ""}
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1"><span class="lab">WhatsApp number</span>
-        <span class="inp"><span class="pre">+<input id="bDial" value="${esc(b.dial || DB.dial)}" inputmode="numeric" style="width:3ch;font-weight:600"></span>
-          <span class="bar"></span><input id="bPhone" value="${esc(b.phone || "")}" inputmode="tel" placeholder="803 000 0000"></span></label>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Area</span>
+        <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
+          <!-- Only a shop gets a pin. A tech who travels has no fixed point to
+               pin, and a button offering her one would be a promise Oma
+               cannot keep. -->
+          ${shop ? `<span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>` : ""}
+        </span></label>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
+        <span class="inp"><select id="bState">
+          <option value="">Choose…</option>
+          ${NG_STATES.map(x => `<option ${(b.state || "") === x ? "selected" : ""}>${x}</option>`).join("")}
+        </select></span></label>
     </div>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1"><span class="lab">Currency</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Currency</span>
         <span class="inp"><select id="bCur">${["₦", "R", "$", "£", "€", "GH₵", "KSh"].map(c =>
           `<option ${(b.cur || DB.cur) === c ? "selected" : ""}>${c}</option>`).join("")}</select></span></label>
-      <label class="field" style="flex:1"><span class="lab">Years doing nails</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Years doing nails</span>
         <span class="inp"><input id="bYears" value="${esc(b.years || "")}" inputmode="numeric" placeholder="6"></span></label>
     </div>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1"><span class="lab">Opens</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Opens</span>
         <span class="inp"><input id="bOpen" type="time" value="${esc(b.opens || "09:00")}"></span></label>
-      <label class="field" style="flex:1"><span class="lab">Closes</span>
+      <label class="field" style="flex:1;min-width:0"><span class="lab">Closes</span>
         <span class="inp"><input id="bClose" type="time" value="${esc(b.closes || "18:00")}"></span></label>
     </div>
+
+    ${shop ? "" : `<div class="lbl" style="margin:4px 0 7px">Working right now</div>
+      ${workingCard()}<div style="height:14px"></div>`}
+
+    <!-- She comes to you. Under the menu on purpose: it is about the menu —
+         whether she travels, what the trip costs, and how far she will go. -->
+    ${homeSettings(b)}
 
     <div class="rowbetween" style="margin:6px 0 10px">
       <div style="font-size:14.5px;font-weight:800;letter-spacing:-.02em">Your service menu</div>
       <button class="tag" data-a="addSvc">+ Add service</button>
     </div>
+    ${(b.services || []).some(s => s.id) ? ownWorkBox() : ""}
     <div class="stack gap10" id="svcList">${svcEditor(b.services || [], b.cur || DB.cur)}</div>
 
     <div class="note mt16">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8.2v.1"/></svg>
-      <div>Everything here travels inside the link you share. There is no Oma directory to be
-        listed in — a customer sees you because you sent them the link.</div>
+      <!-- The TERMS, in a sentence. Not a running total beside every price box:
+           setting a price is when a tech decides what she is worth, and a
+           deduction counting itself out while she does that is the wrong
+           screen for it. The arithmetic appears on her earnings screen once
+           an appointment is actually paid. -->
+      <div><b>Oma charges ₦250 for each completed service</b>, plus 2% of anything
+        a service costs above ₦30,000. It comes off when you scan the client's
+        code — if an appointment is refunded because you never scanned, you are
+        charged nothing. The card fee is Paystack's, not ours.
+        <b>You will see exactly what came off, on every appointment, in
+        Earnings.</b></div>
     </div>
     <div style="margin-top:auto;padding-top:22px">
       <button class="btn" data-a="saveBiz">${edit ? "Save changes" : "Publish my listing"} ${I.arrow()}</button>
@@ -5305,17 +5477,34 @@ function svcEditor(list, cur) {
       when they book.</div>`;
   return list.map((s, i) => `<div class="card">
     <div style="display:flex;gap:10px;align-items:center">
-      <span class="inp" style="flex:1;min-height:46px"><input data-s="n" data-i="${i}" value="${esc(s.n || "")}" placeholder="Gel overlay"></span>
+      <span class="inp" style="flex:1;min-width:0;min-height:46px"><input data-s="n" data-i="${i}" value="${esc(s.n || "")}" placeholder="Gel overlay"></span>
       <button class="iconbtn" data-a="delSvc" data-i="${i}" aria-label="Remove">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></button>
     </div>
-    <div style="display:flex;gap:10px;margin-top:9px">
-      <span class="inp" style="flex:1;min-height:46px"><span class="pre">${esc(cur)}</span>
-        <input data-s="p" data-i="${i}" value="${esc(s.p || "")}" inputmode="numeric" placeholder="3500"></span>
-      <span class="inp" style="flex:1;min-height:46px">
-        <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
-        <span class="tiny faint">min</span></span>
+    <div style="display:flex;gap:10px;margin-top:9px;align-items:flex-end">
+      <!-- min-width:0 is what stops these two boxes running off the edge. A
+           flex child will not shrink below the intrinsic width of the input
+           inside it unless it is told it may, and on a 320px phone the second
+           box — and the "min" after it — was simply clipped away. -->
+      <label class="field" style="flex:1;min-width:0;margin:0"><span class="lab">Price</span>
+        <span class="inp" style="min-height:46px"><span class="pre">${esc(cur)}</span>
+          <input data-s="p" data-i="${i}" value="${esc(s.p || "")}" inputmode="numeric" placeholder="3500"></span></label>
+      <!-- This box was just a number and a "min" that fell off the edge of a
+           narrow screen. Nobody should have to guess whether it means minutes
+           or a minimum price. -->
+      <label class="field" style="flex:1;min-width:0;margin:0"><span class="lab">How long</span>
+        <span class="inp" style="min-height:46px">
+          <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
+          <span class="tiny faint">min</span></span></label>
     </div>
+    <!-- Only when she travels: a price for this service at somebody's house.
+         Blank means the same as above, which is both the default and the
+         plainest way to say it. -->
+    ${(DB.biz && DB.biz.homeService) ? svcHomeRow(s, i, cur) : ""}
+    <!-- "That's if she has" — a service with no photographs shows an
+         invitation, never an apology or a row of grey boxes. -->
+    ${svcPhotoRow(s, i)}
+
     <div class="pills mt12">${SERVICE_SHAPES.map(sh =>
       `<button class="pill ${(s.sh || []).includes(sh) ? "on" : ""}" data-a="svcShape" data-i="${i}" data-sh="${sh}"
         style="text-transform:capitalize">${sh}</button>`).join("")}</div>
@@ -6303,38 +6492,60 @@ function afterPaint() {
 const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
 
 /* ── 20 sign in ───────────────────────────────────────── */
-let SIGNIN = { phone: "", sent: false };
+/* mode: null until she picks a door, then "up" (new account) or "in".
+
+   Under the surface these are the SAME thing — an email, a six-digit code, and
+   Supabase makes the account if there is not one. One button would work, and
+   it is what was built first.
+
+   It is still wrong. Somebody arriving at a screen that says only "Sign in"
+   with no account does not think "I expect this will register me"; she thinks
+   she is in the wrong place and leaves. Two doors cost one tap and remove that
+   doubt. Nothing here pretends the mechanism differs — the words change, the
+   code path does not. */
+let SIGNIN = { email: "", sent: false, mode: null };
 
 function vSignIn() {
   const s = SIGNIN;
+  const up = s.mode === "up";
+  const title = !s.mode ? "Your account" : up ? "Create an account" : "Sign in";
   return `
-  ${head("Sign in", "So your bookings follow you, not this phone")}
+  ${head(title, "So your bookings follow you, not this phone")}
   <div class="pad stack gap12">
     ${API.isMock() ? `<div class="note">
       <div>No backend is configured, so this is the practice version. Any
       six-digit code will let you in and no message is sent.</div></div>` : ""}
 
-    ${!s.sent ? `
+    ${!s.mode ? `
+      <button class="btn" data-a="signin-mode" data-v="up">Create an account</button>
+      <button class="btn ghost" data-a="signin-mode" data-v="in">I already have one</button>
+      <div class="tiny sub" style="text-align:center;line-height:1.55;margin-top:4px">
+        Either way it is your email and a six-digit code — no password to
+        forget, and nothing else to fill in.</div>
+    ` : !s.sent ? `
       <label class="fld">
-        <span class="lbl">Phone number</span>
-        <input id="fSignPhone" type="tel" inputmode="tel" autocomplete="tel"
-               placeholder="0801 234 5678" value="${esc(s.phone)}">
+        <span class="lbl">Email address</span>
+        <input id="fSignEmail" type="email" inputmode="email" autocomplete="email"
+               autocapitalize="none" spellcheck="false"
+               placeholder="you@example.com" value="${esc(s.email)}">
       </label>
-      <button class="btn" data-a="otp-send">Send me a code</button>
-      <div class="or"><span>or</span></div>
-      <button class="btn ghost" data-a="google">Continue with Google</button>
+      <button class="btn" data-a="otp-send">${
+        up ? "Create my account" : "Send me a code"}</button>
+      <button class="btn ghost sm" data-a="signin-mode" data-v="${up ? "in" : "up"}">${
+        up ? "I already have an account" : "I need to create one"}</button>
       <div class="tiny sub" style="text-align:center">
         We only ever use this to know it is you.</div>
     ` : `
       <div class="note"><div>We sent a six-digit code to
-        <b>${esc(s.phone)}</b>.</div></div>
+        <b>${esc(s.email)}</b>. It can take a minute, and it may land in spam.</div></div>
       <label class="fld">
         <span class="lbl">The code</span>
         <input id="fOtp" type="text" inputmode="numeric" autocomplete="one-time-code"
                maxlength="6" placeholder="000000" style="letter-spacing:.4em;font-size:22px">
       </label>
-      <button class="btn" data-a="otp-check">Sign in</button>
-      <button class="btn ghost sm" data-a="otp-again">Use a different number</button>
+      <button class="btn" data-a="otp-check">${
+        up ? "Create my account" : "Sign in"}</button>
+      <button class="btn ghost sm" data-a="otp-again">Use a different email</button>
     `}
   </div>`;
 }
@@ -6386,29 +6597,58 @@ function vNearby() {
 }
 
 /* ── 22 one tech, and her services ────────────────────── */
-let PICKED = { techId: null, name: "", ids: [], at: null };
+let PICKED = { techId: null, name: "", ids: [], at: null, terms: null };
 
 function vTechLive(id) {
   load(async () => {
-    const list = await API.services(id);
-    PICKED = { techId: id, name: PICKED.name, ids: [], at: null };
+    // The reviews are asked for beside the services rather than after them:
+    // this is the screen where somebody decides whether to book, so the score
+    // should arrive with the prices, not a beat later.
+    const [list, revs, rate, terms] = await Promise.all([
+      API.services(id),
+      API.techReviews(id, 8).catch(() => []),
+      API.ratings([id]).catch(() => []),
+      // Whether she travels. Asked here so the next screen can offer "she
+      // comes to me" only when it is a real option.
+      API.homeTerms(id).catch(() => null),
+    ]);
+    const r = (rate || []).find((x) => x.tech_id === id);
+    PICKED = { techId: id, name: PICKED.name, ids: [], at: null, terms };
+    resetHome();
     fillHost(`
       <div class="pad stack gap12">
-        <div class="tiny sub">Choose what you want done.</div>
+        <div class="rowbetween">
+          <div class="tiny sub">Choose what you want done.</div>
+          <div>${ratingLine(r)}</div>
+        </div>
+        <!-- The photograph IS the card. Filled in after the paint, because
+             the pictures come from a second call — until they arrive the card
+             is the Oma gradient, which is what a service with no photographs
+             stays as. Same shape either way: mixing tall photo cards with
+             small text rows down one page reads as neither. -->
         ${list.map((s) => `
-          <label class="card row" style="cursor:pointer">
+          <label class="svccard" data-svc="${esc(s.id)}">
             <input type="checkbox" class="svc" value="${esc(s.id)}"
                    data-mins="${s.minutes}" data-kobo="${s.price_kobo}">
-            <div style="flex:1;min-width:0;text-align:left">
-              <div class="ttl">${esc(s.name)}</div>
-              <div class="tiny sub">${mins(s.minutes)}</div>
+            <div data-shotslot="${esc(s.id)}"></div>
+            <div class="svcfoot">
+              <div class="top">
+                <h3>${esc(s.name)}</h3>
+                <span class="pricepill">${kobo(s.price_kobo)}</span>
+              </div>
+              <div class="sub">${mins(s.minutes)}</div>
+              ${(s.shapes || []).length ? `<div class="svcchips">${
+                (s.shapes || []).slice(0, 4).map((x) => `<i>${esc(x)}</i>`).join("")
+              }</div>` : ""}
+              <span class="pickbtn">Choose this</span>
             </div>
-            <div style="font-weight:700">${kobo(s.price_kobo)}</div>
           </label>`).join("")}
         <div id="svcTotal" class="tiny sub" style="text-align:right"></div>
         <button class="btn" data-a="pick-time" disabled id="toTime">Choose a time</button>
+        ${reviewsBlock(revs, r)}
       </div>`);
     wireServicePicker();
+    fillTechPhotos(id);
   });
   return head(PICKED.name || "Services", "Prices are hers, not ours") + host();
 }
@@ -6440,6 +6680,7 @@ function vTimeLive() {
   return `
   ${head("Pick a time", PICKED.name)}
   <div class="pad">
+    ${homeBlock(PICKED.terms)}
     <div class="chips" id="dayChips">
       ${days.map((d, i) => `<button class="chip${i === 0 ? " on" : ""}" data-a="mday"
          data-ts="${d.getTime()}">${dayLabel(d.getTime())}</button>`).join("")}
@@ -6677,8 +6918,10 @@ function vWallet() {
         <button class="btn" data-a="payout" ${w.available <= 0 ? "disabled" : ""}>
           Withdraw ${kobo(w.available)}</button>
 
+        <div id="paidList"></div>
+
         ${!w.recent.length ? "" : `
-          <div class="tiny sub mt16">Recent</div>
+          <div class="tiny sub mt16">Every movement</div>
           <div class="menu">
             ${w.recent.slice(0, 12).map((l) => `
               <div style="display:flex;gap:10px;align-items:center;padding:12px 14px">
@@ -6688,6 +6931,9 @@ function vWallet() {
               </div>`).join("")}
           </div>`}
       </div>`);
+    // The bill for each completed appointment, filled in after the balances so
+    // the numbers she came for are on screen first.
+    drawEarnings();
   });
   return head("Earnings", "Held, and yours") + host();
 }
@@ -6699,6 +6945,9 @@ const LEDGER_WORDS = {
   payout: "Withdrawn",
   refund: "Refunded to client",
   auto_refund_no_scan: "Auto-refunded — never scanned",
+  // Named, not hidden. A deduction a tech cannot point at is a deduction she
+  // assumes is bigger than it is.
+  oma_fee: "Oma's fee",
 };
 const ledgerWords = (k) => LEDGER_WORDS[k] || k.replace(/_/g, " ");
 
@@ -6885,11 +7134,15 @@ function vBookingsLive() {
     const up = upcoming(all), old = earlier(all);
     fillHost(`
       <div class="pad stack gap12">
+        <div id="rateNudge"></div>
         ${up.length ? `<div class="lbl">Coming up</div>${up.map(bookingRow).join("")}`
                     : emptyCard("Nothing booked yet",
                         "Find a tech under Salons and pick a time.")}
         ${old.length ? `<div class="lbl mt16">Earlier</div>${old.map(bookingRow).join("")}` : ""}
       </div>`);
+    // Filled in afterwards and quietly: an appointment waiting to be rated is
+    // worth offering, and never worth delaying the list she came to see.
+    reviewNudge();
   });
   return head("Bookings", "Everything you have booked") + host();
 }
@@ -6998,6 +7251,11 @@ function vJob(bookingId) {
           <div class="kv"><span class="k">Status</span><span class="v">${esc(words)}</span></div>
         </div></div>
 
+        <!-- Where she is going, on a home appointment. Filled after the paint
+             because the server decides how much of it either of them may see:
+             the area now, the street once the money is in escrow. -->
+        <div id="whereSlot"></div>
+
         ${["cancelled", "expired", "refunded"].includes(b.status) ? "" : `
           <button class="btn ghost" data-a="go" data-v="chat" data-id="${esc(b.id)}"
                   style="display:flex;align-items:center;justify-content:center;gap:9px">
@@ -7017,6 +7275,7 @@ function vJob(bookingId) {
           ? `<button class="btn ghost sm" data-a="cancel" data-id="${esc(b.id)}">
                Cancel this appointment</button>` : ""}
       </div>`);
+    fillWhere(bookingId);
   });
   return head("Appointment", "") + host();
 }
@@ -7040,6 +7299,21 @@ let HOMEPOS = null;  // where we centred, and whether we had to guess it
 let PICKID = null;   // the tech whose card is open, or null
 let MAPRO = null;    // watches the map's box, see drawMap
 
+/* ── near me, or the whole state ───────────────────────
+   Kamsy, 8 Sep 2026: "Oma should show all the techs in a state on the map,
+   not only nearby techs — it can still be a feature though."
+
+   So both, and she says which. NEAR ME is the default because it is the
+   question somebody standing in Lekki is actually asking; the state is for
+   the other one — is there anybody in Enugu at all — which is the question a
+   new city gets judged on, and an empty map is a bad answer to it when there
+   are eleven techs forty kilometres away.
+
+   The state list is only the states that HAVE somebody. A picker offering all
+   thirty-seven when thirty-five are empty teaches people the app is empty. */
+let MSCOPE = { all: false, state: null };
+let MSTATES = [];       // [{ state, techs }] — filled once per map screen
+
 /* paint() replaces the whole view. Leaflet keeps listeners on window and a
    running animation frame, so an instance left behind after its container is
    gone leaks and, worse, fights the next one for the same div. Every
@@ -7047,6 +7321,8 @@ let MAPRO = null;    // watches the map's box, see drawMap
 function stopMap() {
   if (MAPRO) { try { MAPRO.disconnect(); } catch (e) { /* gone */ } MAPRO = null; }
   if (MAP) { try { MAP.remove(); } catch (e) { /* already torn down */ } }
+  // MSCOPE deliberately survives: she chose it, and coming back to the map
+  // after looking at one tech should not silently put her back on "near me".
   MAP = null; PINS = []; NEAR = []; NEXTUP = null; HOMEPOS = null; PICKID = null;
 }
 
@@ -7076,7 +7352,16 @@ function vHomeLive() {
       API.signedIn() ? API.bookings(false).catch(() => []) : Promise.resolve([]),
     ]);
     HOMEPOS = pos;
-    NEAR = (await API.nearby(pos.lat, pos.lng, 15).catch(() => []))
+    // Which states have anybody. Asked every time the map opens, because a
+    // stale list is how a tech who joined this morning stays invisible.
+    MSTATES = await API.states().catch(() => []);
+    MSTATES = MSTATES.filter((r) => r.state && r.state !== "(not said)");
+    if (!MSCOPE.state) MSCOPE.state = (DB.me && DB.me.state) || (MSTATES[0] || {}).state || null;
+    if (MSCOPE.all && !MSCOPE.state) MSCOPE.all = false;
+
+    NEAR = (MSCOPE.all
+      ? await API.stateTechs(MSCOPE.state, pos.lat, pos.lng).catch(() => [])
+      : await API.nearby(pos.lat, pos.lng, 15).catch(() => []))
       .filter((t) => Number.isFinite(+t.lat) && Number.isFinite(+t.lng));
     NEXTUP = upcoming(mine).filter((b) => b.status !== "cancelled")[0] || null;
 
@@ -7085,6 +7370,7 @@ function vHomeLive() {
 
     fillHost(`
       <div id="map"></div>
+      ${scopeBar()}
       <div class="mapbtns">
         <button class="mapbtn" data-a="map-me" aria-label="Centre the map on me">${I.pin()}</button>
         <button class="mapbtn pink" data-a="startscan" aria-label="Scan your hands">${I.scan()}</button>
@@ -7120,6 +7406,23 @@ function vHomeLive() {
       </div>
       <button class="avatar" data-a="go" data-v="profile">${esc(initials(me.name))}</button>
     </div>
+  </div>`;
+}
+
+/* The two questions the map can answer, as two taps. The state is a native
+   <select> rather than a home-made sheet: it is one line of markup, it is
+   reachable with a screen reader, and on a phone it opens the wheel everybody
+   already knows how to use. */
+function scopeBar() {
+  if (!MSTATES.length) return "";          // nothing listed anywhere yet
+  const opts = MSTATES.map((r) =>
+    `<option value="${esc(r.state)}" ${r.state === MSCOPE.state ? "selected" : ""}
+      >${esc(r.state)} · ${r.techs}</option>`).join("");
+  return `<div class="scope" role="group" aria-label="What the map shows">
+    <button type="button" class="${MSCOPE.all ? "" : "on"}" data-a="map-scope" data-v="near"
+            aria-pressed="${MSCOPE.all ? "false" : "true"}">Near me</button>
+    <select id="mState" class="${MSCOPE.all ? "on" : ""}"
+            aria-label="Show a whole state">${opts}</select>
   </div>`;
 }
 
@@ -7175,8 +7478,17 @@ function drawMap(pos, list) {
     const room = el.getBoundingClientRect().height;
     const under = Math.min(room * 0.62,
       (sheet ? sheet.getBoundingClientRect().height : 220) + 24);
-    MAP.fitBounds([[pos.lat, pos.lng], ...list.slice(0, 5).map((t) => [+t.lat, +t.lng])], {
-      paddingTopLeft: [40, 48], paddingBottomRight: [40, under], maxZoom: 15,
+    // Near me opens on her and the five closest. A whole state has to open on
+    // the STATE — fitting Lagos to her five nearest would show her the same
+    // corner of Lekki and quietly answer a different question from the one she
+    // asked. Her own position is still in the bounds, so she can see where she
+    // sits in it.
+    const frame = MSCOPE.all
+      ? [[pos.lat, pos.lng], ...list.map((t) => [+t.lat, +t.lng])]
+      : [[pos.lat, pos.lng], ...list.slice(0, 5).map((t) => [+t.lat, +t.lng])];
+    MAP.fitBounds(frame, {
+      paddingTopLeft: [40, 132], paddingBottomRight: [40, under],
+      maxZoom: MSCOPE.all ? 13 : 15,
     });
   } else {
     MAP.setView([pos.lat, pos.lng], 14);
@@ -7362,6 +7674,7 @@ function sheetMany() {
 function homeAsList() {
   const last = DB.scans[0];
   fillHost(`
+    ${scopeBar()}
     <div class="maplist">
       <div class="pad mt16">
         <button class="hero" data-a="startscan">
@@ -7386,14 +7699,16 @@ function homeAsList() {
                   <div class="pad stack gap12">${bookingRow(NEXTUP)}</div>` : ""}
 
       <div class="seehead">
-        <h3>Nail techs near you</h3>
+        <h3>${MSCOPE.all ? `Nail techs in ${esc(MSCOPE.state || "your state")}`
+                         : "Nail techs near you"}</h3>
         ${NEAR.length > 3 ? `<span class="seeall" data-a="go" data-v="salons">See all</span>` : ""}
       </div>
       <div class="pad stack gap12">
         ${NEAR.length
           ? NEAR.slice(0, 3).map(techRowLive).join("")
           : `<div class="empty"><div class="ic">${I.pin()}</div>
-               <b>No nail techs near you yet</b>
+               <b>${MSCOPE.all ? `No nail techs in ${esc(MSCOPE.state || "that state")} yet`
+                                : "No nail techs near you yet"}</b>
                Oma shows techs who have listed themselves and passed their ID check.</div>`}
       </div>
       <div style="height:16px"></div>
@@ -7421,7 +7736,13 @@ function whereAmI() {
         why: err && err.code === 1 ? "denied"
            : err && err.code === 3 ? "timeout" : "unavailable",
       })),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+      // maximumAge was a minute, so the browser could hand back a fix from
+      // wherever she was a minute ago. Zero means this really does ask the
+      // phone. Spamming the GPS is prevented one level up instead — the
+      // search screen reuses its answer for two minutes — which is the right
+      // place for it, because that layer knows whether a distance is even
+      // being shown.
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   });
 }
@@ -7633,7 +7954,23 @@ async function sendMessage(bookingId) {
    result screen's button lands here with the shape already typed.           */
 
 let FQ = "";              // what she has typed, kept across screens
-let FPOS = null;          // where she is, asked once
+/* Where she is, and WHEN we asked.
+
+   Kamsy: "customer locations should not be pinned, they are not shops, they
+   move around". She is right, and this was the worst offender — it asked the
+   phone once and reused that answer for the whole session, so somebody who
+   searched in Yaba and then drove to Lekki was still being sorted by where
+   she had been an hour ago.
+
+   Worth being straight about the limit: a web page cannot follow anybody
+   around in the background, and should not try. What it can do is take a
+   FRESH fix whenever a screen actually needs a distance, and that is what
+   this does — the answer is reused for two minutes, which is short enough
+   that a journey moves it and long enough that typing four letters does not
+   wake the GPS four times. */
+let FPOS = null;
+let FPOSAT = 0;
+const POS_STALE_MS = 120000;
 let FSEQ = 0;             // which search is the current one
 let FTIMER = null;
 
@@ -7672,6 +8009,7 @@ function findRow(t) {
     <div style="flex:1;min-width:0;text-align:left">
       <div class="ttl">${esc(t.business_name)}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
+      <div style="margin-top:5px">${ratingSlot(t.id)}</div>
       ${bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : ""}
       ${matchTag(t.matched)}
     </div>
@@ -7700,10 +8038,12 @@ async function runFind() {
 
   // Asked once per session, and never blocking: without it search still works,
   // it just cannot say how far anything is.
-  if (FPOS === null && typeof whereAmI === "function") {
+  if ((FPOS === null || Date.now() - FPOSAT > POS_STALE_MS) &&
+      typeof whereAmI === "function") {
     const p = await whereAmI();
     if (mine !== FSEQ) return;
     FPOS = p && !p.guessed ? p : false;
+    FPOSAT = Date.now();
   }
 
   let list;
@@ -7732,6 +8072,11 @@ async function runFind() {
     <div class="tiny faint" style="padding:2px 2px 10px">${head}${
       !FPOS && q ? " · turn on location to see how far away they are" : ""}</div>
     <div class="stack gap12">${list.map(findRow).join("")}</div>`);
+
+  // After the list, never before it. Waiting on scores to show results would
+  // make every search slower for something that is decoration until she is
+  // actually choosing between two people.
+  fillRatings(list.map((t) => t.id));
 }
 
 function vFind() {
@@ -9379,6 +9724,75 @@ async function offerPushAfterBooking() {
   const res = await registerForPush();
   toast(res.ok ? "You will be told when she replies."
                : (res.says || "Notifications are off."));
+  paint();
+}
+
+/* ══ the worker that receives a push ═════════════════
+   app.html had no service worker registration at all, which meant Web Push had
+   nothing to arrive at — navigator.serviceWorker.ready simply never resolved.
+   Registered here rather than on the pwa build because omaa.com.ng serves
+   app.html directly.
+
+   Guarded on http(s): inside the iOS wrapper the page is served over a custom
+   oma:// scheme, where this neither works nor is wanted — push there is APNs,
+   handled natively. */
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((e) => {
+      // Not fatal, and not worth a toast: the app works, it simply will not
+      // work offline or receive a web push on this device.
+      console.warn("service worker did not register:", e && e.message);
+    });
+  });
+}
+
+/* ── the switch in Settings ──────────────────────────
+   Until now the only way to turn notifications on was to finish paying for a
+   booking, because that is the one moment worth spending the permission
+   prompt on. That is right for a first-time offer and useless for everything
+   else: somebody who said no, or who got a new phone, or who simply wants
+   them, had no way in. */
+function pushIsOn() {
+  try { return !!localStorage.getItem("oma-push-token"); } catch (e) { return false; }
+}
+
+function pushRow() {
+  const avail = pushAvailability();
+  const on = pushIsOn();
+
+  // A switch that cannot do anything is worse than a sentence saying why.
+  if (!avail.ok && !on) {
+    return `<button data-a="push-why" data-v="${esc(avail.says || "")}">
+      <span class="ic">${I.bell ? I.bell() : ""}</span>
+      <span style="flex:1;text-align:left">Notifications</span>
+      <span class="tiny faint" style="margin-right:6px">${
+        avail.why === "install" ? "Add to home screen"
+        : avail.why === "denied" ? "Blocked"
+        : avail.why === "unconfigured" ? "Not set up"
+        : "Unavailable"}</span>${I.chev()}</button>`;
+  }
+  if (API.live() && !API.signedIn()) {
+    return `<button data-a="go" data-v="signin">
+      <span class="ic">${I.bell ? I.bell() : ""}</span>
+      <span style="flex:1;text-align:left">Notifications</span>
+      <span class="tiny faint" style="margin-right:6px">Sign in first</span>${I.chev()}</button>`;
+  }
+  return `<button data-a="push-toggle">
+    <span class="ic">${I.bell ? I.bell() : ""}</span>
+    <span style="flex:1;text-align:left">Notifications</span>
+    <span class="switch ${on ? "on" : ""}"><i></i></span></button>`;
+}
+
+async function togglePush() {
+  if (pushIsOn()) {
+    await forgetPush();
+    toast("Notifications off on this device.");
+    return paint();
+  }
+  toast("Asking your phone…");
+  const res = await registerForPush();
+  toast(res.ok ? "On. You will be told when somebody messages you."
+               : (res.says || "That did not work."));
   paint();
 }
 
