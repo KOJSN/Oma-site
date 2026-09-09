@@ -110,9 +110,12 @@ function vSalons() {
   </div>
   <div style="height:16px"></div>`;
 }
+/* Infinity on purpose here, and only here: this is what the sort uses, and
+   a tech with no priced service belongs last rather than first. Everything
+   that PRINTS a price uses fromPrice, which returns null instead. */
 function lowest(t) {
-  const p = (t.s || []).map(s => +s.p).filter(n => n > 0);
-  return p.length ? Math.min(...p) : Infinity;
+  const v = fromPrice(t.s);
+  return v === null ? Infinity : v;
 }
 function doesShape(t, sh) {
   return (t.s || []).some(s => (s.sh || []).includes(sh)) ? 1 : 0;

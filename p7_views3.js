@@ -401,7 +401,10 @@ function vListing() {
     </div>
     <div style="display:flex;gap:8px;margin-top:12px">
       <div class="tile" style="flex:1"><div class="k">From</div>
-        <div class="v">${(b.services || []).length ? esc(b.cur || DB.cur) + Math.min(...b.services.map(s => +s.p || Infinity)).toLocaleString("en") : "—"}</div></div>
+        <div class="v">${(() => {
+          const lo = fromPrice(b.services);
+          return lo === null ? "—" : esc(b.cur || DB.cur) + lo.toLocaleString("en");
+        })()}</div></div>
       <div class="tile" style="flex:1"><div class="k">Services</div><div class="v">${(b.services || []).length}</div></div>
       <div class="tile" style="flex:1"><div class="k">Hours</div><div class="v">${esc(b.opens || "—")}–${esc(b.closes || "—")}</div></div>
     </div>

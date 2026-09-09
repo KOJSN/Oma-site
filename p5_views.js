@@ -253,10 +253,25 @@ function head(title, sub, right) {
     </div>
   </div>`;
 }
+/* Prices are typed by hand, so "5000", "5,000" and "₦5,000" all arrive in
+   the same field. A bare `+s.p` turns the last two into NaN, and the
+   `NaN || Infinity` that followed is what put **From ₦∞** on a listing
+   whose price was perfectly good. Every place that reads a price goes
+   through here now, so there is one parser and not four.
+   Kamsy, 9 Sep 2026, with a screenshot of ₦∞. */
+function priceNum(v) {
+  const n = Number(String(v == null ? "" : v).replace(/[^\d.]/g, ""));
+  return isFinite(n) && n > 0 ? n : null;
+}
+/* The lowest real price in a menu, or null when nothing has one — never
+   Infinity, because Infinity is a number and gets printed like one. */
+function fromPrice(list) {
+  const p = (list || []).map(s => priceNum(s.p)).filter(n => n !== null);
+  return p.length ? Math.min(...p) : null;
+}
 function techRow(t, big) {
   const d = distText(t);
-  const from = (t.s || []).length
-    ? Math.min(...t.s.map(s => +s.p || Infinity)) : null;
+  const from = fromPrice(t.s);
   const bits = [t.a, d, from && isFinite(from) ? "from " + (t.c || "₦") + Number(from).toLocaleString("en") : null]
     .filter(Boolean).join(" · ");
   return `<button class="card tap" data-a="tech" data-id="${esc(t.id)}"

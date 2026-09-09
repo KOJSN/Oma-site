@@ -3,7 +3,7 @@
 Everything that needs to go anywhere is in here. Not the
 `ios-background-location` folder — that one waits for the App Store build.
 
-Build id in this batch: **6f547c43c5**
+Build id in this batch: **fc1d6a62d6**
 
 ---
 
@@ -63,23 +63,23 @@ upload button gives a 400 and nothing else breaks.
 
 ---
 
-## 2. GitHub — sixteen app files, plus five for the website
+## 2. GitHub — seventeen app files, plus five for the website
 
 Drag these into `src/`, overwriting.
 
 **The app** (these are the ones `build.py` stitches into `app.html`):
 
 ```
-p1_head.html   p4_result.js   p5_views.js    p7_views3.js
-p8_wire.js     p12_api.js     p13_money.js   p14_live.js
-p16_find.js    p18_review.js  p19_fee.js     p20_live.js
-p21_home.js    p22_photos.js  p23_reveal.js  build.py
+p1_head.html   p2_body.html   p4_result.js   p5_views.js
+p6_views2.js   p7_views3.js   p8_wire.js     p12_api.js
+p13_money.js   p14_live.js    p16_find.js    p18_review.js
+p19_fee.js     p20_live.js    p21_home.js    p22_photos.js
+build.py
 ```
 
-**`p23_reveal.js` is a NEW file** — it will not be in your repo to overwrite,
-so add it rather than looking for it. `build.py` changed in the same breath,
-because it is the file that has to know p23 exists; upload the two together or
-the build will not include the animation.
+**The animation is gone.** If you already uploaded `p23_reveal.js`, `build.py`
+no longer reads it — it is a harmless orphan you can delete from the repo when
+you next tidy up. `PREVIEW-animation.html` is deleted from this folder too.
 
 **The website** — these go in the **root of the repo**, beside `app.html`.
 Nothing builds them; GitHub Pages serves them as they are.
@@ -92,9 +92,7 @@ robots.txt      tells search engines what to index
 sitemap.xml     and where to find it
 ```
 
-Do **not** upload the `.sql` files, this page, or `PREVIEW-animation.html`
-(that one is just so you can watch the reveal without building — open it in
-any browser).
+Do **not** upload the `.sql` files or this page.
 
 Commit, then wait for the green tick on the Actions tab.
 
@@ -148,8 +146,8 @@ anything but the file that actually ships.
 ## 4. Check it landed
 
 1. `https://omaa.com.ng/` — the site should be there instead of nothing
-2. `https://omaa.com.ng/sw.js?x=9` — first line ends in **6f547c43c5**
-3. The app → **Settings** → the bottom line says `Build 6f547c43c5` — **must match**
+2. `https://omaa.com.ng/sw.js?x=9` — first line ends in **fc1d6a62d6**
+3. The app → **Settings** → the bottom line says `Build fc1d6a62d6` — **must match**
 
 ---
 
@@ -170,29 +168,31 @@ upload finishing and being abandoned.
   gradient with her name, her price and the same *Choose this* button. Not a
   grey box with a torn-picture icon. "That's if she has."
 
-### The seven and a half seconds before the result
+### From ₦∞ — fixed
 
-Press **See my shape** and a builder walks away down a straight road with his
-toolbox, dragging a tape measure behind him, measuring the things he passes.
-Then the road lifts away and the answer is there.
+Your listing showed **From ₦∞** on a service that had a perfectly good price.
+Nothing was wrong with the price. Prices are typed by hand, so `5000`, `5,000`
+and `₦5,000` all arrive in the same field — and the display code did a bare
+`+s.p`, which turns the two with punctuation in them into `NaN`. The line then
+said `NaN || Infinity`, and Infinity is a number, so it got printed like one.
 
-The 3D is real rather than drawn: the road is a plane laid down in
-perspective, and the builder and everything beside the road stand up out of
-it, so they grow and spread properly as they come at the camera. It is built
-from CSS transforms, not a 3D engine — an engine plus a model is the best part
-of a megabyte on a page people load on data they pay for.
+There is now one price parser (`priceNum`) and one "cheapest in this menu"
+function (`fromPrice`) that returns **null** rather than Infinity when nothing
+has a price, and every place that reads a price goes through them — your
+listing tile, the customer's tech card, the map pins, the sort. A menu with no
+priced service now shows **—**, which is true, instead of ∞, which is not.
 
-**Nothing in it claims anything.** No percentage climbing, no "analysing", no
-progress bar. The answer is worked out the instant you press the button and
-only then does the animation start, so the pause is a deliberate pause and
-never a disguise for work still going on. The little bracket that snaps over
-each thing he passes is deliberately blank in the middle: a number there would
-be a measurement of a drawing of a brick, sitting next to a screen full of
-real ones.
+### Light mode in the scan
 
-It runs the full length every time and cannot be skipped, as you asked. A
-phone set to reduce motion still waits the same 7.5 seconds and still gets the
-scene — the road just stops rolling and the walk stops cycling.
+The scan owned the whole screen and was one fixed dark slab in both themes, so
+a phone set to light met a black wall the moment you pressed Scan. All four
+scan screens follow the theme now — the framing box, the readable-photo card,
+the two questions, the tabs and progress bars.
+
+What deliberately does **not** flip is anything drawn on top of your own
+photograph: the nail outlines, the crosshair, the loupe rim, the hint pill.
+Your photo can be any colour at all, so those keep the contrast that works
+over an arbitrary image rather than following the phone.
 
 ### The card itself
 

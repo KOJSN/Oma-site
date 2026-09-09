@@ -22,7 +22,7 @@
       <div class="frame">
         <div class="dash"></div><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>
         <div class="mid">
-          <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.5" stroke-linecap="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12m0-.5V4.2a1.5 1.5 0 0 1 3 0V12m0-.2V6a1.5 1.5 0 0 1 3 0v7m-9 0V9.5a1.5 1.5 0 0 0-3 0V15a7 7 0 0 0 7 7h1.5a6.5 6.5 0 0 0 6.5-6.5V13"/></svg>
+          <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="currentColor" opacity=".55" stroke-width="1.5" stroke-linecap="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12m0-.5V4.2a1.5 1.5 0 0 1 3 0V12m0-.2V6a1.5 1.5 0 0 1 3 0v7m-9 0V9.5a1.5 1.5 0 0 0-3 0V15a7 7 0 0 0 7 7h1.5a6.5 6.5 0 0 0 6.5-6.5V13"/></svg>
           <div>Lay your hand flat, palm down,<br>fingers slightly apart</div>
         </div>
         <div class="hint"><span id="capBusy" hidden></span></div>
@@ -81,6 +81,10 @@
         cover the <b>pink part</b> of each nail — the white tip is not measured, because
         it is length you can file off, not the shape of the nail bed.</div>
       <div id="autoNote" class="hidden" style="margin-top:14px"></div>
+      <!-- Off unless somebody opens the app with ?timing=1. Nobody using Oma
+           ever sees this; it exists so a scan on a real phone on real mobile
+           data produces numbers instead of "it felt slow". -->
+      <div id="autoTiming" class="hidden"></div>
     </div>
     <div class="scanfoot hidden" id="autoFoot">
       <div class="btnrow">
@@ -129,9 +133,9 @@
     <div class="scanbody">
       <div style="font-size:22px;font-weight:800;letter-spacing:-.035em">Two things the photo cannot see</div>
       <div class="small sub" style="margin-top:6px">They decide whether a shape is one you can wear now, or one that needs an appointment first.</div>
-      <div class="eyebrow" style="color:rgba(255,255,255,.45);margin:22px 0 10px">Your nails right now</div>
+      <div class="eyebrow" style="color:var(--sc-faint);margin:22px 0 10px">Your nails right now</div>
       <div id="qNatural"></div>
-      <div class="eyebrow" style="color:rgba(255,255,255,.45);margin:22px 0 10px">Their length</div>
+      <div class="eyebrow" style="color:var(--sc-faint);margin:22px 0 10px">Their length</div>
       <div id="qLength"></div>
     </div>
     <div class="scanfoot">

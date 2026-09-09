@@ -55,6 +55,28 @@
   --wel-bg:#fdf6fa; --wel-ink:#181220; --wel-sub:#6c6377;
   --wel-glow1:rgba(240,81,141,.26); --wel-glow2:rgba(255,138,184,.20);
   --wel-dot:#181220; --wel-dot-off:rgba(24,18,32,.22);
+
+  /* The scan owns the whole screen, and it was one fixed dark slab in both
+     themes — so a phone set to light met a black wall the moment she pressed
+     Scan. Same treatment as the welcome screen: light-first here, overridden
+     for dark twice. Kamsy, 9 Sep 2026: "create light modes for these frames".
+
+     What deliberately does NOT flip is anything drawn ON TOP of her own
+     photograph — the nail outlines, the crosshair, the loupe rim, the hint
+     pill. Her photo can be any colour at all, so those keep the contrast
+     that works over an arbitrary image rather than following the theme. */
+  --sc-bg:#ffffff;
+  --sc-glow:radial-gradient(120% 70% at 50% 28%,#fdf1f7 0%,#ffffff 72%);
+  --sc-ink:#181220; --sc-sub:#6c6377; --sc-faint:#8d8499;
+  --sc-soft:rgba(24,18,32,.06); --sc-soft2:rgba(24,18,32,.045);
+  --sc-soft3:rgba(24,18,32,.055);
+  --sc-line:rgba(24,18,32,.12); --sc-line2:rgba(24,18,32,.10);
+  --sc-dash:rgba(24,18,32,.22);
+  --sc-frame:linear-gradient(160deg,#fdeef6,#f5eef9);
+  --sc-frame-ink:#6c6377; --sc-stage:#f3eff7;
+  --sc-tabon-bg:#181220; --sc-tabon-ink:#ffffff;
+  --sc-rd-line:rgba(24,18,32,.28); --sc-bar:rgba(24,18,32,.10);
+  --sc-tick-i:rgba(24,18,32,.07);
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -70,6 +92,18 @@
     --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
     --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
     --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
+    --sc-bg:#14101a;
+    --sc-glow:radial-gradient(120% 70% at 50% 28%,#2f2638 0%,#14101a 72%);
+    --sc-ink:#ffffff; --sc-sub:rgba(255,255,255,.62); --sc-faint:rgba(255,255,255,.45);
+    --sc-soft:rgba(255,255,255,.12); --sc-soft2:rgba(255,255,255,.06);
+    --sc-soft3:rgba(255,255,255,.09);
+    --sc-line:rgba(255,255,255,.12); --sc-line2:rgba(255,255,255,.1);
+    --sc-dash:rgba(255,255,255,.28);
+    --sc-frame:linear-gradient(160deg,#3a2f42,#221b2c);
+    --sc-frame-ink:rgba(255,255,255,.68); --sc-stage:#0e0b13;
+    --sc-tabon-bg:#ffffff; --sc-tabon-ink:#1a0f16;
+    --sc-rd-line:rgba(255,255,255,.35); --sc-bar:rgba(255,255,255,.14);
+    --sc-tick-i:rgba(255,255,255,.12);
   }
 }
 :root[data-theme="dark"]{
@@ -85,6 +119,18 @@
   --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
   --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
   --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
+  --sc-bg:#14101a;
+  --sc-glow:radial-gradient(120% 70% at 50% 28%,#2f2638 0%,#14101a 72%);
+  --sc-ink:#ffffff; --sc-sub:rgba(255,255,255,.62); --sc-faint:rgba(255,255,255,.45);
+  --sc-soft:rgba(255,255,255,.12); --sc-soft2:rgba(255,255,255,.06);
+  --sc-soft3:rgba(255,255,255,.09);
+  --sc-line:rgba(255,255,255,.12); --sc-line2:rgba(255,255,255,.1);
+  --sc-dash:rgba(255,255,255,.28);
+  --sc-frame:linear-gradient(160deg,#3a2f42,#221b2c);
+  --sc-frame-ink:rgba(255,255,255,.68); --sc-stage:#0e0b13;
+  --sc-tabon-bg:#ffffff; --sc-tabon-ink:#1a0f16;
+  --sc-rd-line:rgba(255,255,255,.35); --sc-bar:rgba(255,255,255,.14);
+  --sc-tick-i:rgba(255,255,255,.12);
 }
 
 *,*::before,*::after{box-sizing:border-box}
@@ -792,7 +838,7 @@ h3{font-size:16px}
 
 /* ═══ the scan, which owns the whole screen ═════════════ */
 #scan{
-  position:fixed;inset:0;z-index:60;background:#14101a;color:#fff;
+  position:fixed;inset:0;z-index:60;background:var(--sc-bg);color:var(--sc-ink);
   display:none;flex-direction:column;
 }
 #scan.live{display:flex}
@@ -801,35 +847,35 @@ h3{font-size:16px}
 }
 #scan::before{
   content:"";position:absolute;inset:0;
-  background:radial-gradient(120% 70% at 50% 28%,#2f2638 0%,#14101a 72%);
+  background:var(--sc-glow);
 }
 .scanhead{position:relative;flex:none;display:flex;align-items:center;
   justify-content:space-between;gap:12px;
   padding:calc(14px + env(safe-area-inset-top)) 20px 4px}
 .scanhead .t{font-size:14.5px;font-weight:700}
-.scanhead .iconbtn{background:rgba(255,255,255,.12);color:#fff}
+.scanhead .iconbtn{background:var(--sc-soft);color:var(--sc-ink)}
 .step{display:none;position:relative;flex:1;min-height:0;flex-direction:column}
 .step.live{display:flex}
 .scanbody{flex:1;min-height:0;overflow-y:auto;padding:0 20px}
 .scanfoot{position:relative;flex:none;padding:14px 20px calc(20px + env(safe-area-inset-bottom))}
-.scanfoot .btn.ghost{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18);
+.scanfoot .btn.ghost{background:var(--sc-soft);color:var(--sc-ink);border-color:var(--sc-line);
   box-shadow:none}
-#scan .sub,#scan .muted{color:rgba(255,255,255,.62)}
-#scan .faint{color:rgba(255,255,255,.45)}
+#scan .sub,#scan .muted{color:var(--sc-sub)}
+#scan .faint{color:var(--sc-faint)}
 
 /* the framing box on the capture step */
 .frame{
   position:relative;flex:1;min-height:170px;margin:16px 0 0;border-radius:28px;
-  background:linear-gradient(160deg,#3a2f42,#221b2c);overflow:hidden;
-  border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;
+  background:var(--sc-frame);overflow:hidden;
+  border:1px solid var(--sc-line2);display:flex;align-items:center;justify-content:center;
 }
-.frame .dash{position:absolute;inset:24px;border-radius:20px;border:2px dashed rgba(255,255,255,.28)}
+.frame .dash{position:absolute;inset:24px;border-radius:20px;border:2px dashed var(--sc-dash)}
 .frame .c{position:absolute;width:34px;height:34px}
 .frame .c.tl{left:24px;top:24px;border-left:3px solid #ff7fae;border-top:3px solid #ff7fae;border-radius:14px 0 0 0}
 .frame .c.tr{right:24px;top:24px;border-right:3px solid #ff7fae;border-top:3px solid #ff7fae;border-radius:0 14px 0 0}
 .frame .c.bl{left:24px;bottom:24px;border-left:3px solid #ff7fae;border-bottom:3px solid #ff7fae;border-radius:0 0 0 14px}
 .frame .c.br{right:24px;bottom:24px;border-right:3px solid #ff7fae;border-bottom:3px solid #ff7fae;border-radius:0 0 14px 0}
-.frame .mid{position:relative;text-align:center;padding:40px 30px;color:rgba(255,255,255,.68);
+.frame .mid{position:relative;text-align:center;padding:40px 30px;color:var(--sc-frame-ink);
   font-size:13.5px;font-weight:600;line-height:1.5;display:flex;flex-direction:column;
   align-items:center;gap:12px}
 .hint{position:absolute;left:0;right:0;bottom:14px;display:flex;justify-content:center}
@@ -838,7 +884,7 @@ h3{font-size:16px}
 
 /* the photo you tap on */
 .stagewrap{position:relative;margin-top:14px;border-radius:24px;overflow:hidden;
-  border:1px solid rgba(255,255,255,.12);background:#0e0b13;touch-action:none}
+  border:1px solid var(--sc-line);background:var(--sc-stage);touch-action:none}
 .stagewrap img{display:block;width:100%;height:auto}
 .stagewrap svg{position:absolute;inset:0;width:100%;height:100%}
 .bx{fill:rgba(255,127,174,.16);stroke:#ff7fae;stroke-width:.35%;vector-effect:non-scaling-stroke}
@@ -860,40 +906,40 @@ h3{font-size:16px}
 .ftabs{display:flex;gap:7px;margin-top:14px}
 .ftabs button{
   flex:1;padding:9px 0;border-radius:12px;text-align:center;font-size:12px;font-weight:700;
-  background:rgba(255,255,255,.09);color:rgba(255,255,255,.62);text-transform:capitalize;
+  background:var(--sc-soft3);color:var(--sc-sub);text-transform:capitalize;
 }
-.ftabs button.has{color:#fff}
+.ftabs button.has{color:var(--sc-ink)}
 .ftabs button.has::after{content:" ●";color:#63dc9a;font-size:9px;vertical-align:1px}
-.ftabs button.on{background:#fff;color:#1a0f16}
+.ftabs button.on{background:var(--sc-tabon-bg);color:var(--sc-tabon-ink)}
 .ftabs button.on.has::after{color:#1b9e5a}
 .glass{
-  position:relative;margin-top:14px;border-radius:22px;background:rgba(255,255,255,.07);
-  border:1px solid rgba(255,255,255,.12);padding:16px 18px;
+  position:relative;margin-top:14px;border-radius:22px;background:var(--sc-soft2);
+  border:1px solid var(--sc-line);padding:16px 18px;
 }
-.glass .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.14);margin-top:10px;
+.glass .bar{height:8px;border-radius:99px;background:var(--sc-bar);margin-top:10px;
   overflow:hidden}
 .glass .bar i{display:block;height:100%;border-radius:99px;
   background:linear-gradient(90deg,#ff8fba,#f0518d);transition:width .25s}
-.tick{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.72);
+.tick{display:flex;align-items:center;gap:10px;color:var(--sc-sub);
   font-size:13px;font-weight:600}
 #readList .tick{text-transform:capitalize}
-.tick i{width:20px;height:20px;flex:none;border-radius:50%;background:rgba(255,255,255,.12);
+.tick i{width:20px;height:20px;flex:none;border-radius:50%;background:var(--sc-tick-i);
   display:flex;align-items:center;justify-content:center}
-.tick.done{color:#fff}
+.tick.done{color:var(--sc-ink)}
 .tick.done i{background:rgba(120,220,160,.2);color:#63dc9a}
 .tick.miss i{background:rgba(224,169,68,.2);color:#e0a944}
 .choice{
   display:flex;gap:13px;align-items:flex-start;padding:15px;border-radius:18px;
-  background:rgba(255,255,255,.06);border:1.5px solid transparent;margin-bottom:10px;
+  background:var(--sc-soft2);border:1.5px solid transparent;margin-bottom:10px;
   cursor:pointer;
 }
 .choice.on{border-color:#ff7fae;background:rgba(255,127,174,.12)}
 .choice .rd{width:22px;height:22px;flex:none;border-radius:50%;
-  border:2px solid rgba(255,255,255,.35);margin-top:1px;display:flex;
+  border:2px solid var(--sc-rd-line);margin-top:1px;display:flex;
   align-items:center;justify-content:center;color:transparent}
 .choice.on .rd{background:#ff7fae;border-color:transparent;color:#1a0f16}
 .choice b{font-size:15px;font-weight:700;display:block}
-.choice em{font-style:normal;font-size:12.5px;color:rgba(255,255,255,.6);font-weight:500;
+.choice em{font-style:normal;font-size:12.5px;color:var(--sc-sub);font-weight:500;
   display:block;margin-top:3px;line-height:1.45}
 .filebtn{position:relative;overflow:hidden}
 .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:200px}
