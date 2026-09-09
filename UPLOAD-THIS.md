@@ -3,7 +3,7 @@
 Everything that needs to go anywhere is in here. Not the
 `ios-background-location` folder — that one waits for the App Store build.
 
-Build id in this batch: **b98673e81e**
+Build id in this batch: **6f547c43c5**
 
 ---
 
@@ -30,8 +30,11 @@ damage, just run them again in order.
 > ### Why `menu.sql` cannot wait
 >
 > Until now the listing editor saved a nail tech's services to **her phone and
-> nowhere else**. `api_add_service` had been sitting unused in `api.sql` the
-> whole time and nothing ever called it. So on the live backend a tech could
+> nowhere else**. `api_add_service` — the database function that would have
+> saved them, **lines 316–325 of the `api` saved query in your Supabase SQL
+> editor**, and reachable from the app as `API.addService` at line 287 of
+> `p12_api.js` — has been sitting there the whole time and nothing ever called
+> it. So on the live backend a tech could
 > finish her listing, see her prices on her own screen, publish — and a
 > customer opening her page saw **no services at all**. Unbookable, silently.
 >
@@ -60,18 +63,23 @@ upload button gives a 400 and nothing else breaks.
 
 ---
 
-## 2. GitHub — fourteen app files, plus five for the website
+## 2. GitHub — sixteen app files, plus five for the website
 
-Drag these into your repo, overwriting.
+Drag these into `src/`, overwriting.
 
 **The app** (these are the ones `build.py` stitches into `app.html`):
 
 ```
-p1_head.html   p5_views.js    p7_views3.js   p8_wire.js
-p12_api.js     p13_money.js   p14_live.js    p16_find.js
-p18_review.js  p19_fee.js     p20_live.js    p21_home.js
-p22_photos.js  build.py
+p1_head.html   p4_result.js   p5_views.js    p7_views3.js
+p8_wire.js     p12_api.js     p13_money.js   p14_live.js
+p16_find.js    p18_review.js  p19_fee.js     p20_live.js
+p21_home.js    p22_photos.js  p23_reveal.js  build.py
 ```
+
+**`p23_reveal.js` is a NEW file** — it will not be in your repo to overwrite,
+so add it rather than looking for it. `build.py` changed in the same breath,
+because it is the file that has to know p23 exists; upload the two together or
+the build will not include the animation.
 
 **The website** — these go in the **root of the repo**, beside `app.html`.
 Nothing builds them; GitHub Pages serves them as they are.
@@ -84,7 +92,9 @@ robots.txt      tells search engines what to index
 sitemap.xml     and where to find it
 ```
 
-Do **not** upload the `.sql` files or this page.
+Do **not** upload the `.sql` files, this page, or `PREVIEW-animation.html`
+(that one is just so you can watch the reveal without building — open it in
+any browser).
 
 Commit, then wait for the green tick on the Actions tab.
 
@@ -138,8 +148,8 @@ anything but the file that actually ships.
 ## 4. Check it landed
 
 1. `https://omaa.com.ng/` — the site should be there instead of nothing
-2. `https://omaa.com.ng/sw.js?x=9` — first line ends in **b98673e81e**
-3. The app → **Settings** → the bottom line says `Build b98673e81e` — **must match**
+2. `https://omaa.com.ng/sw.js?x=9` — first line ends in **6f547c43c5**
+3. The app → **Settings** → the bottom line says `Build 6f547c43c5` — **must match**
 
 ---
 
@@ -159,6 +169,30 @@ upload finishing and being abandoned.
 - A tech with **no photos looks deliberate, not broken** — her card is the Oma
   gradient with her name, her price and the same *Choose this* button. Not a
   grey box with a torn-picture icon. "That's if she has."
+
+### The seven and a half seconds before the result
+
+Press **See my shape** and a builder walks away down a straight road with his
+toolbox, dragging a tape measure behind him, measuring the things he passes.
+Then the road lifts away and the answer is there.
+
+The 3D is real rather than drawn: the road is a plane laid down in
+perspective, and the builder and everything beside the road stand up out of
+it, so they grow and spread properly as they come at the camera. It is built
+from CSS transforms, not a 3D engine — an engine plus a model is the best part
+of a megabyte on a page people load on data they pay for.
+
+**Nothing in it claims anything.** No percentage climbing, no "analysing", no
+progress bar. The answer is worked out the instant you press the button and
+only then does the animation start, so the pause is a deliberate pause and
+never a disguise for work still going on. The little bracket that snaps over
+each thing he passes is deliberately blank in the middle: a number there would
+be a measurement of a drawing of a brick, sitting next to a screen full of
+real ones.
+
+It runs the full length every time and cannot be skipped, as you asked. A
+phone set to reduce motion still waits the same 7.5 seconds and still gets the
+scene — the road just stops rolling and the walk stops cycling.
 
 ### The card itself
 

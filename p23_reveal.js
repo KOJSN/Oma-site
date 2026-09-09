@@ -1,0 +1,314 @@
+/* ══ the reveal ══════════════════════════════════════
+   Seven and a half seconds between "See my shape" and the answer.
+
+   A builder walks a straight road with his toolbox, dragging a tape
+   measure behind him, and measures everything he passes.
+
+   It is theatre — the measuring finished the moment she pressed the
+   button — so the one rule here is that the theatre never CLAIMS
+   anything. No percentages climbing, no "analysing", no invented
+   progress bar. A man walking is a man walking; nobody can be misled by
+   it.
+
+   The 3D is real, not painted: the road is a plane laid down in
+   perspective, and the things beside it are billboards at their own
+   depths, so they grow and spread as they come at the camera. Done with
+   CSS transforms rather than a 3D engine, because the engine plus a
+   model is most of a megabyte on a page people load on paid-for data.
+
+   Kamsy, 9 Sep 2026, in order: "a 2d animation of a measuring tape in a
+   white background moving around" → "let the animation be 3d" → "like a
+   builder with a toolbox then he is just dragging the measuring tape
+   around measuring everything on a straight road". Full length, no skip.
+                                                                        */
+
+const REVEAL_MS = 7500;
+const RV_STEP = 560;                      // one pace, ms — everything times off this
+
+/* Where each thing sits beside the road and how far back it starts.
+   x is across the road, z is depth: more negative is further away. */
+/* Everything lives ON the road plane, in the plane's own coordinates:
+   y 0 is the far end, y 2600 is under the camera, and TRAVEL is how far
+   the world slides in the seven and a half seconds. A prop is level with
+   him when its y reaches HIS_Y, which is where the bracket is timed to. */
+const RV_TRAVEL = 1900;
+const RV_HIS_Y  = 1650;
+const RV_PROPS = [
+  { x:  168, y:   60, kind: "bricks" },
+  { x: -172, y:  420, kind: "post"   },
+  { x:  172, y:  780, kind: "bucket" },
+  { x: -168, y: 1140, kind: "bricks" },
+  { x:  170, y: 1500, kind: "post"   },
+];
+
+let revealHost = null, revealTimer = 0;
+
+function buildReveal() {
+  if (revealHost) return revealHost;
+
+  const css = document.createElement("style");
+  css.textContent = `
+#reveal{position:absolute;inset:0;z-index:20;display:none;background:#fff;
+  overflow:hidden;perspective:1000px;perspective-origin:50% 44%}
+#reveal.live{display:flex}
+@media (min-width:900px){#reveal{border-radius:34px}}
+#reveal .rvWorld{position:absolute;inset:0;transform-style:preserve-3d}
+
+/* ── the road ──────────────────────────────────────────────────────
+   One plane, hinged along its top edge at the horizon and tipped down
+   toward the camera, so its far end is the vanishing point and its near
+   end runs off the bottom of the screen. Everything else in the scene
+   is a CHILD of this plane and is stood upright again with an equal and
+   opposite rotateX — which is why the props sit on the road properly
+   and get their perspective for free instead of being faked. */
+#reveal .rvRoad{position:absolute;left:50%;top:44%;width:700px;height:2600px;
+  margin-left:-350px;transform-origin:50% 0;transform:rotateX(80deg);
+  transform-style:preserve-3d}
+/* The tarmac is painted on its OWN layer inside the plane, never on the
+   plane itself. A mask (like a filter, or opacity) forces an element back
+   to transform-style:flat — put it on .rvRoad and every child stops
+   standing up and lies down on the road instead. That cost an hour. */
+#reveal .rvSurface{position:absolute;inset:0;
+  background:
+    repeating-linear-gradient(0deg,#b3a7c6 0 92px,transparent 92px 190px)
+      50% 0/10px 190px repeat-y,
+    linear-gradient(90deg,rgba(255,255,255,0) 0 32%,#c8bed9 32% 33.1%,
+                    #e6e0ee 33.1% 66.9%,#c8bed9 66.9% 68%,rgba(255,255,255,0) 68%);
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 22%);
+  mask-image:linear-gradient(180deg,transparent 0,#000 22%)}
+#reveal.live .rvSurface{animation:rvRoll ${REVEAL_MS}ms linear both}
+@keyframes rvRoll{from{background-position:50% 0,0 0}
+                  to  {background-position:50% ${RV_TRAVEL}px,0 0}}
+
+/* The tape, lying flat on the tarmac and running back out of shot
+   behind him. Its graduations scroll at exactly the road's rate, which
+   is what sells it as being dragged rather than drawn. */
+#reveal .rvTape{position:absolute;left:50%;top:0;width:26px;height:100%;
+  margin-left:30px;
+  background:
+    repeating-linear-gradient(0deg,#b03a66 0 1.8px,transparent 1.8px 30px)
+      0 0/14px 30px repeat-y,
+    repeating-linear-gradient(0deg,#b03a66 0 2.2px,transparent 2.2px 150px)
+      0 0/24px 150px repeat-y,
+    linear-gradient(90deg,#ff9cc3,#ffd0e3 40%,#ffb2d0)}
+#reveal.live .rvTape{animation:rvTape ${REVEAL_MS}ms linear both}
+@keyframes rvTape{from{background-position:0 0,0 0,0 0}
+                  to  {background-position:0 ${RV_TRAVEL}px,0 ${RV_TRAVEL}px,0 0}}
+
+/* ── things beside the road ────────────────────────────────────────
+   Each one is stood up out of the road plane and slid along it. */
+#reveal .rvProp{position:absolute;left:50%;top:0;transform-origin:50% 100%;
+  transform-style:preserve-3d;}
+#reveal.live .rvProp{animation:rvProp ${REVEAL_MS}ms linear both}
+@keyframes rvProp{
+  from{transform:translateX(calc(-50% + var(--x))) translateY(var(--y)) rotateX(-80deg)}
+  to  {transform:translateX(calc(-50% + var(--x)))
+                 translateY(calc(var(--y) + ${RV_TRAVEL}px)) rotateX(-80deg)}
+}
+/* The bracket that snaps over a thing as he draws level with it. Its
+   delay is worked out from that prop's own depth, so each one is
+   marked as it passes rather than on a timer that only looks right
+   once. */
+#reveal .rvMark{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);
+  margin-bottom:7px;white-space:nowrap;opacity:0}
+#reveal.live .rvMark{animation:rvMark 900ms ease-out both}
+@keyframes rvMark{
+  0%  {opacity:0;transform:translateX(-50%) translateY(7px) scale(.86)}
+  22% {opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+  72% {opacity:1}
+  100%{opacity:0}
+}
+
+/* ── the builder ───────────────────────────────────────────────────
+   He walks on the spot and the world comes to him, which is how every
+   side-on walk has been done since sprites, and it keeps him in frame
+   and in focus for the whole seven seconds. */
+#reveal .rvGuy{position:absolute;left:50%;top:0;width:170px;height:224px;
+  transform-origin:50% 100%;transform-style:preserve-3d;
+  transform:translateX(calc(-50% + 74px)) translateY(${RV_HIS_Y}px) rotateX(-80deg)}
+#reveal.live .rvGuy{animation:rvGuyIn 800ms ease-out both}
+@keyframes rvGuyIn{
+  from{opacity:0;transform:translateX(calc(-50% + 4px))
+       translateY(${RV_HIS_Y}px) rotateX(-80deg)}
+  to  {opacity:1;transform:translateX(calc(-50% + 74px))
+       translateY(${RV_HIS_Y}px) rotateX(-80deg)}
+}
+#reveal .rvGuy svg{width:170px;height:224px;overflow:visible}
+#reveal .rvGuy g{transform-box:fill-box}
+/* Every limb swings off the same pace, so the walk stays in step with
+   the road no matter what the pace is set to. */
+#reveal.live .rvBob {animation:rvBob ${RV_STEP / 2}ms ease-in-out infinite;
+                     transform-origin:50% 100%}
+#reveal.live .rvLegA{animation:rvSwingA ${RV_STEP}ms ease-in-out infinite;
+                     transform-origin:50% 6%}
+#reveal.live .rvLegB{animation:rvSwingB ${RV_STEP}ms ease-in-out infinite;
+                     transform-origin:50% 6%}
+#reveal.live .rvArmA{animation:rvArmA ${RV_STEP}ms ease-in-out infinite;
+                     transform-origin:50% 8%}
+#reveal.live .rvArmB{animation:rvArmB ${RV_STEP}ms ease-in-out infinite;
+                     transform-origin:50% 8%}
+@keyframes rvBob   {0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes rvArmA  {0%,100%{transform:rotate(-9deg)}50%{transform:rotate(9deg)}}
+@keyframes rvSwingA{0%,100%{transform:translateY(0) rotate(3deg)}
+                    50% {transform:translateY(-7px) rotate(-3deg)}}
+@keyframes rvSwingB{0%,100%{transform:translateY(-7px) rotate(-3deg)}
+                    50% {transform:translateY(0) rotate(3deg)}}
+/* The toolbox arm barely moves — a loaded arm hangs, it does not swing,
+   and letting it swing like the other one was the single thing that
+   made him read as skipping rather than working. */
+@keyframes rvArmB  {0%,100%{transform:rotate(3deg)}50%{transform:rotate(-3deg)}}
+
+/* ── the close ─────────────────────────────────────────────────────
+   The whole scene lifts away rather than cutting, so the result screen
+   arrives on a movement instead of a jump cut. */
+#reveal.live .rvWorld{animation:rvOut ${REVEAL_MS}ms ease-in both}
+@keyframes rvOut{
+  0%  {opacity:0;transform:scale(1.04)}
+  6%  {opacity:1;transform:scale(1)}
+  86% {opacity:1;transform:scale(1)}
+  100%{opacity:0;transform:scale(1.14)}
+}
+
+/* A phone asking for less movement waits the same 7.5 seconds and still
+   gets the scene — the road stops rolling and the walk stops cycling. */
+@media (prefers-reduced-motion:reduce){
+  #reveal.live .rvRoad,#reveal.live .rvTape,#reveal.live .rvProp,
+  #reveal.live .rvMark,#reveal.live .rvBob,#reveal.live .rvLegA,
+  #reveal.live .rvLegB,#reveal.live .rvArmA,#reveal.live .rvArmB{
+    animation:none!important}
+  #reveal.live .rvMark{opacity:1}
+  #reveal.live .rvProp{transform:translateX(calc(-50% + var(--x)))
+                       translateY(calc(var(--y) + 1500px)) rotateX(-80deg)}
+}`;
+  document.head.appendChild(css);
+
+  const host = document.createElement("div");
+  host.id = "reveal";
+  host.setAttribute("aria-hidden", "true");
+  host.innerHTML = `<div class="rvWorld">
+    <div class="rvRoad">
+      <div class="rvSurface"><div class="rvTape"></div></div>
+      ${RV_PROPS.map(rvProp).join("")}
+      <div class="rvGuy">${RV_BUILDER}</div>
+    </div>
+  </div>`;
+
+  scanEl.appendChild(host);
+  revealHost = host;
+  return host;
+}
+
+/* One thing beside the road, plus the moment it gets measured. A prop
+   travels 2320px over the run, so the instant it draws level with him
+   (z ≈ +240, where he stands) is a straight proportion of the run and
+   the bracket is delayed to land exactly there. */
+function rvProp(p) {
+  const at = (RV_HIS_Y - p.y) / RV_TRAVEL;               // 0‥1 through the run
+  const delay = Math.round(Math.max(0, Math.min(.9, at)) * REVEAL_MS) - 300;
+  return `<div class="rvProp" style="--x:${p.x}px;--y:${p.y}px">
+    ${RV_SHAPE[p.kind]}
+    <div class="rvMark" style="animation-delay:${Math.max(0, delay)}ms">
+      ${RV_BRACKET}
+    </div>
+  </div>`;
+}
+
+/* The bracket is deliberately blank between its ends. A number here
+   would be a measurement of a drawing of a brick, presented next to a
+   screen full of real ones. */
+const RV_BRACKET = `<svg width="66" height="15" viewBox="0 0 66 15" aria-hidden="true">
+  <path d="M3 3v9M63 3v9M3 7.5h60" stroke="#f0518d" stroke-width="2.2"
+        stroke-linecap="round" fill="none"/>
+  <circle cx="33" cy="7.5" r="3.6" fill="#f0518d"/>
+</svg>`;
+
+const RV_SHAPE = {
+  bricks: `<svg width="74" height="46" viewBox="0 0 74 46" aria-hidden="true">
+    <g fill="#ffb2d0" stroke="#e0759f" stroke-width="1.6">
+      <rect x="1" y="30" width="34" height="14" rx="2"/>
+      <rect x="37" y="30" width="34" height="14" rx="2"/>
+      <rect x="10" y="16" width="34" height="14" rx="2"/>
+      <rect x="46" y="16" width="24" height="14" rx="2"/>
+      <rect x="19" y="2" width="34" height="14" rx="2"/>
+    </g></svg>`,
+  post: `<svg width="30" height="112" viewBox="0 0 30 112" aria-hidden="true">
+    <rect x="11" y="16" width="8" height="94" fill="#d9d2e2"/>
+    <rect x="1" y="1" width="28" height="22" rx="4" fill="#f0518d"/>
+    <rect x="6" y="9" width="18" height="3.4" rx="1.7" fill="#fff"/>
+  </svg>`,
+  bucket: `<svg width="52" height="56" viewBox="0 0 52 56" aria-hidden="true">
+    <path d="M9 16h34l-4 38H13Z" fill="#ffc9de" stroke="#e0759f" stroke-width="1.7"/>
+    <rect x="5" y="10" width="42" height="8" rx="4" fill="#f0518d"/>
+    <path d="M14 12a12 9 0 0 1 24 0" fill="none" stroke="#c9628c" stroke-width="2.2"/>
+  </svg>`,
+};
+
+/* Seen from BEHIND, walking away down the road. He was drawn side-on
+   first and it was wrong: a man in profile on a road that recedes reads
+   as walking ACROSS it, not along it. From behind, his direction and the
+   road's direction finally agree, and the tape trailing out of his hand
+   toward the camera is the same tape lying on the tarmac. */
+const RV_BUILDER = `<svg viewBox="0 0 150 196" aria-hidden="true">
+  <g class="rvBob">
+    <g class="rvLegA">
+      <rect x="60" y="116" width="16" height="60" rx="7" fill="#d9739b"/>
+      <rect x="57" y="172" width="22" height="12" rx="3" fill="#7a4a33"/>
+    </g>
+    <g class="rvLegB">
+      <rect x="78" y="116" width="16" height="60" rx="7" fill="#f0518d"/>
+      <rect x="75" y="172" width="22" height="12" rx="3" fill="#8d5639"/>
+    </g>
+    <!-- the arm that drags the tape -->
+    <g class="rvArmA">
+      <rect x="46" y="72" width="13" height="48" rx="6.5" fill="#e585ac"/>
+      <circle cx="52.5" cy="119" r="7.5" fill="#e8b48e"/>
+    </g>
+    <!-- back, with the overall straps crossing it -->
+    <rect x="52" y="62" width="50" height="62" rx="15" fill="#f0518d"/>
+    <path d="M62 62l30 42M92 62L62 104" stroke="#ff9cc3" stroke-width="7"
+          stroke-linecap="round" fill="none" opacity=".75"/>
+    <rect x="58" y="56" width="38" height="14" rx="6" fill="#fff1f6"/>
+    <circle cx="77" cy="44" r="17" fill="#e8b48e"/>
+    <path d="M60 44a17 17 0 0 1 34 0Z" fill="#ffd166"/>
+    <path d="M55 43h44a3.4 3.4 0 0 1 0 6.8H55a3.4 3.4 0 0 1 0-6.8Z" fill="#f7b733"/>
+    <!-- the arm with the toolbox -->
+    <g class="rvArmB">
+      <rect x="95" y="72" width="13" height="46" rx="6.5" fill="#f0518d"/>
+      <circle cx="101.5" cy="117" r="7.5" fill="#e8b48e"/>
+      <g>
+        <rect x="86" y="124" width="38" height="23" rx="4" fill="#c9628c"/>
+        <rect x="86" y="124" width="38" height="6" rx="3" fill="#a8305c"/>
+        <path d="M97 124a7 5.5 0 0 1 14 0" fill="none" stroke="#a8305c" stroke-width="2.4"/>
+      </g>
+    </g>
+  </g>
+</svg>`;
+
+/* Show the scene for its full length, then run `then`. Nothing here is
+   skippable, by request — but it does stand down if the scan is closed
+   underneath it, so a stray timer can never yank a closed scan open. */
+function revealThen(then) {
+  let host;
+  try { host = buildReveal(); }
+  catch (e) { then(); return; }           // never trap her behind a broken effect
+
+  clearTimeout(revealTimer);
+  host.classList.remove("live");
+  void host.offsetWidth;                  // restart the animations on a re-scan
+  host.classList.add("live");
+
+  /* resetScan() nulls S.last and every finish makes a fresh one, so this
+     identity is enough to tell "still the scan that started me" from
+     "she closed it and began another" without a counter of its own. */
+  const mine = S.last;
+  revealTimer = setTimeout(() => {
+    host.classList.remove("live");
+    if (S.last !== mine || !scanEl.classList.contains("live")) return;
+    then();
+  }, REVEAL_MS);
+}
+
+function stopReveal() {
+  clearTimeout(revealTimer);
+  if (revealHost) revealHost.classList.remove("live");
+}

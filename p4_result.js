@@ -16,8 +16,12 @@ function fingerWords(F) {
 document.getElementById("finish").addEventListener("click", () => {
   const F = features();
   const rec = recommend(F, S.natural, S.short);
+  // The answer is built FIRST and only then shown behind the reveal, so the
+  // seven and a half seconds are a deliberate pause and never a disguise for
+  // work still happening. If anything in here threw, it would throw before
+  // the tape started rather than leaving her watching it forever.
   renderResult(F, rec);
-  go(4);
+  revealThen(() => go(4));
 });
 
 function renderResult(F, rec) {
