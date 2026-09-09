@@ -1006,7 +1006,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "b2c085c233";
+const BUILD_ID = "cae57392ed";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -2121,7 +2121,20 @@ function recommend(F, natural, short) {
   const primary = F[cfg.primary_feature] ? F[cfg.primary_feature].conf : 0;
   const others = Object.keys(F).filter(k => k !== cfg.primary_feature).map(k => F[k].conf);
   const support = others.length ? others.reduce((a, b) => a + b, 0) / others.length : 0;
-  let confidence = fired.length ? cfg.primary_weight * primary + (1 - cfg.primary_weight) * support : 0;
+  /* An ABSENT measurement is not a measurement of zero.
+     The old line averaged a hard 0 in whenever the hand model had not run —
+     which is often, because on real photographs it finds no hand at all in
+     roughly three out of seven. With support pinned at 0 the arithmetic was
+     0.6 × primary, so even a perfect read topped out at 0.57 and anything
+     short of near-perfect agreement fell under the 0.45 threshold and dropped
+     into the squoval fallback. That is why the answer was almost always
+     squoval: not because hands are squoval, but because the confidence sum
+     punished every scan for a reading it had never asked for.
+     With nothing to support it, the primary measurement's own confidence is
+     the honest figure. */
+  let confidence = !fired.length ? 0
+    : others.length ? cfg.primary_weight * primary + (1 - cfg.primary_weight) * support
+    : primary;
   confidence = Math.max(0, Math.min(1, confidence));
 
   let recs = Object.keys(scores).map(k => ({
@@ -2143,15 +2156,29 @@ function recommend(F, natural, short) {
   // The full ranking, best first, so the result screen can show every shape
   // rather than one plus a comma-separated afterthought. `excluded` stays
   // separate: those are not low scores, they are shapes ruled out.
+  /* No "not sure, have a squoval" any more.
+
+     The ORDER of this ranking is far more robust than the number underneath
+     it. The bed ratio moves by about ±0.11 between two careful passes over the
+     same photograph, but the rules score BANDS rather than points, so a hand
+     has to sit right on a cut point before that wobble changes which shape
+     comes first. Refusing to name the top of a ranking we do trust, in favour
+     of a shape picked because it offends nobody, threw away the answer and
+     told her we had nothing to say.
+
+     The one case that is still refused is the case where there is genuinely
+     nothing: no nail was measurable at all, so no rule fired and the ranking
+     is a tie between seven zeroes. That is a photograph problem rather than a
+     shape, and it says so. */
   const out = { confidence, reasons, excluded, ranked: keep,
-                version: RULES.version, fallback: false };
-  if (!keep.length || confidence < cfg.recommend_threshold || keep[0].score <= 0) {
+                version: RULES.version, fallback: false, unread: false };
+  if (!fired.length || !keep.length || keep[0].score <= 0) {
     const fb = RULES.fallback, m = RULES.shapes[fb.shape];
     out.primary = {
-      shape: fb.shape, label: m.label, score: scores[fb.shape] || 0,
+      shape: fb.shape, label: m.label, score: 0,
       durability: m.durability, note: RULES.durability_notes[m.durability], needsExt: m.needs_extensions
     };
-    out.fallback = true; out.fallbackReason = fb.reason;
+    out.unread = true;
     out.alternates = keep.filter(r => r.shape !== fb.shape).slice(0, 2);
   } else {
     out.primary = keep[0];
@@ -2159,6 +2186,7 @@ function recommend(F, natural, short) {
   }
   return out;
 }
+
 
 /* ══ the guide sheet ═════════════════════════════════
    One printed page removes the two unknowns that broke every real photo we
