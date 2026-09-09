@@ -4,6 +4,7 @@ const RULES = __RULES__;
 const FINGERS = ["index", "middle", "ring", "pinky"];
 const S = {
   step: 0, img: null, iw: 0, ih: 0,
+ const BUILD_ID = "__BUILD__";
   // finger -> {cx, cy, len, wid, ang, auto, edited}. Oriented, because a nail
   // is measured along its own axis; an axis-aligned box would report the
   // photograph's rotation as part of the shape.
