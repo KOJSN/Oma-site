@@ -212,9 +212,12 @@ document.getElementById("shell").addEventListener("click", e => {
 
   if (a === "tech-open") {
     // A list row carries her name in its title; the map's card is a plain
-    // button, so it says the name outright.
+    // button, so it says the name outright. The title also carries the
+    // verified pill, and textContent would drag "NIN verified" into her
+    // name and print it in the page header — so read only the name node.
+    const ttl = el.querySelector(".ttl");
     PICKED.name = el.dataset.name ||
-      (el.querySelector(".ttl") ? el.querySelector(".ttl").textContent : "");
+      (ttl ? (ttl.childNodes[0] ? ttl.childNodes[0].textContent : ttl.textContent).trim() : "");
     return nav("techlive", el.dataset.id);
   }
   // The map: tapping Close puts the short list back, and the arrow re-centres.

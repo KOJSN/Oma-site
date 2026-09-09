@@ -67,7 +67,7 @@ function findRow(t) {
   <button class="card row" data-a="tech-open" data-id="${esc(t.id)}">
     <div class="avatar sq">${esc(initials(t.business_name))}</div>
     <div style="flex:1;min-width:0;text-align:left">
-      <div class="ttl">${esc(t.business_name)}</div>
+      <div class="ttl">${esc(t.business_name)}${verifiedBadge()}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
       <div style="margin-top:5px">${ratingSlot(t.id)}</div>
       ${bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : ""}

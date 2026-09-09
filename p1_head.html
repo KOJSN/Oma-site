@@ -634,6 +634,19 @@ h3{font-size:16px}
 .switch.on{background:var(--pink)}
 .switch.on i{transform:translateX(19px)}
 
+/* ═══ the verified mark ═══════════════════════════════
+   Shown on a tech because the database cannot let an unverified one be
+   visible at all: tech.listed carries a CHECK constraint against
+   kyc = 'verified', and every discovery query filters on listed. So this
+   badge is not a claim the app is making — it is a restatement of a rule
+   the row could not have been written without. */
+.vb{display:inline-flex;align-items:center;gap:4px;vertical-align:middle;
+  margin-left:6px;padding:2px 7px 2px 5px;border-radius:99px;
+  background:var(--tint);color:var(--pinkd);
+  font-size:11px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+.vb svg{flex:none}
+.vb.lg{font-size:12px;padding:3px 9px 3px 7px}
+
 /* ═══ working, and where ══════════════════════════════
    The two-way question at the top of a tech's listing — shop, or no shop —
    and the switch a tech with no shop lives by. Every colour is a token: the

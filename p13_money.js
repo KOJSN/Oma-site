@@ -121,12 +121,24 @@ function vSignIn() {
 /* One row for a listed tech, shared by Home's short list and the full Salons
    list — so the two screens cannot drift into looking like different products.
    Distance comes from the database, which computed it; the app never guesses. */
+/* A tech is only reachable through a query that filters on tech.listed, and
+   the tech table carries `constraint listed_needs_kyc check (not listed or
+   kyc = 'verified')`. tech.kyc is written by one thing only — the kyc edge
+   function, with the service key, after a NIMC-licensed provider returns
+   VERIFIED and the name on the ID matches the name on the Oma profile. So
+   anybody a customer can see has passed it, and this badge cannot get out of
+   step with the truth without the constraint being dropped first. */
+function verifiedBadge(big) {
+  return `<span class="vb${big ? " lg" : ""}" title="NIN checked against NIMC">${
+    I.seal(big ? 13 : 12)} NIN verified</span>`;
+}
+
 function techRowLive(t) {
   return `
   <button class="card row" data-a="tech-open" data-id="${esc(t.id)}">
     <div class="avatar sq">${esc(initials(t.business_name))}</div>
     <div style="flex:1;min-width:0;text-align:left">
-      <div class="ttl">${esc(t.business_name)}</div>
+      <div class="ttl">${esc(t.business_name)}${verifiedBadge()}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
       <div class="tiny" style="margin-top:6px">
         <b>${t.km < 1 ? Math.round(t.km * 1000) + " m" : t.km.toFixed(1) + " km"}</b> away
@@ -217,7 +229,16 @@ function vTechLive(id) {
     wireServicePicker();
     fillTechPhotos(id);
   });
-  return head(PICKED.name || "Services", "Prices are hers, not ours") + host();
+  return head(PICKED.name || "Services", "Prices are hers, not ours")
+    + `<div class="pad" style="margin-top:-4px;margin-bottom:12px">
+         <div class="note">
+           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-10"/></svg>
+           <div><b>NIN verified.</b> Oma checked this tech's identity against
+             NIMC before her listing could appear. Her prices and hours are
+             still her own.</div>
+         </div>
+       </div>`
+    + host();
 }
 
 function wireServicePicker() {
