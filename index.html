@@ -1,5 +1,7 @@
 <!doctype html>
-<html lang="en">
+<!-- en-NG, not plain en. It is a small signal and it is free: it tells a
+     crawler which country's results this page belongs in. -->
+<html lang="en-NG">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -16,19 +18,33 @@
 
      THE DOMAIN IS WRITTEN ONCE, in the canonical and og:url below and in
      sitemap.xml. If it ever changes, those are the only places to edit. -->
-<title>Oma — find a nail tech near you, book, and pay safely</title>
-<meta name="description" content="Oma helps women in Nigeria find a nail tech nearby, see her prices before booking, and pay into escrow — the money only reaches her when the appointment actually happens. Scan your hands to find the nail shape that fits.">
+<!-- The word "nails" is in the title on purpose. "Oma" alone competes with
+     omaa.com, a real energy company with years of history, and that fight is
+     not winnable. "Oma nails" and "nail tech near me Nigeria" are. -->
+<title>Oma Nails — find a nail tech near you in Nigeria</title>
+<meta name="description" content="Oma helps women in Nigeria find a nail tech nearby — Lagos, Abuja, anywhere she has signed up — see her prices before booking, and pay into escrow, so the money only reaches her when the appointment actually happens.">
 <link rel="canonical" href="https://omaa.com.ng/">
 <meta name="theme-color" content="#f0518d">
-<meta name="robots" content="index,follow">
+<meta name="robots" content="index,follow,max-image-preview:large">
+
+<!-- GOOGLE SEARCH CONSOLE goes on the line below.
+     search.google.com/search-console → Add property → URL prefix →
+     https://omaa.com.ng → verify with the HTML TAG method. Google gives you
+     one <meta name="google-site-verification" ...> line: delete this comment,
+     paste that line in its place, commit, then press Verify.
+     Nothing else on this page needs to change for it. -->
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Oma">
 <meta property="og:url" content="https://omaa.com.ng/">
-<meta property="og:title" content="Oma — find a nail tech near you, book, and pay safely">
+<meta property="og:title" content="Oma Nails — find a nail tech near you in Nigeria">
 <meta property="og:description" content="Find a nail tech nearby, see her prices before booking, and pay into escrow. The money only reaches her when the appointment actually happens.">
 <meta property="og:image" content="https://omaa.com.ng/icons/icon-512.png">
+<meta property="og:image:alt" content="Oma — book a nail tech in Nigeria">
+<meta property="og:locale" content="en_NG">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Oma Nails — find a nail tech near you in Nigeria">
+<meta name="twitter:description" content="Find a nail tech nearby, see her prices before booking, and pay into escrow.">
 
 <link rel="icon" type="image/png" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
@@ -43,14 +59,17 @@
   "@context": "https://schema.org",
   "@type": "WebSite",
   "name": "Oma",
+  "alternateName": ["Oma Nails", "Oma nail tech"],
   "url": "https://omaa.com.ng/",
+  "inLanguage": "en-NG",
   "description": "Find a nail tech near you in Nigeria, book, and pay safely into escrow.",
   "publisher": {
     "@type": "Organization",
     "name": "Oma",
+    "alternateName": "Oma Nails",
     "url": "https://omaa.com.ng/",
     "logo": "https://omaa.com.ng/icons/icon-512.png",
-    "founder": { "@type": "Person", "name": "Kamsy Samben-Nwosu" },
+    "founder": { "@type": "Person", "name": "Oduagu Samben-Nwosu" },
     "areaServed": { "@type": "Country", "name": "Nigeria" }
   }
 }
@@ -68,10 +87,28 @@
   --faint:#8a8296; --line:rgba(24,18,32,.10);
   --pink:#f0518d; --pink2:#ff8ab8; --pinkd:#c22a66;
   --tint:#fff0f6; --onpink:#ffffff;
-  --ink-on-dark:#ffffff; --sub-on-dark:rgba(255,255,255,.72);
   --shadow:0 24px 60px -20px rgba(24,18,32,.20),0 6px 16px -6px rgba(24,18,32,.10);
   --grad:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
-  --hero:#120e17;
+
+  /* The hero used to be one dark colour in BOTH themes, so switching the
+     site to light left a white bar sitting on top of a black slab — the
+     first thing on the page contradicted the setting. Every colour the
+     hero and the drawn phone use is a token now, and every one of them
+     flips. Kamsy, 9 Sep 2026: "make a light mode for this part". */
+  --hero:#fff7fb;
+  --hero-ink:#181220; --hero-sub:#5f5670; --hero-faint:#6b6278;
+  --hero-glow1:rgba(240,81,141,.30); --hero-glow2:rgba(255,143,186,.26);
+  --hero-chip:rgba(240,81,141,.10); --hero-chip-line:rgba(240,81,141,.24);
+  --hero-chip-b:#c22a66;
+  --hero-ghost-line:rgba(24,18,32,.18);
+  --onhero-bg:#181220; --onhero-ink:#ffffff;
+  --onhero-shadow:0 14px 34px -14px rgba(24,18,32,.55);
+  /* the drawn phone: chrome, then the screen inside it */
+  --dev:#ded8e6; --dev-line:rgba(24,18,32,.10);
+  --dev-shadow:0 40px 90px -30px rgba(24,18,32,.38);
+  --scr:#ffffff; --scr-ink:#181220; --scr-k:#8a8296;
+  --scr-row:#f6f3f9; --scr-sub:#5f5670;
+  --scr-pill-bg:rgba(27,158,90,.13); --scr-pill-ink:#137a45;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -81,6 +118,19 @@
     --tint:#2a1622; --onpink:#1a0f16;
     --shadow:0 24px 60px -20px rgba(0,0,0,.72),0 6px 16px -6px rgba(0,0,0,.5);
     --hero:#0d0a12;
+    --hero-ink:#ffffff; --hero-sub:rgba(255,255,255,.72);
+    --hero-faint:rgba(255,255,255,.62);
+    --hero-glow1:rgba(240,81,141,.55); --hero-glow2:rgba(255,143,186,.30);
+    --hero-chip:rgba(255,255,255,.10); --hero-chip-line:rgba(255,255,255,.16);
+    --hero-chip-b:#ffb3d0;
+    --hero-ghost-line:rgba(255,255,255,.28);
+    --onhero-bg:#ffffff; --onhero-ink:#17131e;
+    --onhero-shadow:0 14px 34px -14px rgba(0,0,0,.7);
+    --dev:#241f2b; --dev-line:rgba(255,255,255,.10);
+    --dev-shadow:0 40px 90px -30px rgba(0,0,0,.85);
+    --scr:#17131e; --scr-ink:#ffffff; --scr-k:rgba(255,255,255,.45);
+    --scr-row:rgba(255,255,255,.06); --scr-sub:rgba(255,255,255,.55);
+    --scr-pill-bg:rgba(78,208,140,.16); --scr-pill-ink:#8ff0ba;
   }
 }
 :root[data-theme="dark"]{
@@ -90,6 +140,19 @@
   --tint:#2a1622; --onpink:#1a0f16;
   --shadow:0 24px 60px -20px rgba(0,0,0,.72),0 6px 16px -6px rgba(0,0,0,.5);
   --hero:#0d0a12;
+  --hero-ink:#ffffff; --hero-sub:rgba(255,255,255,.72);
+  --hero-faint:rgba(255,255,255,.62);
+  --hero-glow1:rgba(240,81,141,.55); --hero-glow2:rgba(255,143,186,.30);
+  --hero-chip:rgba(255,255,255,.10); --hero-chip-line:rgba(255,255,255,.16);
+  --hero-chip-b:#ffb3d0;
+  --hero-ghost-line:rgba(255,255,255,.28);
+  --onhero-bg:#ffffff; --onhero-ink:#17131e;
+  --onhero-shadow:0 14px 34px -14px rgba(0,0,0,.7);
+  --dev:#241f2b; --dev-line:rgba(255,255,255,.10);
+  --dev-shadow:0 40px 90px -30px rgba(0,0,0,.85);
+  --scr:#17131e; --scr-ink:#ffffff; --scr-k:rgba(255,255,255,.45);
+  --scr-row:rgba(255,255,255,.06); --scr-sub:rgba(255,255,255,.55);
+  --scr-pill-bg:rgba(78,208,140,.16); --scr-pill-ink:#8ff0ba;
 }
 
 *,*::before,*::after{box-sizing:border-box}
@@ -120,7 +183,7 @@ p{margin:0}
   background:color-mix(in srgb,var(--bg) 82%,transparent);
   border-bottom:1px solid transparent;transition:border-color .2s}
 .bar.stuck{border-bottom-color:var(--line)}
-.bar .wrap{display:flex;align-items:center;gap:26px;height:66px}
+.bar .wrap{display:flex;align-items:center;gap:14px;height:66px}
 .mark{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;
   letter-spacing:-.04em;flex:none}
 .mark i{width:30px;height:30px;border-radius:9px;background:var(--grad);flex:none;
@@ -140,12 +203,14 @@ p{margin:0}
   box-shadow:none}
 .btn.ghost:hover{border-color:var(--pink);color:var(--pink)}
 .btn.big{padding:16px 28px;font-size:16.5px}
-.btn.onhero{background:#fff;color:#17131e;box-shadow:0 14px 34px -14px rgba(0,0,0,.7)}
+.btn.onhero{background:var(--onhero-bg);color:var(--onhero-ink);
+  box-shadow:var(--onhero-shadow)}
 .burger{display:none;margin-left:auto;background:none;border:0;color:inherit;
   cursor:pointer;padding:8px}
-/* Light or dark, her choice. Sits beside the call to action rather than
-   buried at the bottom: somebody on a phone set to dark who wants light
-   wants it now, not after scrolling the whole page. */
+/* Light or dark, her choice. Sits immediately beside the wordmark, at the
+   top left, where a thumb reaches it first — not beside the call to action
+   and not buried at the bottom. Somebody on a phone set to dark who wants
+   light wants it now, not after scrolling the whole page. */
 .iconbtn{width:38px;height:38px;flex:none;display:grid;place-items:center;
   border-radius:12px;border:1.5px solid var(--line);background:transparent;
   color:var(--sub);cursor:pointer}
@@ -157,56 +222,65 @@ p{margin:0}
     padding:6px 22px 14px}
   .navlinks.open a{padding:12px 0;border-bottom:1px solid var(--line)}
   .navlinks.open a:last-child{border-bottom:0}
-  .burger{display:block;order:3}
+  .burger{display:block;order:3;margin-left:auto}
   .bar .wrap{position:relative}
   .bar .btn{display:none}
-  .iconbtn{order:2;margin-left:auto}
+  /* no margin-left:auto here — that is what used to fling it into the
+     middle of the bar once the nav links and the CTA were hidden */
+  .iconbtn{order:2}
   .navlinks.open{order:4}
 }
 
 /* ── hero ────────────────────────────────────────────── */
-.hero{position:relative;background:var(--hero);color:var(--ink-on-dark);
+.hero{position:relative;background:var(--hero);color:var(--hero-ink);
   overflow:hidden;padding:96px 0 108px}
 .hero::before,.hero::after{content:"";position:absolute;border-radius:50%;
   filter:blur(90px);pointer-events:none}
 .hero::before{width:620px;height:620px;top:-220px;right:-160px;
-  background:rgba(240,81,141,.55)}
+  background:var(--hero-glow1)}
 .hero::after{width:520px;height:520px;bottom:-260px;left:-180px;
-  background:rgba(255,143,186,.30)}
+  background:var(--hero-glow2)}
 .hero .wrap{position:relative;display:grid;grid-template-columns:1.05fr .95fr;
   gap:56px;align-items:center}
 .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;
-  border-radius:99px;background:rgba(255,255,255,.10);
-  border:1px solid rgba(255,255,255,.16);
+  border-radius:99px;background:var(--hero-chip);
+  border:1px solid var(--hero-chip-line);
   font-size:12.5px;font-weight:700;letter-spacing:.02em;margin-bottom:22px}
-.eyebrow b{color:#ffb3d0}
+.eyebrow b{color:var(--hero-chip-b)}
 h1{font-size:clamp(36px,5.6vw,62px);text-wrap:balance}
-.hero p.lede{color:var(--sub-on-dark);font-size:clamp(17px,2.1vw,20px);
+.hero p.lede{color:var(--hero-sub);font-size:clamp(17px,2.1vw,20px);
   margin-top:20px;max-width:34ch;line-height:1.55}
 .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:34px}
+/* the second hero button. It used to carry white text in a style attribute,
+   which no theme can override — on a light hero it was white on near-white. */
+.hero .btn.ghost{color:var(--hero-ink);border-color:var(--hero-ghost-line)}
+.hero .btn.ghost:hover{color:var(--pink);border-color:var(--pink)}
 .trust{display:flex;gap:22px;flex-wrap:wrap;margin-top:34px;
-  color:rgba(255,255,255,.62);font-size:13.5px;font-weight:600}
+  color:var(--hero-faint);font-size:13.5px;font-weight:600}
 .trust span{display:flex;align-items:center;gap:7px}
 
 /* the phone. Drawn, not photographed — there is no screenshot of a real
    booking yet and a fake one on a marketing page is a small lie. */
 .phone{width:min(290px,80vw);margin:0 auto;border-radius:38px;padding:11px;
-  background:#241f2b;box-shadow:0 40px 90px -30px rgba(0,0,0,.85);
-  border:1px solid rgba(255,255,255,.10)}
-.screen{border-radius:28px;background:#17131e;overflow:hidden;
-  padding:18px 15px;color:#fff}
+  background:var(--dev);box-shadow:var(--dev-shadow);
+  border:1px solid var(--dev-line)}
+.screen{border-radius:28px;background:var(--scr);overflow:hidden;
+  padding:18px 15px;color:var(--scr-ink)}
 .screen .k{font-size:11px;font-weight:700;letter-spacing:.06em;
-  text-transform:uppercase;color:rgba(255,255,255,.45)}
+  text-transform:uppercase;color:var(--scr-k)}
 .screen .row{display:flex;align-items:center;gap:11px;padding:11px;
-  border-radius:15px;background:rgba(255,255,255,.06);margin-top:9px}
+  border-radius:15px;background:var(--scr-row);margin-top:9px}
+/* the initials sit on the pink gradient in both themes, so this one colour
+   is fixed rather than inherited from the screen */
 .screen .av{width:36px;height:36px;border-radius:11px;background:var(--grad);
-  flex:none;display:grid;place-items:center;font-size:12.5px;font-weight:800}
+  flex:none;display:grid;place-items:center;font-size:12.5px;font-weight:800;
+  color:#fff}
 .screen .nm{font-size:13.5px;font-weight:700;letter-spacing:-.02em}
-.screen .sub{font-size:11.5px;color:rgba(255,255,255,.55)}
+.screen .sub{font-size:11.5px;color:var(--scr-sub)}
 .screen .amt{margin-left:auto;font-size:13px;font-weight:800}
 .screen .pill{margin-top:14px;padding:11px 13px;border-radius:14px;
-  background:rgba(78,208,140,.16);color:#8ff0ba;font-size:12px;font-weight:700;
-  display:flex;align-items:center;gap:8px}
+  background:var(--scr-pill-bg);color:var(--scr-pill-ink);font-size:12px;
+  font-weight:700;display:flex;align-items:center;gap:8px}
 @media (max-width:900px){
   .hero{padding:70px 0 78px}
   .hero .wrap{grid-template-columns:1fr;gap:44px}
@@ -311,6 +385,7 @@ footer a:hover{color:var(--pink)}
 <header class="bar" id="bar">
   <div class="wrap">
     <a class="mark" href="/" aria-label="Oma, home"><i aria-hidden="true"></i>Oma</a>
+    <button class="iconbtn" id="theme" type="button"></button>
     <button class="burger" id="burger" aria-label="Menu" aria-expanded="false">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
@@ -321,7 +396,6 @@ footer a:hover{color:var(--pink)}
       <a href="#get">Get the app</a>
       <a href="#contact">Contact</a>
     </nav>
-    <button class="iconbtn" id="theme" type="button"></button>
     <a class="btn" href="/app.html">Open Oma</a>
   </div>
 </header>
@@ -339,7 +413,7 @@ footer a:hover{color:var(--pink)}
         actually happens.</p>
       <div class="ctas">
         <a class="btn big onhero" href="/app.html">Open Oma in your browser</a>
-        <a class="btn big ghost" href="#tech" style="color:#fff;border-color:rgba(255,255,255,.28)">I'm a nail tech</a>
+        <a class="btn big ghost" href="#tech">I'm a nail tech</a>
       </div>
       <div class="trust">
         <span>💳 Your money is held until you're done</span>
@@ -488,9 +562,9 @@ footer a:hover{color:var(--pink)}
   <div class="wrap">
     <div class="head"><div class="tag">Founder</div></div>
     <div class="founder">
-      <div class="fi" aria-hidden="true">KS</div>
+      <div class="fi" aria-hidden="true">OS</div>
       <div>
-        <h2 style="font-size:clamp(24px,3.2vw,32px)">Kamsy Samben-Nwosu</h2>
+        <h2 style="font-size:clamp(24px,3.2vw,32px)">Oduagu Samben-Nwosu</h2>
         <p style="color:var(--sub);margin-top:10px;max-width:56ch;font-size:16.5px">
           Oma was founded and built to make booking a nail tech in Nigeria
           something you can do without knowing her already.</p>

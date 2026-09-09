@@ -171,6 +171,30 @@ rather than a pink tint, so it never fights the photograph underneath.
 Both site pages follow your phone by default and have a sun/moon button that
 overrides it in **both** directions. It remembers.
 
+**Fixed 9 Sep.** Light mode only reached as far as the top bar. Everything
+below it — the headline, the buttons, the drawn phone — was one fixed dark
+slab in both themes, so switching to light gave you a white bar sitting on a
+black wall. Every colour in that band is a token now and every one of them
+flips: soft pink ground, dark type, and the phone in light chrome with a white
+screen. Dark mode is untouched.
+
+The **sun/moon button now sits immediately beside the Oma wordmark**, top
+left. It used to be pushed to the middle of the bar on a phone, because it was
+told to shove itself right and then the menu button shoved past it.
+
+*(The admin page keeps its own toggle floating top-right — say the word if you
+want that one moved too.)*
+
+### The founder line
+
+Now reads **Oduagu Samben-Nwosu**, in the visible section and in the
+structured data Google reads. Initials on the tile changed to **OS**.
+
+Two places still say "Kamsy" in public copy — the line under the contact form
+and the *"Sent. Kamsy will get back to you."* confirmation. Tell me if those
+should change too; a visitor seeing two different names is the kind of small
+thing that reads as careless.
+
 ---
 
 ## The admin page
@@ -209,18 +233,48 @@ bottom of `admin.sql` — every open session dies with it.
 
 ---
 
-## Google, still
+## Google — the search problem
 
-Only you can do this:
+### What changed in the page
+
+The title now reads **"Oma Nails — find a nail tech near you in Nigeria"**.
+The word *nails* is in it deliberately: on the bare word *Oma* you are
+competing with omaa.com, a real energy company with years of history, and
+that fight is not winnable. *Oma nails* is.
+
+Also done: the page declares itself **en-NG** rather than plain English, the
+structured data now carries *Oma Nails* as an alternate name, the sitemap has
+real dates on it, and the share card has proper alt text and a Nigerian
+locale.
+
+**None of that is the thing that was actually wrong.** The reason searching
+found an energy company is that there was **nothing at the root of your
+domain to index** — the app lives at `/app.html` and `/` was empty. Uploading
+`index.html` is the fix. Everything above only decides how well the page does
+once it exists.
+
+### What only you can do
 
 1. **search.google.com/search-console**
 2. Add property → **URL prefix** → `https://omaa.com.ng`
-3. Verify with the **HTML tag** method — paste the `<meta name="google-site-verification" ...>` line into `index.html` just under the `<title>`, commit, then Verify
+3. Verify with the **HTML tag** method. Google gives you one
+   `<meta name="google-site-verification" ...>` line. In `index.html` there is
+   now a comment block marked **GOOGLE SEARCH CONSOLE goes on the line
+   below** — delete that comment, paste Google's line in its place, commit,
+   then press Verify. It is right under the title so you cannot miss it.
 4. Left menu → **Sitemaps** → enter `sitemap.xml` → Submit
+5. Left menu → **URL Inspection** → paste `https://omaa.com.ng/` → **Request
+   indexing**. This is the one that gets you looked at in days rather than
+   weeks.
 
-Indexing takes days to weeks, and you will still not outrank **omaa.com** —
-that is a real energy company with years of history. What you can win is
-*"Oma nails"*, *"book nail tech Lagos"*, *"nail tech near me Nigeria"*.
+Indexing still takes days to weeks. What you can realistically win is
+*"Oma nails"*, *"book nail tech Lagos"*, *"nail tech near me Nigeria"* — not
+*"omaa"*.
+
+**The honest ceiling:** a brand-new page with no other site linking to it
+ranks on nothing but its own relevance for a while. The fastest real lever is
+not another meta tag — it is one nail tech or one blog linking to
+`omaa.com.ng`.
 
 ---
 
