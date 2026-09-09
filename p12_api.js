@@ -1099,7 +1099,8 @@ const API = (() => {
                  points: +(s.opoints.milli / 1000).toFixed(2), place: null,
                  code: s.opoints.code, used_code: s.opoints.used, can_use_code: !s.opoints.used, referrals: 0,
                  per_point: 700000, pair_cap: 10,
-                 tech_prize_kobo: 0, customer_prize_kobo: 0, lines: [] };
+                 tech_prize_kobo: 0, customer_prize_kobo: 0,
+                 next_season: null, next_starts_at: null, lines: [] };
       },
       leaderboard: async () => [],
       myReferralCode: async () => {
