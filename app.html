@@ -1229,7 +1229,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "50a5568b19";
+const BUILD_ID = "8c7ac12815";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -4534,7 +4534,8 @@ const API = (() => {
                  points: +(s.opoints.milli / 1000).toFixed(2), place: null,
                  code: s.opoints.code, used_code: s.opoints.used, can_use_code: !s.opoints.used, referrals: 0,
                  per_point: 700000, pair_cap: 10,
-                 tech_prize_kobo: 0, customer_prize_kobo: 0, lines: [] };
+                 tech_prize_kobo: 0, customer_prize_kobo: 0,
+                 next_season: null, next_starts_at: null, lines: [] };
       },
       leaderboard: async () => [],
       myReferralCode: async () => {
@@ -9366,6 +9367,13 @@ function naira(kobo) {
   if (kobo == null) return "—";
   return "₦" + Math.round(kobo / 100).toLocaleString("en");
 }
+function longDate(iso) {
+  if (!iso) return "soon";
+  const d = new Date(iso);
+  if (isNaN(d)) return "soon";
+  return d.toLocaleDateString("en-GB",
+    { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos" });
+}
 function daysLeft(iso) {
   if (!iso) return null;
   const ms = new Date(iso).getTime() - Date.now();
@@ -9386,6 +9394,45 @@ async function loadPoints() {
   if (ROUTE.v === "points") paint();
 }
 
+function codeCard(p) {
+  return `
+      <!-- ── the referral code ── -->
+      <div class="seehead" style="padding-left:0;padding-right:0"><h3>Your code</h3></div>
+      ${p.code ? `
+        <div class="card" style="text-align:center;padding:18px">
+          <div style="font-size:30px;font-weight:800;letter-spacing:.14em;
+                      font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(p.code)}</div>
+          <div class="small sub" style="margin-top:8px">
+            They get <b>0.1</b>, you get <b>0.3</b> — when they finish their
+            first booking, not when they sign up.</div>
+        </div>
+        <div class="btnrow mt12">
+          <button class="btn sm" data-a="shareCode">${I.share()} Share</button>
+          <button class="btn sm ghost" data-a="copyCode">Copy</button>
+        </div>
+        ${p.referrals ? `<div class="small sub" style="margin-top:10px;text-align:center">
+          <b>${p.referrals}</b> ${p.referrals === 1 ? "person has" : "people have"}
+          joined on your code and booked.</div>` : ""}
+      ` : `
+        <button class="btn mt8" data-a="makeCode">Get my code</button>
+      `}
+
+      ${p.can_use_code ? `
+      <div class="card mt16">
+        <div style="font-size:15px;font-weight:700">Someone gave you a code?</div>
+        <div class="small sub" style="margin-top:4px;margin-bottom:10px">
+          One code, once, and only before your first booking — so make it
+          the right one.</div>
+        <div class="btnrow">
+          <input id="fRefCode" placeholder="ABC123" autocapitalize="characters"
+                 value="${esc(pendingRef())}"
+                 maxlength="12" style="flex:1;text-transform:uppercase;
+                 letter-spacing:.1em;font-family:ui-monospace,Menlo,monospace">
+          <button class="btn sm" data-a="useCode">Use it</button>
+        </div>
+      </div>` : ""}`;
+}
+
 function vPoints() {
   // First paint has nothing yet; the fetch repaints when it lands.
   if (!PTS) { loadPoints(); }
@@ -9398,12 +9445,50 @@ function vPoints() {
   ${head("O points")}
   <div class="pad">
 
-    ${!live ? `
+    ${!live ? (p.next_season ? `
+      <!-- The gathering year. She is here before anybody has heard of Oma,
+           and that is exactly the person the board is meant to keep. Telling
+           her a date is a reason to still be here on it; "no competition at
+           the moment" is a reason to leave. -->
+      <div class="card" style="background:var(--grad);color:#fff;padding:22px 20px">
+        <div class="eyebrow" style="color:rgba(255,255,255,.85)">Coming</div>
+        <div style="font-size:26px;font-weight:800;letter-spacing:-.035em;
+                    line-height:1.15;margin-top:6px">${esc(p.next_season)}</div>
+        <div style="margin-top:8px;font-size:14px;opacity:.92">Starts ${
+          longDate(p.next_starts_at)}${(() => {
+            const d = daysLeft(p.next_starts_at);
+            return d == null ? "" : ` · ${d} day${d === 1 ? "" : "s"} away`;
+          })()}</div>
+      </div>
+
+      ${(p.next_tech_prize_kobo > 0 || p.next_customer_prize_kobo > 0) ? `
+      <div class="grid2 mt12">
+        <div class="tile"><div class="k">Top nail tech</div>
+          <div class="v">${naira(p.next_tech_prize_kobo)}</div></div>
+        <div class="tile"><div class="k">Top customer</div>
+          <div class="v">${naira(p.next_customer_prize_kobo)}</div></div>
+      </div>` : ""}
+
+      <div class="note mt16">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.1"/></svg>
+        <div><b>Nothing counts yet.</b> Work you do before the start does not
+          score — the board opens with everybody on nothing, so somebody who
+          joins in January is not already behind.</div>
+      </div>
+
+      <div class="small sub" style="margin-top:16px;line-height:1.55">
+        1 O point will be ${naira(p.per_point)} of work. Your code works
+        already — someone who joins on it now still pays out when they book
+        once the season opens.
+      </div>
+
+      ${codeCard(p)}`
+    : `
       <div class="empty" style="margin-top:8px">
         <b>No season running</b>
         There is no competition open at the moment. When one starts, every
         booking you complete starts counting toward it.
-      </div>`
+      </div>`)
     : `
       <!-- her own standing. The place is deliberately quieter than the
            score: the score is a fact about her work, the place is a fact
@@ -9441,41 +9526,7 @@ function vPoints() {
           <div class="v">${naira(p.customer_prize_kobo)}</div></div>
       </div>` : ""}
 
-      <!-- ── the referral code ── -->
-      <div class="seehead" style="padding-left:0;padding-right:0"><h3>Your code</h3></div>
-      ${p.code ? `
-        <div class="card" style="text-align:center;padding:18px">
-          <div style="font-size:30px;font-weight:800;letter-spacing:.14em;
-                      font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(p.code)}</div>
-          <div class="small sub" style="margin-top:8px">
-            They get <b>0.1</b>, you get <b>0.3</b> — when they finish their
-            first booking, not when they sign up.</div>
-        </div>
-        <div class="btnrow mt12">
-          <button class="btn sm" data-a="shareCode">${I.share()} Share</button>
-          <button class="btn sm ghost" data-a="copyCode">Copy</button>
-        </div>
-        ${p.referrals ? `<div class="small sub" style="margin-top:10px;text-align:center">
-          <b>${p.referrals}</b> ${p.referrals === 1 ? "person has" : "people have"}
-          joined on your code and booked.</div>` : ""}
-      ` : `
-        <button class="btn mt8" data-a="makeCode">Get my code</button>
-      `}
-
-      ${p.can_use_code ? `
-      <div class="card mt16">
-        <div style="font-size:15px;font-weight:700">Someone gave you a code?</div>
-        <div class="small sub" style="margin-top:4px;margin-bottom:10px">
-          One code, once, and only before your first booking — so make it
-          the right one.</div>
-        <div class="btnrow">
-          <input id="fRefCode" placeholder="ABC123" autocapitalize="characters"
-                 value="${esc(pendingRef())}"
-                 maxlength="12" style="flex:1;text-transform:uppercase;
-                 letter-spacing:.1em;font-family:ui-monospace,Menlo,monospace">
-          <button class="btn sm" data-a="useCode">Use it</button>
-        </div>
-      </div>` : ""}
+      ${codeCard(p)}
 
       <!-- ── the board ── -->
       <div class="seehead" style="padding-left:0;padding-right:0"><h3>The board</h3></div>
