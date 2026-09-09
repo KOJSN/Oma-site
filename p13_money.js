@@ -188,21 +188,34 @@ function vTechLive(id) {
           <div class="tiny sub">Choose what you want done.</div>
           <div>${ratingLine(r)}</div>
         </div>
+        <!-- The photograph IS the card. Filled in after the paint, because
+             the pictures come from a second call — until they arrive the card
+             is the Oma gradient, which is what a service with no photographs
+             stays as. Same shape either way: mixing tall photo cards with
+             small text rows down one page reads as neither. -->
         ${list.map((s) => `
-          <label class="card row" style="cursor:pointer">
+          <label class="svccard" data-svc="${esc(s.id)}">
             <input type="checkbox" class="svc" value="${esc(s.id)}"
                    data-mins="${s.minutes}" data-kobo="${s.price_kobo}">
-            <div style="flex:1;min-width:0;text-align:left">
-              <div class="ttl">${esc(s.name)}</div>
-              <div class="tiny sub">${mins(s.minutes)}</div>
+            <div data-shotslot="${esc(s.id)}"></div>
+            <div class="svcfoot">
+              <div class="top">
+                <h3>${esc(s.name)}</h3>
+                <span class="pricepill">${kobo(s.price_kobo)}</span>
+              </div>
+              <div class="sub">${mins(s.minutes)}</div>
+              ${(s.shapes || []).length ? `<div class="svcchips">${
+                (s.shapes || []).slice(0, 4).map((x) => `<i>${esc(x)}</i>`).join("")
+              }</div>` : ""}
+              <span class="pickbtn">Choose this</span>
             </div>
-            <div style="font-weight:700">${kobo(s.price_kobo)}</div>
           </label>`).join("")}
         <div id="svcTotal" class="tiny sub" style="text-align:right"></div>
         <button class="btn" data-a="pick-time" disabled id="toTime">Choose a time</button>
         ${reviewsBlock(revs, r)}
       </div>`);
     wireServicePicker();
+    fillTechPhotos(id);
   });
   return head(PICKED.name || "Services", "Prices are hers, not ours") + host();
 }

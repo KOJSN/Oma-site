@@ -12,8 +12,10 @@ function paint() {
     // The listing editor states Oma's TERMS in a sentence and shows no
     // arithmetic. The breakdown belongs on her earnings screen, after she has
     // been paid — see p19_fee.js.
-    case "setup": html = vSetup(false); break;
-    case "editbiz": html = vSetup(true); break;
+    // Her photographs are fetched after the paint, like everything else that
+    // needs the network, and the strips redraw themselves when they arrive.
+    case "setup": html = vSetup(false); setTimeout(loadMyPhotos, 0); break;
+    case "editbiz": html = vSetup(true); setTimeout(loadMyPhotos, 0); break;
     // The bottom bar used to lead to a second, device-only app. Every one
     // of these now reads the database instead. See oma-two-apps.md.
     case "home": html = vHomeLive(); break;
@@ -368,26 +370,17 @@ document.getElementById("shell").addEventListener("click", e => {
       if (!b.state) return toast("Pick your state — it is how customers in your state find you.");
     }
     DB.biz = b; DB.cur = b.cur || DB.cur; dbSave();
-    // The server needs to know, because it is what decides whether she is
-    // found by an address that never moves or by a phone that does. Failing
-    // this must not lose her listing, so it is reported and not thrown.
-    if (API.signedIn()) {
-      API.setMobility(b.hasSalon !== false, b.state || null)
-        .then(() => { if (b.hasSalon === false) liveResume(); })
-        .catch((e) => toast(e.message || "Saved here, but Oma did not get the change."));
-      // Her home-service terms, and any per-service home price she typed.
-      // Sent separately because a bad number in one service must not throw
-      // away her call-out.
-      saveHomeSettings(b).catch((e) =>
-        toast(e.message || "Saved here, but Oma did not get the travel settings."));
-      (b.services || []).forEach((sv) => {
-        if (!sv.id) return;                       // not on the server yet
-        const n = String(sv.hp || "").replace(/[^\d.]/g, "");
-        API.setServiceHomePrice(sv.id, n ? Math.round(Number(n) * 100) : null)
-          .catch(() => { /* reported once, above, not once per service */ });
-      });
+
+    // Saved on the phone. Now put it where a CUSTOMER can see it — which
+    // until this existed simply never happened. saveBiz wrote the menu
+    // locally and told the server nothing about it, so on the real backend a
+    // tech published a listing with zero services and became unbookable
+    // without a word on screen. See menu.sql.
+    if (!API.signedIn()) {
+      toast("Saved on this phone. Sign in to publish it.");
+      return nav("listing");
     }
-    toast("Listing saved.");
+    publishListing(b);
     return nav("listing");
   }
   if (a === "shareMine" || a === "copyLink") {
@@ -421,6 +414,13 @@ document.getElementById("shell").addEventListener("click", e => {
     return paint();
   }
   if (a === "work-toggle") return toggleWorking();
+  if (a === "photo-del") return deleteMyPhoto(el.dataset.id);
+  if (a === "photo-report") {
+    // The flag sits inside the <label> that IS the service card, so without
+    // this a tap on it would also tick the service she was trying to report.
+    e.preventDefault();
+    return reportPhoto(el.dataset.id);
+  }
   if (a === "home-toggle") {
     DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(),
                            { homeService: !(DB.biz && DB.biz.homeService) });
@@ -559,6 +559,81 @@ document.addEventListener("change", (e) => {
   dbSave();
   paint();
 });
+
+/* ── putting a listing where customers can see it ─────────────────────
+   The order matters and each step depends on the one before it:
+
+     1. the tech row has to exist before it can own a service
+     2. the services have to exist before they can carry a price or a photo
+     3. the ids that come back are stored on the DEVICE, so the next save
+        UPDATES her menu rather than adding a second copy of it
+
+   Anything that fails is reported once, in her words, and never throws away
+   what she typed — the local copy is already saved before any of this runs. */
+async function publishListing(b) {
+  try {
+    await API.becomeTech({
+      name: b.name,
+      address: b.hasSalon === false ? null : (b.address || null),
+      area: b.area || null,
+      lat: (b.ll && b.ll[0]) || null,
+      lng: (b.ll && b.ll[1]) || null,
+      years: Number(String(b.years || "").replace(/\D/g, "")) || null,
+    });
+  } catch (e) {
+    return toast(e.message || "Saved here, but Oma could not publish it.");
+  }
+
+  try {
+    await API.setMobility(b.hasSalon !== false, b.state || null);
+    if (b.hasSalon === false) liveResume();
+  } catch (e) {
+    toast(e.message || "Saved, but Oma did not get the salon setting.");
+  }
+
+  // A salon with no coordinates can never actually be listed — the database
+  // refuses it, because a listing nobody can be sorted by distance from is a
+  // listing nobody finds. Said here rather than letting her discover it at
+  // the ID check, which is the wrong screen to learn it on.
+  if (b.hasSalon !== false && !(b.ll && b.ll.length === 2)) {
+    toast("Tap “Pin me” next to your area — customers are sorted by distance.");
+  }
+
+  // The menu, with her home prices carried in the same call rather than a
+  // second one per service.
+  const menu = (b.services || []).map((sv) => ({
+    id: sv.id || null,
+    name: (sv.n || "").trim(),
+    minutes: Number(String(sv.m || "").replace(/\D/g, "")) || 60,
+    price_kobo: Math.round(Number(String(sv.p || "").replace(/[^\d.]/g, "")) * 100) || 0,
+    shapes: sv.sh || [],
+    home_kobo: sv.hp
+      ? Math.round(Number(String(sv.hp).replace(/[^\d.]/g, "")) * 100) || null
+      : null,
+  })).filter((x) => x.name);
+
+  try {
+    const saved = await API.syncServices(menu);
+    // Write the ids back onto the device's copy. Without this every save is a
+    // fresh insert and her menu doubles, and a photograph has nothing to
+    // attach itself to.
+    (saved || []).forEach((row, i) => {
+      if (DB.biz.services[i]) DB.biz.services[i].id = row.id;
+    });
+    dbSave();
+    if (typeof loadMyPhotos === "function") loadMyPhotos();
+  } catch (e) {
+    return toast(e.message || "Saved, but your services did not reach Oma.");
+  }
+
+  try {
+    await saveHomeSettings(b);
+  } catch (e) {
+    toast(e.message || "Saved, but Oma did not get the travel settings.");
+  }
+
+  toast("Listing published.");
+}
 
 function readBiz() {
   const g = k => { const n = document.getElementById(k); return n ? n.value.trim() : undefined; };

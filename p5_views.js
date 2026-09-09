@@ -481,6 +481,7 @@ function vSetup(edit) {
       <div style="font-size:14.5px;font-weight:800;letter-spacing:-.02em">Your service menu</div>
       <button class="tag" data-a="addSvc">+ Add service</button>
     </div>
+    ${(b.services || []).some(s => s.id) ? ownWorkBox() : ""}
     <div class="stack gap10" id="svcList">${svcEditor(b.services || [], b.cur || DB.cur)}</div>
 
     <div class="note mt16">
@@ -532,6 +533,9 @@ function svcEditor(list, cur) {
          Blank means the same as above, which is both the default and the
          plainest way to say it. -->
     ${(DB.biz && DB.biz.homeService) ? svcHomeRow(s, i, cur) : ""}
+    <!-- "That's if she has" — a service with no photographs shows an
+         invitation, never an apology or a row of grey boxes. -->
+    ${svcPhotoRow(s, i)}
 
     <div class="pills mt12">${SERVICE_SHAPES.map(sh =>
       `<button class="pill ${(s.sh || []).includes(sh) ? "on" : ""}" data-a="svcShape" data-i="${i}" data-sh="${sh}"

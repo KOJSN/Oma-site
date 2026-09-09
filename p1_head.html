@@ -603,6 +603,102 @@ h3{font-size:16px}
   color:var(--sub);font-weight:500;line-height:1.4}
 .card.work{border:1.5px solid var(--line)}
 .card.work.on{border-color:var(--good);background:var(--goodbg)}
+/* ═══ her work, under each service ════════════════════
+   A row that scrolls sideways rather than wrapping: three photographs on a
+   320px phone would otherwise stack into a column and push the price out of
+   sight. Fixed squares, so a portrait and a landscape shot sit in the same
+   grid instead of making the row ragged. */
+.shots{display:flex;gap:8px;margin-top:10px;overflow-x:auto;padding-bottom:2px;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+.shots::-webkit-scrollbar{display:none}
+.shot{position:relative;width:84px;height:84px;flex:none;border-radius:14px;
+  overflow:hidden;background:var(--fill);border:1px solid var(--line)}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.shots.look .shot{width:104px;height:104px}
+/* The add tile is a label wrapping a hidden file input — the whole square is
+   the target, which on a phone matters more than it looks. */
+.shot.add{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;border-style:dashed;cursor:pointer;
+  color:var(--sub);font-size:22px;font-weight:700}
+.shot.add input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:200px}
+.shot .x,.shot .flag{position:absolute;top:4px;right:4px;width:24px;height:24px;
+  border-radius:50%;background:rgba(10,8,13,.62);color:#fff;font-size:14px;
+  line-height:1;display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);cursor:pointer}
+.shot .flag{font-size:12px;opacity:.55}
+.shot .flag:hover,.shot .flag:focus-visible{opacity:1}
+/* The tick box above the menu. Asked once, not once per upload. */
+.own{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;
+  border-radius:14px;background:var(--fill);font-size:12.8px;color:var(--sub);
+  line-height:1.45;margin:10px 0 4px;cursor:pointer}
+.own input{margin-top:2px;flex:none;width:17px;height:17px;accent-color:var(--pink)}
+.own b{color:var(--ink)}
+
+/* ═══ a service, as a card ════════════════════════════
+   Kamsy, 9 Sep 2026, with a reference: the photograph IS the card. Her work
+   fills it, her name and her price sit on top of it, and the whole thing is
+   one tap.
+
+   Every service gets the same shape whether or not she has photographs. One
+   with none gets the Oma gradient rather than a grey box with a broken-image
+   icon in it — that reads as designed instead of as missing, and mixing tall
+   photo cards with small text rows down one page reads as neither. */
+.svccard{position:relative;border-radius:26px;overflow:hidden;cursor:pointer;
+  display:block;background:var(--grad);isolation:isolate;
+  box-shadow:0 18px 40px -20px rgba(24,18,32,.5);
+  transition:transform .16s,box-shadow .16s}
+.svccard:active{transform:scale(.99)}
+.svccard input{position:absolute;opacity:0;pointer-events:none}
+/* Chosen. A ring rather than a tint, so it never fights the photograph. */
+.svccard.on{box-shadow:0 0 0 3px var(--pink),0 18px 40px -20px rgba(240,81,141,.6)}
+.svcpix{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;aspect-ratio:4/5}
+.svcpix::-webkit-scrollbar{display:none}
+.svcpix .pane{flex:0 0 100%;scroll-snap-align:center;position:relative}
+.svcpix img{width:100%;height:100%;object-fit:cover;display:block}
+/* The scrim. Neutral black rather than a colour sampled from the photo —
+   it has to hold white text legibly over a photograph nobody has seen yet,
+   and a guessed hue fails on the first dark one. */
+.svccard.haspix::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.28) 0%,rgba(0,0,0,0) 26%,
+    rgba(0,0,0,.55) 62%,rgba(0,0,0,.88) 100%)}
+/* The caption only LIES OVER a photograph when there is one. On a tech who
+   has posted none the same block sits in the flow and gives the card its
+   height — otherwise the gallery is empty, an absolute caption measures
+   nothing, and her service vanishes off the page entirely. */
+.svcfoot{position:relative;z-index:2;padding:18px 16px 15px;
+  color:#fff;display:flex;flex-direction:column;gap:9px}
+.svccard.haspix .svcfoot{position:absolute;left:0;right:0;bottom:0;padding-top:16px}
+.svcfoot .top{display:flex;align-items:flex-end;gap:10px}
+.svcfoot h3{flex:1;min-width:0;margin:0;font-size:22px;font-weight:800;
+  letter-spacing:-.03em;line-height:1.12;color:#fff}
+.pricepill{flex:none;padding:7px 14px;border-radius:99px;font-size:14.5px;
+  font-weight:800;color:#fff;background:rgba(0,0,0,.42);
+  backdrop-filter:blur(8px);font-variant-numeric:tabular-nums}
+.svcfoot .sub{font-size:13.5px;color:rgba(255,255,255,.82);font-weight:500}
+.svcchips{display:flex;gap:7px;flex-wrap:wrap}
+.svcchips i{font-style:normal;padding:4px 11px;border-radius:99px;font-size:11.5px;
+  font-weight:700;color:rgba(255,255,255,.92);background:rgba(0,0,0,.34);
+  backdrop-filter:blur(8px)}
+/* The big white pill of the reference. It is not a second control — the whole
+   card is the control — so it reflects state rather than inviting a separate
+   tap, and it says which of the two states you are in. */
+.pickbtn{margin-top:3px;width:100%;padding:14px;border-radius:99px;background:#fff;
+  color:#17131e;font-size:15.5px;font-weight:800;text-align:center;
+  display:flex;align-items:center;justify-content:center;gap:8px}
+.svccard.on .pickbtn{background:var(--pink);color:#fff}
+/* Which photograph of the three. Only drawn when there is more than one. */
+.svcdots{position:absolute;left:0;right:0;z-index:2;bottom:calc(100% - 62%);
+  display:flex;justify-content:center;gap:6px;pointer-events:none}
+.svcdots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.45);
+  transition:background .2s,width .2s}
+.svcdots i.on{background:#fff;width:18px;border-radius:99px}
+.svcflag{position:absolute;top:10px;right:10px;z-index:3;width:30px;height:30px;
+  border-radius:50%;background:rgba(0,0,0,.34);color:#fff;font-size:13px;
+  display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);
+  opacity:.7}
+.svcflag:hover,.svcflag:focus-visible{opacity:1}
+
 /* The map's scope: near me, or the whole state. */
 .scope{position:absolute;top:calc(74px + env(safe-area-inset-top));left:50%;
   transform:translateX(-50%);z-index:420;display:flex;gap:4px;padding:4px;

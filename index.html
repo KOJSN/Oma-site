@@ -143,6 +143,13 @@ p{margin:0}
 .btn.onhero{background:#fff;color:#17131e;box-shadow:0 14px 34px -14px rgba(0,0,0,.7)}
 .burger{display:none;margin-left:auto;background:none;border:0;color:inherit;
   cursor:pointer;padding:8px}
+/* Light or dark, her choice. Sits beside the call to action rather than
+   buried at the bottom: somebody on a phone set to dark who wants light
+   wants it now, not after scrolling the whole page. */
+.iconbtn{width:38px;height:38px;flex:none;display:grid;place-items:center;
+  border-radius:12px;border:1.5px solid var(--line);background:transparent;
+  color:var(--sub);cursor:pointer}
+.iconbtn:hover{color:var(--pink);border-color:var(--pink)}
 @media (max-width:820px){
   .navlinks{display:none}
   .navlinks.open{display:flex;position:absolute;top:66px;left:0;right:0;
@@ -150,9 +157,11 @@ p{margin:0}
     padding:6px 22px 14px}
   .navlinks.open a{padding:12px 0;border-bottom:1px solid var(--line)}
   .navlinks.open a:last-child{border-bottom:0}
-  .burger{display:block}
+  .burger{display:block;order:3}
   .bar .wrap{position:relative}
   .bar .btn{display:none}
+  .iconbtn{order:2;margin-left:auto}
+  .navlinks.open{order:4}
 }
 
 /* ── hero ────────────────────────────────────────────── */
@@ -312,6 +321,7 @@ footer a:hover{color:var(--pink)}
       <a href="#get">Get the app</a>
       <a href="#contact">Contact</a>
     </nav>
+    <button class="iconbtn" id="theme" type="button"></button>
     <a class="btn" href="/app.html">Open Oma</a>
   </div>
 </header>
@@ -583,30 +593,80 @@ footer a:hover{color:var(--pink)}
   </div>
 </footer>
 
+<script src="/oma-config.js"></script>
+
 <script>
-/* ══ the two lines that connect this page to the database ══════════════
-   The anon key is PUBLIC BY DESIGN — it is already printed inside every copy
-   of the app, and every function it can reach checks who is calling. The
-   service_role key is a different thing entirely and must NEVER appear here
-   or anywhere else a browser can read.
+/* ── light or dark, her choice ────────────────────────────────────────
+   The palette already followed the phone. What it did not have was a way to
+   disagree with the phone — Kamsy, 9 Sep 2026: "add a light mode to the
+   website", looking at it on a phone that was set to dark.
 
-   Leave both empty and the page still works: the contact form simply says it
-   is not connected yet rather than pretending to send. And on omaa.com.ng the
-   app has usually already stored these, in which case they are picked up
-   automatically and these two lines never matter. */
-const OMA_URL  = "";
-const OMA_ANON = "";
+   Three states, not two, and that is the whole subtlety. No stored choice
+   means FOLLOW THE PHONE, which is the default and is not the same as
+   "light": the tokens are structured so the bare :root is light, a media
+   query darkens it, and an explicit stamp beats both in either direction.
+   Storing "light" the moment somebody lands would silently opt them out of
+   their own phone's setting for ever. */
+(function () {
+  const KEY = "oma-theme";
+  const root = document.documentElement;
+  let saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+  if (saved === "light" || saved === "dark") root.setAttribute("data-theme", saved);
 
-function cfg() {
-  // app.html keeps the project settings under this key. index.html, app.html
-  // and admin.html are all on the same domain, so a browser that has opened
-  // the app already has them and nothing needs typing twice.
+  const dark = () => root.getAttribute("data-theme") === "dark" ||
+    (!root.hasAttribute("data-theme") &&
+     matchMedia("(prefers-color-scheme: dark)").matches);
+
+  const btn = document.getElementById("theme");
+  function label() {
+    const d = dark();
+    btn.setAttribute("aria-label", d ? "Switch to light mode" : "Switch to dark mode");
+    btn.setAttribute("title", btn.getAttribute("aria-label"));
+    // One glyph, showing what a tap will GIVE you rather than where you are —
+    // a sun when it is dark, a moon when it is light.
+    btn.innerHTML = d
+      ? '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2M12 19.8v2M2.2 12h2M19.8 12h2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19"/></svg>'
+      : '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8.2 8.2 0 0 1 10.5 4a8.2 8.2 0 1 0 9.5 9.5Z"/></svg>';
+  }
+  btn.addEventListener("click", () => {
+    const next = dark() ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem(KEY, next); } catch (e) { /* private mode */ }
+    label();
+  });
+  // Follow the phone while she has not chosen, including if she changes it
+  // in Settings with this page still open.
+  matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", () => { if (!root.hasAttribute("data-theme")) label(); });
+  label();
+})();
+
+/* ══ what connects this page to the database ═══════════════════════════
+   The two lines live in oma-config.js, which loads just above this script.
+   Leave them empty and the page still works: the contact form says it is
+   not connected yet rather than pretending to send.
+
+   There is a second, weaker source — the settings the app stores in this
+   browser. That one is deliberately NOT trusted for the contact form,
+   because it exists only on the machine that opened the app. Trusting it
+   would let Kamsy test the form on her own laptop, see it succeed, and
+   ship a site where nobody else's message goes anywhere. */
+function siteCfg() {
+  const c = window.OMA_CFG || {};
+  return c.url && c.anon ? { url: c.url, anon: c.anon } : null;
+}
+
+function localCfg() {
   try {
     const c = JSON.parse(localStorage.getItem("oma-cfg") || "{}");
     if (c.url && c.anon) return c;
   } catch (e) { /* private mode, or nothing stored */ }
-  return OMA_URL && OMA_ANON ? { url: OMA_URL, anon: OMA_ANON } : null;
+  return null;
 }
+
+// Everything on the public site uses this one.
+function cfg() { return siteCfg(); }
 
 /* ── the bar gets a line under it once you scroll ── */
 const bar = document.getElementById("bar");
@@ -669,8 +729,14 @@ form.addEventListener("submit", async (e) => {
 
   if (!c) {
     // Honest rather than a fake success. A form that swallows messages is
-    // worse than a form that admits it is not wired up.
-    return say("bad", "The form is not connected yet. Please try again later.");
+    // worse than a form that admits it is not wired up. And if the settings
+    // are in THIS browser but not in the file that ships, say exactly that —
+    // it is the one failure that would otherwise look like success to Kamsy
+    // and like silence to everybody else.
+    return say("bad", localCfg()
+      ? "Not connected: this browser has the settings but oma-config.js does not. "
+        + "Fill in the two lines in oma-config.js."
+      : "The form is not connected yet. Please try again later.");
   }
 
   sendBtn.disabled = true;

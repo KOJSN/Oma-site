@@ -37,6 +37,20 @@
     --shadow:0 2px 10px -2px rgba(0,0,0,.5);
   }
 }
+/* The same tokens again under an explicit stamp, so the switch below wins in
+   BOTH directions. Without this block a toggle to dark on a light phone
+   changes nothing, because there is nothing for it to match. */
+:root[data-theme="dark"]{
+  --bg:#0a080d; --card:#17131e; --ink:#f7f4f9; --sub:#a79db3; --faint:#7b7186;
+  --line:rgba(255,255,255,.10); --fill:#1e1927;
+  --pink:#ff5f96; --tint:#2a1622; --onpink:#1a0f16;
+  --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
+  --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+  --bad:#ff7a6b;  --badbg:rgba(255,122,107,.14);
+  --grid:rgba(255,255,255,.10);
+  --shadow:0 2px 10px -2px rgba(0,0,0,.5);
+}
+
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:"Plus Jakarta Sans",system-ui,-apple-system,sans-serif;
@@ -73,6 +87,11 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px;border-color:transp
 .msg.bad{background:var(--badbg);color:var(--bad)}
 .msg.warn{background:var(--warnbg);color:var(--warn)}
 .hint{color:var(--faint);font-size:12.5px;margin-top:16px;line-height:1.5}
+.iconbtn{width:34px;height:34px;flex:none;display:grid;place-items:center;
+  border-radius:11px;border:1.5px solid var(--line);background:var(--card);
+  color:var(--sub);cursor:pointer}
+.iconbtn.float{position:fixed;top:15px;right:16px;z-index:40}
+.iconbtn:hover{color:var(--pink);border-color:var(--pink)}
 
 /* ── the dashboard ── */
 #app{display:none}
@@ -139,6 +158,21 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
   font-weight:700}
 .chip.ok{background:var(--goodbg);color:var(--good)}
 .chip.no{background:var(--warnbg);color:var(--warn)}
+/* Photographs, reported first. Small: this is a page for deciding, not for
+   admiring, and forty thumbnails at 96px load faster than eight at 300. */
+.pix{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:12px}
+.pic{border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  background:var(--fill);position:relative}
+.pic img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.pic.gone img{filter:grayscale(1);opacity:.4}
+.pic .m{padding:8px 9px;font-size:11.5px;line-height:1.35}
+.pic .m b{display:block;font-size:12px}
+.pic .m span{color:var(--faint)}
+.pic .act{width:100%;padding:8px;font-size:12px;font-weight:700;
+  border-top:1px solid var(--line);background:var(--fill);color:var(--ink)}
+.pic .act.hide{background:var(--badbg);color:var(--bad)}
+.pic .rep{position:absolute;top:6px;left:6px;padding:2px 8px;border-radius:99px;
+  background:var(--bad);color:#fff;font-size:11px;font-weight:800}
 .mail{border-top:1px solid var(--line);padding:14px 0}
 .mail:first-of-type{border-top:0}
 .mail .h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
@@ -150,6 +184,12 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
 </style>
 </head>
 <body>
+
+<!-- Outside #app on purpose. It used to sit in the dashboard's top bar,
+     which is display:none until she signs in — so the one screen anybody
+     meets before signing in was the one screen with no way to change the
+     theme. -->
+<button class="iconbtn float" id="theme" type="button"></button>
 
 <!-- ══ the door ══════════════════════════════════════════════════════
      Nothing here checks the passphrase. It cannot: this file is public and
@@ -222,6 +262,11 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
     </section>
 
     <section>
+      <div class="lbl">Photos</div>
+      <div class="card" id="photos"></div>
+    </section>
+
+    <section>
       <div class="lbl">Messages</div>
       <div class="card" id="mail"></div>
     </section>
@@ -240,25 +285,78 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
   </div>
 </div>
 
+<script src="/oma-config.js"></script>
+
 <script>
+/* ── light or dark, her choice ────────────────────────────────────────
+   The palette already followed the phone. What it did not have was a way to
+   disagree with the phone — Kamsy, 9 Sep 2026: "add a light mode to the
+   website", looking at it on a phone that was set to dark.
+
+   Three states, not two, and that is the whole subtlety. No stored choice
+   means FOLLOW THE PHONE, which is the default and is not the same as
+   "light": the tokens are structured so the bare :root is light, a media
+   query darkens it, and an explicit stamp beats both in either direction.
+   Storing "light" the moment somebody lands would silently opt them out of
+   their own phone's setting for ever. */
+(function () {
+  const KEY = "oma-theme";
+  const root = document.documentElement;
+  let saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+  if (saved === "light" || saved === "dark") root.setAttribute("data-theme", saved);
+
+  const dark = () => root.getAttribute("data-theme") === "dark" ||
+    (!root.hasAttribute("data-theme") &&
+     matchMedia("(prefers-color-scheme: dark)").matches);
+
+  const btn = document.getElementById("theme");
+  function label() {
+    const d = dark();
+    btn.setAttribute("aria-label", d ? "Switch to light mode" : "Switch to dark mode");
+    btn.setAttribute("title", btn.getAttribute("aria-label"));
+    // One glyph, showing what a tap will GIVE you rather than where you are —
+    // a sun when it is dark, a moon when it is light.
+    btn.innerHTML = d
+      ? '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2M12 19.8v2M2.2 12h2M19.8 12h2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19"/></svg>'
+      : '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8.2 8.2 0 0 1 10.5 4a8.2 8.2 0 1 0 9.5 9.5Z"/></svg>';
+  }
+  btn.addEventListener("click", () => {
+    const next = dark() ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem(KEY, next); } catch (e) { /* private mode */ }
+    label();
+  });
+  // Follow the phone while she has not chosen, including if she changes it
+  // in Settings with this page still open.
+  matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", () => { if (!root.hasAttribute("data-theme")) label(); });
+  label();
+})();
+
 /* ══ connecting ═══════════════════════════════════════════════════════
    The anon key is PUBLIC BY DESIGN — it is already inside every copy of the
    app, and every function it can reach checks the caller. The service_role
    key is a different thing and must NEVER be put here.
 
-   Left empty, these fall back to whatever app.html stored on this domain, so
-   a browser that has opened Oma already needs nothing typed. */
-const OMA_URL  = "";
-const OMA_ANON = "";
+   The two lines live in oma-config.js, which loads just above this script —
+   the same file the public page uses, so there is one place to fill in and
+   not two.
 
+   If that file is still empty this page falls back to whatever app.html
+   stored in THIS browser. That fallback is fine here in a way it is not on
+   the public page: this page is only ever meant for Kamsy, on her own
+   machine. It means the dashboard can work before the file is filled in. */
 const TOKEN_KEY = "oma-admin-token";
 
 function cfg() {
+  const s = window.OMA_CFG || {};
+  if (s.url && s.anon) return { url: s.url, anon: s.anon };
   try {
     const c = JSON.parse(localStorage.getItem("oma-cfg") || "{}");
     if (c.url && c.anon) return c;
   } catch (e) { /* private mode */ }
-  return OMA_URL && OMA_ANON ? { url: OMA_URL, anon: OMA_ANON } : null;
+  return null;
 }
 
 async function rpc(fn, args) {
@@ -286,6 +384,26 @@ function token() { try { return sessionStorage.getItem(TOKEN_KEY); } catch (e) {
 function setToken(t) {
   try { t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY); }
   catch (e) { /* private mode — she will just sign in again */ }
+}
+
+/* The bucket is public to read, so a thumbnail needs no token — the same URL
+   a customer's phone loads. */
+function photoSrc(path) {
+  const c = cfg();
+  if (!c) return "";
+  if (/^data:/.test(path)) return path;          // the practice backend
+  return c.url.replace(/\/$/, "") + "/storage/v1/object/public/portfolio/" + path;
+}
+
+async function hidePhoto(id, hide) {
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    await rpc("api_admin_hide_photo", { p_token: t, p_id: Number(id), p_hide: hide });
+    load();
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+  }
 }
 
 /* ══ formatting ═══════════════════════════════════════════════════════ */
@@ -353,6 +471,11 @@ document.getElementById("out").addEventListener("click", async () => {
 });
 
 document.getElementById("refresh").addEventListener("click", () => load());
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pic]");
+  if (b) hidePhoto(b.dataset.pic, b.dataset.hide === "1");
+});
 
 function show(expires) {
   gate.style.display = "none";
@@ -482,7 +605,7 @@ async function load() {
   const t = token();
   if (!t) return lockOut("");
   try {
-    const [o, tr, series, recent, mail] = await Promise.all([
+    const [o, tr, series, recent, mail, pix] = await Promise.all([
       rpc("api_admin_overview", { p_token: t }),
       rpc("api_admin_trouble", { p_token: t }),
       rpc("api_admin_series", { p_token: t, p_days: 30 }),
@@ -490,6 +613,9 @@ async function load() {
       // contact.sql may not be loaded yet. A missing inbox must not take the
       // whole dashboard down with it.
       rpc("api_admin_messages", { p_token: t, p_limit: 30 }).catch(() => null),
+      // photo.sql may not be loaded yet either. A missing gallery must not
+      // take the whole dashboard down with it.
+      rpc("api_admin_photos", { p_token: t, p_limit: 40 }).catch(() => null),
     ]);
 
     drawTrouble(tr);
@@ -560,6 +686,24 @@ async function load() {
               <span class="w">${esc(ago(m.created_at))}</span></div>
             <p>${esc(m.body)}</p></div>`).join("")
         : `<div class="empty">No messages yet.</div>`);
+
+    document.getElementById("photos").innerHTML = pix === null
+      ? `<div class="empty">The photo tables are not loaded yet —
+           run <b>photo.sql</b> in Supabase.</div>`
+      : (pix.length
+        ? `<div class="pix">${pix.map((p) => `
+            <div class="pic${p.hidden ? " gone" : ""}">
+              ${p.reports ? `<span class="rep">${num(p.reports)}</span>` : ""}
+              <img src="${esc(photoSrc(p.path))}" alt="" loading="lazy">
+              <div class="m"><b>${esc(p.tech)}</b>
+                <span>${esc(p.service)} · ${esc(ago(p.created_at))}</span>
+                ${p.why ? `<span style="color:var(--bad)">${esc(p.why)}</span>` : ""}
+                ${p.own_work ? "" : `<span>not declared as her own</span>`}</div>
+              <button class="act${p.hidden ? "" : " hide"}"
+                      data-hide="${p.hidden ? "0" : "1"}" data-pic="${esc(p.id)}"
+                >${p.hidden ? "Put it back" : "Hide it"}</button>
+            </div>`).join("")}</div>`
+        : `<div class="empty">No photos yet.</div>`);
 
   } catch (err) {
     if (err.status === 401 || /sign in again/i.test(err.message)) return lockOut();

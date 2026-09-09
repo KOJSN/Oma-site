@@ -115,6 +115,55 @@ const API = (() => {
   const rpc = (fn, args) => call(`/rest/v1/rpc/${fn}`, args || {});
   const edge = (fn, body) => call(`/functions/v1/${fn}`, body || {});
 
+  /* ── Storage ───────────────────────────────────────────────
+     Portfolio photographs. Not JSON and not RPC: raw bytes go straight to
+     Supabase Storage, so these do not go through call() — a 150 kB image has
+     no business being base64'd into a JSON body.
+
+     The bucket is public to READ, which is why photoUrl needs no token: these
+     are advertising, meant to be seen by people who have not signed in. WRITING
+     is another matter — the storage policy in photo.sql only accepts an upload
+     into a folder named after the caller's own user id. */
+  function photoUrl(path) {
+    if (!live()) return path;               // the practice app keeps data URLs
+    return `${cfg().url}/storage/v1/object/public/portfolio/${path}`;
+  }
+
+  async function storagePut(path, blob, type) {
+    if (!SESSION) throw new Error("sign in first");
+    const r = await fetch(`${cfg().url}/storage/v1/object/portfolio/${path}`, {
+      method: "POST",
+      headers: {
+        apikey: cfg().anon,
+        Authorization: `Bearer ${SESSION.access_token}`,
+        "Content-Type": type || "image/jpeg",
+        // Never overwrite silently. Every path carries a random part, so a
+        // collision means something is wrong and should say so.
+        "x-upsert": "false",
+      },
+      body: blob,
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      let m = "That photo would not upload.";
+      try { m = (JSON.parse(t) || {}).message || m; } catch (e) { /* not json */ }
+      throw new Error(m);
+    }
+    return path;
+  }
+
+  async function storageDelete(path) {
+    if (!SESSION) return;
+    // Best effort. The ROW is what a listing reads, and it has already gone by
+    // the time this runs; a file left behind is a few kilobytes nobody sees.
+    try {
+      await fetch(`${cfg().url}/storage/v1/object/portfolio/${path}`, {
+        method: "DELETE",
+        headers: { apikey: cfg().anon, Authorization: `Bearer ${SESSION.access_token}` },
+      });
+    } catch (e) { /* orphaned, and harmless */ }
+  }
+
   /* ── signing in ───────────────────────────────────────────
      By EMAIL, with a six-digit code. It used to be a phone number and an SMS,
      which needs a Termii sender ID, which needs CAC — so nobody could sign in
@@ -264,6 +313,22 @@ const API = (() => {
     payInit:       (bookingId)              => live() ? edge("pay-init", { booking_id: bookingId }) : MOCK.payInit(bookingId),
     verifyNin:     (vnin)                   => live() ? edge("kyc", { vnin })      : MOCK.verifyNin(vnin),
 
+    /* HER WHOLE MENU, in one call. Add/edit/delete as three endpoints would
+       mean the phone working out the difference and firing a burst of them —
+       and a listing left half-saved when one fails. See menu.sql, and the bug
+       it exists for: nothing ever sent her services to the server at all. */
+    syncServices:  (menu)                   => live() ? rpc("api_sync_services", { p_menu: menu }) : MOCK.syncServices(menu),
+    myServices:    ()                       => live() ? rpc("api_my_services") : MOCK.myServices(),
+
+    /* Her work, under each service. The bytes go to Storage first and this
+       registers the fact of them — see photo.sql for why those are two steps
+       rather than one. */
+    techPhotos:    (techId)                 => live() ? rpc("api_tech_photos", { p_tech: techId }) : MOCK.techPhotos(techId),
+    addPhoto:      (serviceId, path, w, h, bytes, own) => live() ? rpc("api_add_service_photo", { p_service: serviceId, p_path: path, p_w: w, p_h: h, p_bytes: bytes, p_own_work: own !== false }) : MOCK.addPhoto(serviceId, path, w, h, bytes, own),
+    removePhoto:   (id)                     => live() ? rpc("api_remove_service_photo", { p_id: id }) : MOCK.removePhoto(id),
+    reportPhoto:   (id, why)                => live() ? rpc("api_report_photo", { p_id: id, p_why: why || null }) : MOCK.reportPhoto(id, why),
+    photoUrl, storagePut, storageDelete,
+
     // Only the mock has this: it is how the demo pretends money arrived.
     pretendPaid:   (bookingId)              => MOCK.pretendPaid(bookingId),
     isMock:        ()                       => !live(),
@@ -343,8 +408,9 @@ const API = (() => {
       if (!S) S = { user: null, techs: [], services: [], bookings: [], ledger: [],
                     reviews: [], attempts: {}, seeded: false };
       // A store written before reviews existed has no array to push into, and
-      // the first rating would throw rather than save.
+      // the first rating would throw rather than save. Same for photos.
       if (!S.reviews) S.reviews = [];
+      if (!S.photos) S.photos = [];
       seed();
       return S;
     };
@@ -655,6 +721,93 @@ const API = (() => {
         sv.home_kobo = kobo == null ? null : kobo;
         save();
         return { id, home_kobo: sv.home_kobo };
+      },
+
+      /* menu.sql, in the practice app: the same reconcile, so the demo and
+         the real thing agree about what a second Save does. */
+      syncServices: async (menu) => {
+        const s = load(), t = myTech();
+        if (!t) throw new Error("set up your listing first");
+        if (!Array.isArray(menu)) throw new Error("that is not a menu");
+        const keep = [];
+        for (const it of menu) {
+          const nm = String((it && it.name) || "").trim();
+          if (!nm) continue;                       // started and abandoned
+          const kobo = Number(it.price_kobo) || 0;
+          if (kobo <= 0) throw new Error(nm + " needs a price");
+          if (kobo > 100000000) throw new Error(nm + " costs more than a million naira — check the price");
+          let row = it.id ? s.services.find((x) => x.id === it.id && x.tech_id === t.id) : null;
+          if (!row) {
+            row = { id: uid(), tech_id: t.id };
+            s.services.push(row);
+          }
+          row.name = nm;
+          row.minutes = Math.max(1, Math.min(1440, Number(it.minutes) || 60));
+          row.price_kobo = kobo;
+          row.shapes = Array.isArray(it.shapes) ? it.shapes : [];
+          row.home_kobo = it.home_kobo || null;
+          row.active = true;
+          keep.push(row.id);
+        }
+        s.services.forEach((x) => {
+          if (x.tech_id === t.id && !keep.includes(x.id)) x.active = false;
+        });
+        save();
+        return keep.map((id) => {
+          const x = s.services.find((y) => y.id === id);
+          return { id: x.id, name: x.name, minutes: x.minutes,
+                   price_kobo: x.price_kobo, shapes: x.shapes || [],
+                   home_kobo: x.home_kobo || null };
+        });
+      },
+      myServices: async () => {
+        const s = load(), t = myTech();
+        if (!t) return [];
+        return s.services.filter((x) => x.tech_id === t.id && x.active)
+          .map((x) => ({ id: x.id, name: x.name, minutes: x.minutes,
+                         price_kobo: x.price_kobo, shapes: x.shapes || [],
+                         home_kobo: x.home_kobo || null }));
+      },
+
+      /* photo.sql, in the practice app. The "path" here is a data URL rather
+         than an object in Storage — the demo has no Storage — but everything
+         above it behaves the same, including the cap and the reporting. */
+      techPhotos: async (techId) => {
+        const s = load();
+        const out = {};
+        (s.photos || []).filter((p) => p.tech_id === techId && !p.hidden_at)
+          .forEach((p) => {
+            (out[p.service_id] = out[p.service_id] || [])
+              .push({ id: p.id, path: p.path, w: p.w, h: p.h });
+          });
+        return out;
+      },
+      addPhoto: async (serviceId, path, w, h, bytes, own) => {
+        const s = load(), t = myTech();
+        const sv = s.services.find((x) => x.id === serviceId);
+        if (!sv || !t || sv.tech_id !== t.id) throw new Error("that is not one of your services");
+        s.photos = s.photos || [];
+        const n = s.photos.filter((p) => p.service_id === serviceId && !p.hidden_at).length;
+        if (n >= 3) throw new Error("that service already has 3 photos — remove one first");
+        const row = { id: uid(), service_id: serviceId, tech_id: t.id, path,
+                      w: w || null, h: h || null, bytes: bytes || null,
+                      own_work: own !== false, reports: 0, hidden_at: null,
+                      created_at: new Date().toISOString() };
+        s.photos.push(row); save();
+        return { id: row.id, path };
+      },
+      removePhoto: async (id) => {
+        const s = load(), t = myTech();
+        const i = (s.photos || []).findIndex((p) => p.id === id && t && p.tech_id === t.id);
+        if (i < 0) throw new Error("that is not one of your photos");
+        const [gone] = s.photos.splice(i, 1); save();
+        return { path: gone.path };
+      },
+      reportPhoto: async (id) => {
+        const s = load();
+        const p = (s.photos || []).find((x) => x.id === id);
+        if (p) { p.reports = (p.reports || 0) + 1; save(); }
+        return { ok: true };
       },
 
       nearby: async (lat, lng, radius) => {

@@ -14,7 +14,23 @@
    result screen's button lands here with the shape already typed.           */
 
 let FQ = "";              // what she has typed, kept across screens
-let FPOS = null;          // where she is, asked once
+/* Where she is, and WHEN we asked.
+
+   Kamsy: "customer locations should not be pinned, they are not shops, they
+   move around". She is right, and this was the worst offender — it asked the
+   phone once and reused that answer for the whole session, so somebody who
+   searched in Yaba and then drove to Lekki was still being sorted by where
+   she had been an hour ago.
+
+   Worth being straight about the limit: a web page cannot follow anybody
+   around in the background, and should not try. What it can do is take a
+   FRESH fix whenever a screen actually needs a distance, and that is what
+   this does — the answer is reused for two minutes, which is short enough
+   that a journey moves it and long enough that typing four letters does not
+   wake the GPS four times. */
+let FPOS = null;
+let FPOSAT = 0;
+const POS_STALE_MS = 120000;
 let FSEQ = 0;             // which search is the current one
 let FTIMER = null;
 
@@ -53,6 +69,7 @@ function findRow(t) {
     <div style="flex:1;min-width:0;text-align:left">
       <div class="ttl">${esc(t.business_name)}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
+      <div style="margin-top:5px">${ratingSlot(t.id)}</div>
       ${bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : ""}
       ${matchTag(t.matched)}
     </div>
@@ -81,10 +98,12 @@ async function runFind() {
 
   // Asked once per session, and never blocking: without it search still works,
   // it just cannot say how far anything is.
-  if (FPOS === null && typeof whereAmI === "function") {
+  if ((FPOS === null || Date.now() - FPOSAT > POS_STALE_MS) &&
+      typeof whereAmI === "function") {
     const p = await whereAmI();
     if (mine !== FSEQ) return;
     FPOS = p && !p.guessed ? p : false;
+    FPOSAT = Date.now();
   }
 
   let list;
@@ -113,6 +132,11 @@ async function runFind() {
     <div class="tiny faint" style="padding:2px 2px 10px">${head}${
       !FPOS && q ? " · turn on location to see how far away they are" : ""}</div>
     <div class="stack gap12">${list.map(findRow).join("")}</div>`);
+
+  // After the list, never before it. Waiting on scores to show results would
+  // make every search slower for something that is decoration until she is
+  // actually choosing between two people.
+  fillRatings(list.map((t) => t.id));
 }
 
 function vFind() {
