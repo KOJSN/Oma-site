@@ -53,7 +53,7 @@ function renderResult(F, rec) {
     spread: bed ? +bed.spread.toFixed(3) : null,
     sigma: +sigma.toFixed(2),
     counted: counted.length, auto,
-    fallback: rec.fallback,
+    fallback: rec.unread,   // kept as the saved-scan field name; true only when nothing was measurable
     natural: S.natural, short: S.short,
     alts: rec.alternates.map(a => a.label),
     avoid: rec.excluded.map(e => e.label),
@@ -86,11 +86,19 @@ function renderResult(F, rec) {
         <div style="display:flex;align-items:center;gap:18px">
           <div class="shapeart">${shapeSVG(shape, 44, 66, "#fff", "rgba(255,255,255,.25)")}</div>
           <div>
-            <div class="eyebrow" style="color:rgba(255,255,255,.85)">${rec.fallback ? "Best available" : "Best match"}</div>
+            <div class="eyebrow" style="color:rgba(255,255,255,.85)">${
+              rec.unread ? "A place to start" : "Your shape"}</div>
             <div style="font-size:38px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin-top:4px">${esc(rec.primary.label)}</div>
+            <!-- The "N% fit" badge is gone. It was the confidence score with a
+                 percent sign on it, which read as a mark out of a hundred for
+                 her nails and was really a statement about how well four
+                 outlines agreed with each other. A number nobody can act on,
+                 in the one place on the screen she is most likely to believe
+                 it. The measurements it came from are still further down, and
+                 still say what they are. -->
             <div class="band">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg>
-              ${fit}% fit
+              ${esc(S.last.words)} nail bed
             </div>
           </div>
         </div>
@@ -98,9 +106,11 @@ function renderResult(F, rec) {
     </div>
 
     <div class="sheet">
-      ${rec.fallback ? `<div class="note warn" style="margin-bottom:14px">
+      ${rec.unread ? `<div class="note warn" style="margin-bottom:14px">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.1"/></svg>
-        <div><b>Not confident enough to call it.</b> ${esc(rec.fallbackReason || "")}</div>
+        <div><b>No nail could be measured in that photo.</b> This is the shape
+        that suits most people, not a reading of your hands. Shoot straight
+        down in even light, with your fingers slightly apart, and try again.</div>
       </div>` : ""}
 
       <div class="grid2">
