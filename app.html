@@ -634,6 +634,19 @@ h3{font-size:16px}
 .switch.on{background:var(--pink)}
 .switch.on i{transform:translateX(19px)}
 
+/* ═══ the verified mark ═══════════════════════════════
+   Shown on a tech because the database cannot let an unverified one be
+   visible at all: tech.listed carries a CHECK constraint against
+   kyc = 'verified', and every discovery query filters on listed. So this
+   badge is not a claim the app is making — it is a restatement of a rule
+   the row could not have been written without. */
+.vb{display:inline-flex;align-items:center;gap:4px;vertical-align:middle;
+  margin-left:6px;padding:2px 7px 2px 5px;border-radius:99px;
+  background:var(--tint);color:var(--pinkd);
+  font-size:11px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+.vb svg{flex:none}
+.vb.lg{font-size:12px;padding:3px 9px 3px 7px}
+
 /* ═══ working, and where ══════════════════════════════
    The two-way question at the top of a tech's listing — shop, or no shop —
    and the switch a tech with no shop lives by. Every colour is a token: the
@@ -1216,7 +1229,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "f512dfed1d";
+const BUILD_ID = "50a5568b19";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -5149,6 +5162,7 @@ const I = {
   chev: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--faint)" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>`,
   arrow: () => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg>`,
   share: () => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8 15.8 6.7M8.2 13.2l7.6 4.1"/></svg>`,
+  seal: (w) => `<svg viewBox="0 0 24 24" width="${w || 12}" height="${w || 12}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-10"/></svg>`,
   trophy: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4.5a2.5 2.5 0 0 0 2.5 2.5M17 6h2.5A2.5 2.5 0 0 1 17 8.5"/><path d="M12 14v3M9 20h6M10 17h4l.5 3h-5Z"/></svg>`,
   more: (on) => `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="${on ? 2.6 : 2}" stroke-linecap="round"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>`,
   cog: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H2.9a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.2Z"/></svg>`,
@@ -6526,12 +6540,24 @@ function vSignIn() {
 /* One row for a listed tech, shared by Home's short list and the full Salons
    list — so the two screens cannot drift into looking like different products.
    Distance comes from the database, which computed it; the app never guesses. */
+/* A tech is only reachable through a query that filters on tech.listed, and
+   the tech table carries `constraint listed_needs_kyc check (not listed or
+   kyc = 'verified')`. tech.kyc is written by one thing only — the kyc edge
+   function, with the service key, after a NIMC-licensed provider returns
+   VERIFIED and the name on the ID matches the name on the Oma profile. So
+   anybody a customer can see has passed it, and this badge cannot get out of
+   step with the truth without the constraint being dropped first. */
+function verifiedBadge(big) {
+  return `<span class="vb${big ? " lg" : ""}" title="NIN checked against NIMC">${
+    I.seal(big ? 13 : 12)} NIN verified</span>`;
+}
+
 function techRowLive(t) {
   return `
   <button class="card row" data-a="tech-open" data-id="${esc(t.id)}">
     <div class="avatar sq">${esc(initials(t.business_name))}</div>
     <div style="flex:1;min-width:0;text-align:left">
-      <div class="ttl">${esc(t.business_name)}</div>
+      <div class="ttl">${esc(t.business_name)}${verifiedBadge()}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
       <div class="tiny" style="margin-top:6px">
         <b>${t.km < 1 ? Math.round(t.km * 1000) + " m" : t.km.toFixed(1) + " km"}</b> away
@@ -6622,7 +6648,16 @@ function vTechLive(id) {
     wireServicePicker();
     fillTechPhotos(id);
   });
-  return head(PICKED.name || "Services", "Prices are hers, not ours") + host();
+  return head(PICKED.name || "Services", "Prices are hers, not ours")
+    + `<div class="pad" style="margin-top:-4px;margin-bottom:12px">
+         <div class="note">
+           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-10"/></svg>
+           <div><b>NIN verified.</b> Oma checked this tech's identity against
+             NIMC before her listing could appear. Her prices and hours are
+             still her own.</div>
+         </div>
+       </div>`
+    + host();
 }
 
 function wireServicePicker() {
@@ -7979,7 +8014,7 @@ function findRow(t) {
   <button class="card row" data-a="tech-open" data-id="${esc(t.id)}">
     <div class="avatar sq">${esc(initials(t.business_name))}</div>
     <div style="flex:1;min-width:0;text-align:left">
-      <div class="ttl">${esc(t.business_name)}</div>
+      <div class="ttl">${esc(t.business_name)}${verifiedBadge()}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
       <div style="margin-top:5px">${ratingSlot(t.id)}</div>
       ${bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : ""}
@@ -9983,9 +10018,12 @@ document.getElementById("shell").addEventListener("click", e => {
 
   if (a === "tech-open") {
     // A list row carries her name in its title; the map's card is a plain
-    // button, so it says the name outright.
+    // button, so it says the name outright. The title also carries the
+    // verified pill, and textContent would drag "NIN verified" into her
+    // name and print it in the page header — so read only the name node.
+    const ttl = el.querySelector(".ttl");
     PICKED.name = el.dataset.name ||
-      (el.querySelector(".ttl") ? el.querySelector(".ttl").textContent : "");
+      (ttl ? (ttl.childNodes[0] ? ttl.childNodes[0].textContent : ttl.textContent).trim() : "");
     return nav("techlive", el.dataset.id);
   }
   // The map: tapping Close puts the short list back, and the arrow re-centres.
