@@ -9,10 +9,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#f0518d">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="apple-touch-icon" href="/icons/icon-180.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Oma — nail scan &amp; booking</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,14 +43,6 @@
   --good:#1b9e5a; --goodbg:rgba(27,158,90,.12);
   --warn:#b8791b; --warnbg:rgba(184,121,27,.12);
   --grad:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
-  /* The welcome screen. It had its colours written into the markup — a dark
-     ground and white ink, whatever the phone was set to — so somebody in
-     light mode met a black screen before they had seen anything else. These
-     are tokens like everything else now, defined light-first and overridden
-     for dark twice, so the very first screen follows the phone. */
-  --wel-bg:#fdf6fa; --wel-ink:#181220; --wel-sub:#6c6377;
-  --wel-glow1:rgba(240,81,141,.26); --wel-glow2:rgba(255,138,184,.20);
-  --wel-dot:#181220; --wel-dot-off:rgba(24,18,32,.22);
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -67,9 +55,6 @@
     --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
     --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
     --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
-    --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
-    --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
-    --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
   }
 }
 :root[data-theme="dark"]{
@@ -82,9 +67,6 @@
   --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
   --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
   --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
-  --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
-  --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
-  --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
 }
 
 *,*::before,*::after{box-sizing:border-box}
@@ -195,10 +177,7 @@ a{color:var(--pink);text-decoration:none}
 .mepin{width:16px;height:16px;border-radius:50%;background:#2f7cf6;
   border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,124,246,.2)}
 
-/* Below the greeting AND below the scope pill — they used to share the same
-   strip, and the greeting card, which is painted last, silently swallowed
-   every tap meant for the scope. */
-.mapbtns{position:absolute;top:calc(132px + env(safe-area-inset-top));right:14px;z-index:5;
+.mapbtns{position:absolute;top:calc(92px + env(safe-area-inset-top));right:14px;z-index:5;
   display:flex;flex-direction:column;gap:10px}
 .mapbtn{width:46px;height:46px;border-radius:16px;background:var(--card);
   border:1px solid var(--line);box-shadow:var(--card-shadow);
@@ -588,32 +567,6 @@ h3{font-size:16px}
 .switch.on{background:var(--pink)}
 .switch.on i{transform:translateX(19px)}
 
-/* ═══ working, and where ══════════════════════════════
-   The two-way question at the top of a tech's listing — shop, or no shop —
-   and the switch a tech with no shop lives by. Every colour is a token: the
-   .choice block further down is hard-wired white because it sits inside the
-   dark scan screen, and reusing it here is exactly how the welcome screen
-   ended up black in light mode. */
-.pick{display:flex;gap:10px;margin:2px 0 16px}
-.pick button{flex:1;min-width:0;text-align:left;padding:13px 14px;border-radius:16px;
-  border:1.5px solid var(--line);background:var(--fill);color:var(--ink);cursor:pointer}
-.pick button.on{border-color:var(--pink);background:var(--tint)}
-.pick b{display:block;font-size:14.5px;font-weight:800;letter-spacing:-.02em}
-.pick em{font-style:normal;display:block;margin-top:3px;font-size:12px;
-  color:var(--sub);font-weight:500;line-height:1.4}
-.card.work{border:1.5px solid var(--line)}
-.card.work.on{border-color:var(--good);background:var(--goodbg)}
-/* The map's scope: near me, or the whole state. */
-.scope{position:absolute;top:calc(74px + env(safe-area-inset-top));left:50%;
-  transform:translateX(-50%);z-index:420;display:flex;gap:4px;padding:4px;
-  border-radius:99px;background:var(--card);border:1px solid var(--line);
-  box-shadow:0 6px 18px rgba(0,0,0,.16);max-width:min(92vw,340px)}
-.scope button,.scope select{padding:7px 14px;border-radius:99px;font-size:12.5px;
-  font-weight:700;color:var(--sub);background:transparent;border:0;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-family:inherit;
-  -webkit-appearance:none;appearance:none;max-width:170px}
-.scope button.on,.scope select.on{background:var(--pink);color:var(--onpink)}
-
 /* ═══ empty states ═══════════════════════════════════════ */
 /* ═══ the live lists ══════════════════════════════════
    A section heading inside a list, and the two status colours a booking row
@@ -939,10 +892,6 @@ h3{font-size:16px}
         cover the <b>pink part</b> of each nail — the white tip is not measured, because
         it is length you can file off, not the shape of the nail bed.</div>
       <div id="autoNote" class="hidden" style="margin-top:14px"></div>
-      <!-- Off unless somebody opens the app with ?timing=1. Nobody using Oma
-           ever sees this; it exists so a scan on a real phone on real mobile
-           data produces numbers instead of "it felt slow". -->
-      <div id="autoTiming" class="hidden"></div>
     </div>
     <div class="scanfoot hidden" id="autoFoot">
       <div class="btnrow">
@@ -1053,16 +1002,11 @@ if (typeof exports === 'object' && typeof module === 'object') {
 <script>
 const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as data, not code, so thresholds can be retuned without an app release.","THRESHOLDS ARE UNCALIBRATED. The bed_aspect cut points derive from the salon '50% rule' (a bed reads normal at roughly 1.5-2x longer than wide), which appears across nail-education content and in no dermatological literature. The finger_to_palm cut points have no source at all - no published work says where a short finger becomes a long one. Both need calibrating against real hands, judged by working nail techs, before this engine is anything more than a plausible guess.","Every rule carries a provenance flag. 'measured' means the statement is about what the camera saw. 'convention' means it is professional practice. The UI must keep those two voices apart."],"shapes":{"round":{"label":"Round","durability":"highest","needs_extensions":false},"oval":{"label":"Oval","durability":"high","needs_extensions":false},"squoval":{"label":"Squoval","durability":"high","needs_extensions":false},"square":{"label":"Square","durability":"medium","needs_extensions":false},"almond":{"label":"Almond","durability":"medium","needs_extensions":false},"coffin":{"label":"Coffin","durability":"low","needs_extensions":true},"stiletto":{"label":"Stiletto","durability":"lowest","needs_extensions":true}},"durability_notes":{"highest":"Curved edges spread stress evenly, so there is no weak point to break at.","high":"Curves rather than corners; holds up well to ordinary use.","medium":"Sound in itself, but the corners are where it catches and breaks.","low":"The taper concentrates stress at the tip. Expect breaks without reinforcement.","lowest":"The point is the weakest part of the nail and takes all the force."},"rules":[{"id":"wide_bed","feature":"bed_aspect_ratio","when":{"lt":1.15},"scores":{"oval":3.0,"almond":2.6,"round":2.2,"squoval":1.2,"square":-1.5,"coffin":-1.0},"provenance":"convention","measured_reason":"Your nail beds came out at {value:.2f} \u2014 wider than they are long.","convention_reason":"Nail techs would read that and reach for a taper: curved sides visually narrow a wide bed."},{"id":"narrow_bed","feature":"bed_aspect_ratio","when":{"gte":1.9},"scores":{"square":2.8,"squoval":2.4,"coffin":1.8,"oval":-0.6,"round":-1.4},"provenance":"convention","measured_reason":"Your nail beds came out at {value:.2f} \u2014 notably longer than they are wide.","convention_reason":"Straight sides fill out a narrow bed, where a taper would make it look narrower still."},{"id":"balanced_bed","feature":"bed_aspect_ratio","when":{"gte":1.15,"lt":1.9},"scores":{"squoval":2.2,"oval":1.8,"almond":1.6,"round":1.2,"square":1.0},"provenance":"convention","measured_reason":"Your nail beds came out at {value:.2f} \u2014 well proportioned.","convention_reason":"That proportion carries most shapes, so the choice is closer to preference than to fit."},{"id":"short_fingers","feature":"finger_to_palm","when":{"lt":0.95},"scores":{"almond":2.2,"oval":1.8,"stiletto":1.0,"square":-1.2,"round":-0.4},"provenance":"convention","measured_reason":"Your fingers measured {value:.2f} against your palm width \u2014 on the shorter side.","convention_reason":"A tapered tip reads as an extension of the finger, which lengthens the whole hand."},{"id":"long_fingers","feature":"finger_to_palm","when":{"gte":1.15},"scores":{"square":2.0,"coffin":1.8,"squoval":1.4,"stiletto":0.8},"provenance":"convention","measured_reason":"Your fingers measured {value:.2f} against your palm width \u2014 on the longer side.","convention_reason":"Long fingers carry a blunt, bold shape without looking out of proportion."},{"id":"tapered_fingers","feature":"finger_taper","when":{"gte":0.62},"scores":{"almond":1.2,"oval":1.0,"stiletto":0.6},"provenance":"convention","measured_reason":"Your fingers taper toward the tip.","convention_reason":"Following that taper tends to look more natural than cutting against it."},{"id":"short_bed_proxy","feature":"distal_phalanx_share","when":{"lt":0.23},"scores":{"squoval":1.6,"round":1.4,"almond":0.8,"coffin":-1.2,"stiletto":-1.6},"provenance":"convention","measured_reason":"Your nail beds sit short relative to the length of your fingers.","convention_reason":"A short bed carries a compact shape better than a long dramatic one."}],"fallback":{"shape":"squoval","reason":"Squoval is the shape nail techs reach for when they are not sure \u2014 it suits nearly everyone, which is exactly what makes it the honest answer when the measurement is not solid enough to say more."},"confidence":{"recommend_threshold":0.45,"primary_feature":"bed_aspect_ratio","primary_weight":0.6},"palettes":{"_provenance":"convention","_note":"Which colours suit which undertone is professional convention, not colour science. The measurement is ours; the mapping is the industry's.","neutral":[["#C41E28","True red"],["#9B3358","Berry"],["#6A3B5E","Plum"],["#6E8AA6","Dusty blue"],["#8B9E7E","Sage"],["#DDB9AC","Pink beige"],["#B7A99C","Greige"],["#7E6E68","Stone"]]}};
 
-/* Which build this actually is. build2.py substitutes it, and stamps the same
-   value into site/sw.js, so "is the phone running what I just uploaded" stops
-   being a guess: Settings shows this, the first line of /sw.js shows the same
-   value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "2a5c029d6e";
-
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
 const S = {
   step: 0, img: null, iw: 0, ih: 0,
+ const BUILD_ID = "963f8c88bb";
   // finger -> {cx, cy, len, wid, ang, auto, edited}. Oriented, because a nail
   // is measured along its own axis; an axis-aligned box would report the
   // photograph's rotation as part of the shape.
@@ -1610,75 +1554,6 @@ const LM_MCP = { index: 5, middle: 9, ring: 13, pinky: 17 };
 let MPHANDS = null;          // the loaded model, kept for the next scan
 let MPDEAD = null;           // why it cannot be used, if it cannot
 
-/* ══ measuring what has never been measured ══════════
-   Every number in the table above came from eight photographs on a desktop in
-   a container. Nobody has ever run this on a phone, over Nigerian mobile data,
-   which is where all of it actually has to work — and "about 9 MB" and "about
-   three seconds" are both estimates, not observations.
-
-   So the scan times itself. This is OFF for everybody: it shows nothing unless
-   the app was opened once with ?timing=1, which sets a flag this phone keeps.
-   A real customer never sees it. */
-const MPT = { script: 0, init: 0, find: 0, nails: 0, warm: false, bytes: null };
-
-function timingOn() {
-  try {
-    const q = (location.search || "") + (location.hash || "");
-    if (q.indexOf("timing=1") !== -1) localStorage.setItem("oma-timing", "1");
-    if (q.indexOf("timing=0") !== -1) localStorage.removeItem("oma-timing");
-    return !!localStorage.getItem("oma-timing");
-  } catch (e) { return false; }   // private mode: simply off
-}
-
-/* What actually came down the wire, from the browser's own resource timing.
-   transferSize is 0 when a response came from cache — which is the answer we
-   want on the second scan, and is worth distinguishing from "not reported". */
-function mpBytes() {
-  try {
-    if (!window.performance || !performance.getEntriesByType) return null;
-    const rs = performance.getEntriesByType("resource")
-      .filter(r => String(r.name).indexOf(MP_BASE) === 0);
-    if (!rs.length) return null;
-    let transfer = 0, body = 0, reported = 0;
-    for (const r of rs) {
-      transfer += r.transferSize || 0;
-      body += r.encodedBodySize || 0;
-      if (r.encodedBodySize) reported++;
-    }
-    // jsdelivr sends Timing-Allow-Origin, but if it ever stops, every size
-    // reads 0 and a "0 MB download" would be a lie. Say so instead.
-    return { files: rs.length, transfer, body, reported };
-  } catch (e) { return null; }
-}
-
-const mb = (n) => (n / 1048576).toFixed(2) + " MB";
-const secs = (ms) => ms >= 1000 ? (ms / 1000).toFixed(1) + " s" : Math.round(ms) + " ms";
-
-function showTiming(res) {
-  const el = document.getElementById("autoTiming");
-  if (!el) return;
-  if (!timingOn()) { el.className = "hidden"; return; }
-  const b = MPT.bytes;
-  const size = !b ? "not reported by this browser"
-    : !b.reported ? `${b.files} files, sizes hidden by the CDN`
-    : b.transfer === 0 ? `${mb(b.body)}, all from cache`
-    : `${mb(b.transfer)} over the wire (${mb(b.body)} unpacked, ${b.files} files)`;
-  const rows = [
-    ["Model", MPT.warm ? "already loaded, nothing downloaded" : size],
-    ["Download + start", MPT.warm ? "—" : secs(MPT.script + MPT.init)],
-    ["Finding the hand", MPT.find ? secs(MPT.find) : "—"],
-    ["Reading 4 nails", MPT.nails ? secs(MPT.nails) : "—"],
-    ["Result", res.ok ? `read ${res.read} of 4` : "failed: " + (res.why || "?")],
-  ];
-  el.className = "note";
-  el.style.marginTop = "14px";
-  el.innerHTML = `<div style="width:100%"><div class="tiny"
-      style="font-weight:700;margin-bottom:6px">Timing (only you see this)</div>`
-    + rows.map(r => `<div class="rowbetween tiny" style="padding:2px 0">
-         <span class="faint">${r[0]}</span><span>${esc(String(r[1]))}</span></div>`).join("")
-    + `</div>`;
-}
-
 function mpScript(src) {
   return new Promise((res, rej) => {
     const s = document.createElement("script");
@@ -1699,14 +1574,11 @@ function withTimeout(p, ms, msg) {
 }
 
 async function loadHandModel() {
-  if (MPHANDS) { MPT.warm = true; return MPHANDS; }
-  MPT.warm = false;
+  if (MPHANDS) return MPHANDS;
   if (MPDEAD) throw new Error(MPDEAD);
-  const t0 = performance.now();
   if (!window.Hands) {
     await withTimeout(mpScript(MP_BASE + "hands.js"), 40000, "the download stalled");
   }
-  MPT.script = performance.now() - t0;
   if (!window.Hands) throw new Error("the hand model did not start");
   const h = new window.Hands({ locateFile: f => MP_BASE + f });
   h.setOptions({
@@ -1720,12 +1592,7 @@ async function loadHandModel() {
   // connection it is the 9 MB arriving, and it CAN simply never finish. Without
   // a bound on it somebody sits on this screen forever, which is a worse
   // failure than being asked to tap. Two minutes, then hand over to tapping.
-  const t1 = performance.now();
   await withTimeout(h.initialize(), 120000, "the download stalled");
-  MPT.init = performance.now() - t1;
-  // Read after initialize(), because that is when the .wasm and the model
-  // weights actually arrive — hands.js on its own is a small fraction of it.
-  MPT.bytes = mpBytes();
   MPHANDS = h;
   return h;
 }
@@ -1809,14 +1676,11 @@ async function autoRead(say) {
   say("Finding your hand");
   await breathe();
   let pts = null;
-  const tFind = performance.now();
   try {
     pts = await findHand(S.src);
   } catch (e) {
-    MPT.find = performance.now() - tFind;
     return { ok: false, read: 0, why: "model", detail: e.message };
   }
-  MPT.find = performance.now() - tFind;
   if (!pts) return { ok: false, read: 0, why: "nohand" };
 
   // Finger length and palm width, straight off the skeleton. This is what the
@@ -1830,7 +1694,6 @@ async function autoRead(say) {
 
   S.boxes = {};
   let read = 0;
-  const tNails = performance.now();
   // Two passes, and the second almost never runs. The first insists on a
   // nail-sized region; if that leaves the WHOLE hand with nothing, the second
   // takes what it can get, because no reading at all is worse than a rough one.
@@ -1863,7 +1726,6 @@ async function autoRead(say) {
     drawAuto();
   }
   }
-  MPT.nails = performance.now() - tNails;
   return { ok: read > 0, read: read, why: read ? null : "noread" };
 }
 
@@ -1895,8 +1757,6 @@ async function runAuto() {
   document.getElementById("autoNote").className = "hidden";
   document.getElementById("autoFoot").className = "hidden";
   document.getElementById("autoWork").className = "";
-  document.getElementById("autoTiming").className = "hidden";
-  MPT.find = 0; MPT.nails = 0;
   autoBar(0.05);
   drawAuto();
 
@@ -1918,16 +1778,10 @@ async function runAuto() {
   autoBar(1);
   document.getElementById("autoWork").className = "hidden";
 
-  showTiming(res);
-
   if (res.ok) {
     autoSay(res.read === 4 ? "All four nails read"
                            : `Read ${res.read} of 4 — the rest were not clear enough`);
     document.getElementById("autoFoot").className = "";
-    // Moving on by itself is the point of the whole change — except while
-    // timing, where being carried off the screen before the numbers can be
-    // read defeats the reason for measuring.
-    if (timingOn()) return;
     // It moves on by itself. That is the whole point of the change: nobody has
     // to press anything to get past this screen. The pause is long enough to
     // see the outlines land and reach for Check them if they look wrong.
@@ -3351,49 +3205,16 @@ const API = (() => {
   const rpc = (fn, args) => call(`/rest/v1/rpc/${fn}`, args || {});
   const edge = (fn, body) => call(`/functions/v1/${fn}`, body || {});
 
-  /* ── signing in ───────────────────────────────────────────
-     By EMAIL, with a six-digit code. It used to be a phone number and an SMS,
-     which needs a Termii sender ID, which needs CAC — so nobody could sign in
-     at all while that was pending. Supabase sends the email itself.
-
-     Supabase sends a magic LINK by default; it sends a code instead only if
-     the Magic Link email template contains {{ .Token }}. If somebody gets a
-     link rather than a six-digit code, that template is the thing to fix, not
-     this code. */
-  async function sendOtp(email) {
-    if (!live()) return MOCK.sendOtp(email);
-    await call("/auth/v1/otp", { email }, { auth: false });
+  /* ── signing in ───────────────────────────────────────── */
+  async function sendOtp(phone) {
+    if (!live()) return MOCK.sendOtp(phone);
+    await call("/auth/v1/otp", { phone }, { auth: false });
     return { sent: true };
   }
 
-  async function verifyOtp(email, token) {
-    if (!live()) return MOCK.verifyOtp(email, token);
-    // "email", not "sms" — the verify endpoint keys off this and answers
-    // "Token has expired or is invalid" for the wrong one, which reads like a
-    // typed code being wrong rather than a mismatched type.
-    //
-    // And a FIRST sign-in is a different case again. Supabase sends a brand
-    // new account its code from the "Confirm signup" template, not "Magic
-    // Link", and there are reports of that code refusing to verify as "email"
-    // while verifying happily as "signup". Which one a given project wants is
-    // not something worth being confident about from documentation, so both
-    // are tried. The cost is one extra request on a first sign-in only; the
-    // alternative is somebody staring at "token has expired or is invalid"
-    // while holding a code that is neither expired nor invalid.
-    let s;
-    try {
-      s = stamp(await call("/auth/v1/verify",
-                           { type: "email", email, token }, { auth: false }));
-    } catch (first) {
-      try {
-        s = stamp(await call("/auth/v1/verify",
-                             { type: "signup", email, token }, { auth: false }));
-      } catch (second) {
-        // Report the FIRST failure: for a genuinely wrong code both say the
-        // same thing, and the first is the ordinary path.
-        throw first;
-      }
-    }
+  async function verifyOtp(phone, token) {
+    if (!live()) return MOCK.verifyOtp(phone, token);
+    const s = stamp(await call("/auth/v1/verify", { type: "sms", phone, token }, { auth: false }));
     setSession(s);
     return s;
   }
@@ -3431,34 +3252,6 @@ const API = (() => {
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
     nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.nearby(lat, lng, km),
     search:        (q, lat, lng)            => live() ? rpc("api_search", { p_q: q || "", p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng }) : MOCK.search(q, lat, lng),
-
-    /* Where a nail tech who has no shop is RIGHT NOW. A salon has an address
-       and never touches any of these; see live.sql for why a travelling tech
-       gets a heartbeat instead of a pin, and p20_live.js for what sends it. */
-    pingPosition:  (lat, lng, acc)          => live() ? rpc("api_ping_position", { p_lat: lat, p_lng: lng, p_acc: acc == null ? null : acc }) : MOCK.pingPosition(lat, lng, acc),
-    goOffline:     ()                       => live() ? rpc("api_go_offline") : MOCK.goOffline(),
-    myPresence:    ()                       => live() ? rpc("api_my_presence") : MOCK.myPresence(),
-    setMobility:   (hasSalon, state)        => live() ? rpc("api_set_mobility", { p_has_salon: !!hasSalon, p_state: state || null }) : MOCK.setMobility(!!hasSalon, state),
-
-    /* The whole-state map. api_nearby answers "who is within 15 km of me";
-       this answers "who does Oma have in Lagos at all". */
-    stateTechs:    (state, lat, lng)        => live() ? rpc("api_state_techs", { p_state: state, p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng, p_limit: 300 }) : MOCK.stateTechs(state, lat, lng),
-    states:        ()                       => live() ? rpc("api_states") : MOCK.states(),
-
-    /* She comes to you. The QUOTE is asked of the server, never worked out
-       here: the tech's real coordinates never leave the database, so the
-       distance cannot be measured on a phone even if it were wise to let it.
-       See home.sql. */
-    // Does she travel at all, and on what terms. Read beside her services so
-    // the "she comes to me" choice is only offered when it is real.
-    homeTerms:     (techId)                 => live() ? rpc("api_home_terms", { p_tech: techId }) : MOCK.homeTerms(techId),
-    homeQuote:     (techId, ids, lat, lng)  => live() ? rpc("api_home_quote", { p_tech: techId, p_service_ids: ids || [], p_lat: lat, p_lng: lng }) : MOCK.homeQuote(techId, ids, lat, lng),
-    bookAtHome:    (techId, startsAt, ids, lat, lng, address, area, note, shape) => live() ? rpc("api_book_at_home", { p_tech: techId, p_starts: new Date(startsAt).toISOString(), p_service_ids: ids, p_lat: lat, p_lng: lng, p_address: address, p_area: area || null, p_note: note || null, p_shape: shape || null }) : MOCK.bookAtHome(techId, startsAt, ids, lat, lng, address, area, note, shape),
-    // The customer's street, released to the tech only once the money is in
-    // escrow. One function for both sides; the server decides what each sees.
-    bookingWhere:  (bookingId)              => live() ? rpc("api_booking_where", { p_booking: bookingId }) : MOCK.bookingWhere(bookingId),
-    setHomeService:(on, callout, perKm, maxKm) => live() ? rpc("api_set_home_service", { p_on: !!on, p_callout_kobo: callout, p_per_km_kobo: perKm, p_max_km: maxKm }) : MOCK.setHomeService(!!on, callout, perKm, maxKm),
-    setServiceHomePrice: (id, kobo)         => live() ? rpc("api_set_service_home_price", { p_service: id, p_home_kobo: kobo }) : MOCK.setServiceHomePrice(id, kobo),
     // A device, not a subscription. The database is deliberately incurious
     // about which kind of token this is; see push.sql.
     registerDevice:(platform, token, label)  => live() ? rpc("api_register_device", { p_platform: platform, p_token: token, p_label: label || null }) : MOCK.registerDevice(platform, token, label),
@@ -3475,18 +3268,6 @@ const API = (() => {
     setListed:     (on)                     => live() ? rpc("api_set_listed", { p_listed: !!on }) : MOCK.setListed(!!on),
     scan:          (code)                   => live() ? rpc("api_scan", { p_code: code })   : MOCK.scan(code),
     scanShort:     (bookingId, code)        => live() ? rpc("api_scan_short", { p_booking: bookingId, p_code: code }) : MOCK.scanShort(bookingId, code),
-    /* Reviews. api_search and api_nearby deliberately do NOT carry the score:
-       adding it would have meant redefining their return types in a second
-       SQL file, and whichever file ran last would win. One extra call for a
-       whole screen of results is the cheaper mistake. */
-    ratings:       (ids)                    => live() ? rpc("api_ratings", { p_techs: ids || [] }) : MOCK.ratings(ids),
-    techReviews:   (techId, limit)          => live() ? rpc("api_tech_reviews", { p_tech: techId, p_limit: limit || 20 }) : MOCK.techReviews(techId),
-    leaveReview:   (bookingId, stars, words) => live() ? rpc("api_leave_review", { p_booking: bookingId, p_stars: stars, p_words: words || null }) : MOCK.leaveReview(bookingId, stars, words),
-    myReview:      (bookingId)              => live() ? rpc("api_my_review", { p_booking: bookingId }) : MOCK.myReview(bookingId),
-    reviewable:    ()                       => live() ? rpc("api_reviewable") : MOCK.reviewable(),
-
-    earnings:      (limit)                  => live() ? rpc("api_earnings", { p_limit: limit || 30 }) : MOCK.earnings(limit),
-
     wallet:        ()                       => live() ? rpc("api_wallet")          : MOCK.wallet(),
     requestPayout: (kobo)                   => live() ? rpc("api_request_payout", { p_amount: kobo }) : MOCK.requestPayout(kobo),
 
@@ -3577,10 +3358,7 @@ const API = (() => {
       RAW = cur;
       try { S = JSON.parse(cur); } catch { S = null; }
       if (!S) S = { user: null, techs: [], services: [], bookings: [], ledger: [],
-                    reviews: [], attempts: {}, seeded: false };
-      // A store written before reviews existed has no array to push into, and
-      // the first rating would throw rather than save.
-      if (!S.reviews) S.reviews = [];
+                    attempts: {}, seeded: false };
       seed();
       return S;
     };
@@ -3618,18 +3396,9 @@ const API = (() => {
       ];
       names.forEach(([name, area, lat, lng, years]) => {
         const id = uid();
-        // Pretty Tips has no shop — she travels, and she is working now. The
-        // practice app needs one of each or the map cannot be checked.
-        const roams = name === "Pretty Tips";
-        S.techs.push({ id, business_name: name, area, address: roams ? null : area + ", Lagos",
+        S.techs.push({ id, business_name: name, area, address: area + ", Lagos",
                        lat, lng, years, currency: "NGN", opens: "09:00", closes: "18:00",
-                       kyc: "verified", listed: true, state: "Lagos",
-                       // Two of the five travel, so the practice app can show
-                       // both a salon and a home visit without any setting up.
-                       home_service: roams || name === "The Nail Room",
-                       callout_kobo: 300000, per_km_kobo: 130000, home_max_km: 15,
-                       has_salon: !roams,
-                       live_at: roams ? new Date().toISOString() : null });
+                       kyc: "verified", listed: true });
         [["Acrylic full set", 120, 900000], ["Gel overlay", 75, 550000],
          ["Refill", 90, 650000], ["Soak off", 30, 200000]].forEach(([n, m, k]) => {
           S.services.push({ id: uid(), tech_id: id, name: n, minutes: m, price_kobo: k, active: true });
@@ -3704,11 +3473,11 @@ const API = (() => {
 
     return {
       sendOtp: async () => ({ sent: true, mock: true }),
-      verifyOtp: async (email, token) => {
+      verifyOtp: async (phone, token) => {
         if (String(token).replace(/\D/g, "").length !== 6) fail("that code is six digits");
         const s = load();
         s.user = s.user || {};
-        Object.assign(s.user, { id: s.user.id || "me", email, full_name: s.user.full_name || "" });
+        Object.assign(s.user, { id: s.user.id || "me", phone, full_name: s.user.full_name || "" });
         save();
         setSession({ access_token: "mock", refresh_token: "mock", user: { id: s.user.id } });
         return { mock: true };
@@ -3724,178 +3493,9 @@ const API = (() => {
         if (lat != null) { u.lat = lat; u.lng = lng; }
         save(); return await MOCK.me();
       },
-      /* live.sql's tech_visible(), in the practice app. A salon is visible
-         once she has listed herself; a travelling tech only while her phone
-         is still saying where she is. 45 minutes, the same window. */
-      visible: (t) => !!t && !!t.listed && (t.has_salon !== false ||
-        (!!t.live_at && Date.now() - new Date(t.live_at).getTime() < 45 * 60000)),
-
-      pingPosition: async (lat, lng) => {
-        const s = load(), t = myTech();
-        if (!t) throw new Error("list yourself first");
-        if (t.has_salon !== false) throw new Error("this listing is a salon — its address does not move");
-        const moved = t.lat == null ? null : km(t.lat, t.lng, lat, lng) * 1000;
-        if (moved != null && moved > 100000) {
-          throw new Error("that fix is " + Math.round(moved / 1000) + " km from your last one");
-        }
-        t.lat = lat; t.lng = lng; t.live_at = new Date().toISOString();
-        save();
-        return [{ live_at: t.live_at, moved_m: moved, listed: t.listed }];
-      },
-      goOffline: async () => {
-        const t = myTech();
-        if (t && t.has_salon === false) { t.live_at = null; save(); }
-        return [{ live_at: (t && t.live_at) || null }];
-      },
-      myPresence: async () => {
-        const t = myTech();
-        if (!t) return [];
-        return [{ has_salon: t.has_salon !== false, state: t.state || null,
-                  live_at: t.live_at || null, listed: !!t.listed,
-                  visible: MOCK.visible(t),
-                  seconds_ago: t.live_at
-                    ? (Date.now() - new Date(t.live_at).getTime()) / 1000 : null }];
-      },
-      setMobility: async (hasSalon, state) => {
-        const t = myTech();
-        if (!t) throw new Error("list yourself first");
-        t.has_salon = !!hasSalon;
-        if (state) t.state = state;
-        if (hasSalon) t.live_at = null;
-        save();
-        return [{ has_salon: t.has_salon, state: t.state || null, live_at: t.live_at || null }];
-      },
-      stateTechs: async (state, lat, lng) => {
-        const s = load(), want = String(state || "").toLowerCase().trim();
-        return s.techs.filter(MOCK.visible)
-          .filter((t) => (t.state || "").toLowerCase() === want ||
-                         (!t.state && (t.area || "").toLowerCase().includes(want)))
-          .map((t) => {
-            const pin = HEX.snap(t.lat, t.lng);
-            return { ...t, address: null,
-                     km: lat == null ? null : km(lat, lng, t.lat, t.lng),
-                     lat: pin.lat, lng: pin.lng, cell: pin.cell, boundary: pin.boundary,
-                     from_kobo: Math.min(...s.services.filter((x) => x.tech_id === t.id).map((x) => x.price_kobo)) };
-          })
-          .sort((a, b) => (a.km == null ? 1 : b.km == null ? -1 : a.km - b.km));
-      },
-      states: async () => {
-        const out = {};
-        load().techs.filter(MOCK.visible).forEach((t) => {
-          const k = (t.state || "").trim() || "(not said)";
-          out[k] = (out[k] || 0) + 1;
-        });
-        return Object.keys(out).map((state) => ({ state, techs: out[state] }))
-          .sort((a, b) => b.techs - a.techs || a.state.localeCompare(b.state));
-      },
-
-      /* home.sql, in the practice app. Deliberately the same arithmetic and
-         the same refusals, so the demo and the real thing behave alike. */
-      fareKm: (km) => Math.max(1, Math.ceil((km || 0) * 2) / 2),
-
-      homeTerms: async (techId) => {
-        const t = load().techs.find((x) => x.id === techId && x.listed);
-        if (!t) return null;
-        return { home_service: !!t.home_service,
-                 callout_kobo: t.callout_kobo == null ? 300000 : t.callout_kobo,
-                 per_km_kobo: t.per_km_kobo == null ? 130000 : t.per_km_kobo,
-                 home_max_km: t.home_max_km == null ? 15 : t.home_max_km };
-      },
-
-      homeQuote: async (techId, ids, lat, lng) => {
-        const s = load();
-        const t = s.techs.find((x) => x.id === techId);
-        if (!t || !t.listed) throw new Error("that tech is not listed");
-        const svcs = s.services.filter((x) => ids.includes(x.id) && x.tech_id === techId && x.active);
-        if (svcs.length !== (ids || []).length || !svcs.length) {
-          throw new Error("one of those services is not available from that tech");
-        }
-        const base = svcs.reduce((a, x) => a + (x.home_kobo || x.price_kobo), 0);
-        const salon = svcs.reduce((a, x) => a + x.price_kobo, 0);
-        if (!t.home_service) {
-          return { ok: false, why: "not_offered", base_kobo: base,
-                   says: t.business_name + " does not travel to customers." };
-        }
-        if (lat == null || lng == null) {
-          return { ok: false, why: "no_position", base_kobo: base,
-                   says: "Oma needs to know where you are to work out the travel." };
-        }
-        const d = km(lat, lng, t.lat, t.lng);
-        const max = t.home_max_km == null ? 15 : t.home_max_km;
-        if (d > max) {
-          return { ok: false, why: "too_far", km: Math.round(d * 10) / 10, max_km: max,
-                   base_kobo: base,
-                   says: t.business_name + " travels up to " + max + " km, and you are "
-                         + (Math.round(d * 10) / 10) + " km away." };
-        }
-        const callout = t.callout_kobo == null ? 300000 : t.callout_kobo;
-        const perKm = t.per_km_kobo == null ? 130000 : t.per_km_kobo;
-        const cKm = MOCK.fareKm(d);
-        const fare = Math.round(cKm * perKm);
-        return { ok: true, km: Math.round(d * 10) / 10, charged_km: cKm,
-                 base_kobo: base, callout_kobo: callout, per_km_kobo: perKm,
-                 fare_kobo: fare, total_kobo: base + callout + fare, salon_kobo: salon };
-      },
-
-      bookAtHome: async (techId, startsAt, ids, lat, lng, address, area, note, shapeName) => {
-        if (!String(address || "").trim()) throw new Error("she needs an address to come to");
-        const q = await MOCK.homeQuote(techId, ids, lat, lng);
-        if (!q.ok) throw new Error(q.says || "she cannot come to you");
-        const s = load();
-        const svcs = s.services.filter((x) => ids.includes(x.id));
-        const items = svcs.map((x) => ({ service_id: x.id, name: x.name, minutes: x.minutes,
-                                         price_kobo: x.home_kobo || x.price_kobo }));
-        // The two lines with no service_id. That is the whole mechanism by
-        // which Oma's fee stays off the tech's petrol — see booking_base_kobo.
-        if (q.callout_kobo) items.push({ service_id: null, name: "Home visit", minutes: 0,
-                                         price_kobo: q.callout_kobo });
-        if (q.fare_kobo) items.push({ service_id: null, name: "Travel (" + q.charged_km + " km)",
-                                      minutes: 0, price_kobo: q.fare_kobo });
-        const b = await MOCK.bookItems(techId, startsAt, items, note, shapeName);
-        b.at_home = true; b.cust_address = String(address).trim();
-        b.cust_area = area || null; b.cust_lat = lat; b.cust_lng = lng; b.km = q.km;
-        save();
-        return Object.assign({}, shape(b), { at_home: true, km: q.km, quote: q });
-      },
-
-      bookingWhere: async (bookingId) => {
-        const s = load();
-        const b = s.bookings.find((x) => x.id === bookingId);
-        const mine = (s.user || {}).id;
-        if (!b || (b.customer_id !== mine && b.tech_id !== mine)) throw new Error("no such booking");
-        if (!b.at_home) return { at_home: false };
-        const open = b.customer_id === mine
-          || ["paid", "released", "disputed"].includes(b.status);
-        return { at_home: true, km: b.km, area: b.cust_area,
-                 address: open ? b.cust_address : null,
-                 lat: open ? b.cust_lat : null, lng: open ? b.cust_lng : null,
-                 why: open ? null : "The address comes through once the appointment is paid for." };
-      },
-
-      setHomeService: async (on, callout, perKm, maxKm) => {
-        const t = myTech();
-        if (!t) throw new Error("list yourself first");
-        t.home_service = !!on;
-        if (callout != null) t.callout_kobo = callout;
-        if (perKm != null) t.per_km_kobo = perKm;
-        if (maxKm != null) t.home_max_km = maxKm;
-        save();
-        return { home_service: t.home_service, callout_kobo: t.callout_kobo,
-                 per_km_kobo: t.per_km_kobo, home_max_km: t.home_max_km };
-      },
-
-      setServiceHomePrice: async (id, kobo) => {
-        const s = load(), t = myTech();
-        const sv = s.services.find((x) => x.id === id && t && x.tech_id === t.id);
-        if (!sv) throw new Error("that is not one of your services");
-        sv.home_kobo = kobo == null ? null : kobo;
-        save();
-        return { id, home_kobo: sv.home_kobo };
-      },
-
       nearby: async (lat, lng, radius) => {
         const s = load();
-        return s.techs.filter(MOCK.visible)
+        return s.techs.filter((t) => t.listed)
           .map((t) => {
             // Distance from where she really is; position from her hexagon.
             // The address is withheld exactly as the real one withholds it.
@@ -3918,10 +3518,7 @@ const API = (() => {
         const toks = query ? query.split(/\s+/) : null;
         const out = [];
         for (const t of s.techs) {
-          // Not just "listed": a travelling tech whose phone stopped reporting
-          // is off the map, and being searchable by name would be a way round
-          // that. See MOCK.visible and live.sql's tech_visible.
-          if (!MOCK.visible(t)) continue;
+          if (!t.listed) continue;
           const svcs = s.services.filter((x) => x.tech_id === t.id && x.active);
           const n = (t.business_name || "").toLowerCase();
           const a = (t.area || "").toLowerCase();
@@ -4029,43 +3626,25 @@ const API = (() => {
         s.reads[whoAmI() + "|" + bookingId] = Date.now();
         save();
       },
-      /* The same seam create_booking gives the server: hand it a list of
-         itemised lines and it makes the appointment. A home visit is that
-         list plus two lines with no service_id, and NOTHING else about
-         booking, escrow or the scan needs to know. */
-      bookItems: async (techId, startsAt, items, note, shapeName) => {
+      book: async (techId, startsAt, ids, note, shapeName) => {
         const s = load(); expire();
         const at = new Date(startsAt).getTime();
         if (at <= Date.now()) fail("that time has already passed");
+        const chosen = s.services.filter((x) => ids.includes(x.id) && x.tech_id === techId && x.active);
+        if (chosen.length !== ids.length) fail("one of those services is not available from that tech");
         const clash = s.bookings.find((b) => b.tech_id === techId && b.starts_at_ms === at &&
           ["awaiting_payment", "paid", "released"].includes(b.status));
         if (clash) fail("somebody has just taken that slot");
         const b = {
           id: uid(), customer_id: meRow().id, tech_id: techId, starts_at_ms: at,
-          minutes: Math.max(1, items.reduce((a, x) => a + (x.minutes || 0), 0)),
-          total_kobo: items.reduce((a, x) => a + x.price_kobo, 0),
+          minutes: chosen.reduce((a, x) => a + x.minutes, 0),
+          total_kobo: chosen.reduce((a, x) => a + x.price_kobo, 0),
           status: "awaiting_payment", note: note || null, scan_shape: shapeName || null,
           pay_deadline_ms: Date.now() + 30 * 60000,
-          items: items.map((x) => ({ service_id: x.service_id == null ? null : x.service_id,
-                                     name: x.name, minutes: x.minutes || 0,
-                                     price_kobo: x.price_kobo })),
+          items: chosen.map((x) => ({ name: x.name, minutes: x.minutes, price_kobo: x.price_kobo })),
         };
         s.bookings.push(b); save();
-        return b;
-      },
-      book: async (techId, startsAt, ids, note, shapeName) => {
-        const s = load();
-        const chosen = s.services.filter((x) => ids.includes(x.id) && x.tech_id === techId && x.active);
-        if (chosen.length !== ids.length) fail("one of those services is not available from that tech");
-        return shape(await MOCK.bookItems(techId, startsAt,
-          chosen.map((x) => ({ service_id: x.id, name: x.name, minutes: x.minutes,
-                               price_kobo: x.price_kobo })), note, shapeName));
-      },
-      /* fee.sql's booking_base_kobo(): the lines that ARE services. The
-         call-out and the fare are not Oma's to charge on. */
-      baseKobo: (b) => {
-        const svc = (b.items || []).filter((i) => i.service_id != null);
-        return svc.length ? svc.reduce((a, i) => a + i.price_kobo, 0) : b.total_kobo;
+        return shape(b);
       },
       bookings: async (past) => {
         const s = load(); expire();
@@ -4179,96 +3758,6 @@ const API = (() => {
         save();
         return { ok: true, ...release(b) };
       },
-      /* ── reviews ──────────────────────────────────────────────
-         The same rule the database enforces, enforced here too, so the
-         screens behave identically against the mock: only the customer, only
-         on a released appointment, one review per appointment. A mock that is
-         more permissive than the server teaches the UI to do things the
-         server will refuse. */
-      leaveReview: async (bookingId, stars, words) => {
-        const s = load();
-        if (!(stars >= 1 && stars <= 5)) fail("a review is one to five stars");
-        const b = s.bookings.find((x) => x.id === bookingId);
-        if (!b) fail("no such appointment");
-        if (b.status !== "released") {
-          fail("you can review an appointment once it has been completed");
-        }
-        const w = (words || "").trim() || null;
-        if (w && w.length > 600) fail("that review is too long");
-        const had = s.reviews.find((r) => r.booking_id === bookingId);
-        if (had) {
-          had.stars = stars; had.words = w; had.edited_at = new Date().toISOString();
-        } else {
-          s.reviews.push({ booking_id: bookingId, tech_id: b.tech_id,
-                           customer_id: (s.user && s.user.id) || "me",
-                           stars, words: w, created_at: new Date().toISOString(),
-                           edited_at: null });
-        }
-        save();
-        return s.reviews.find((r) => r.booking_id === bookingId);
-      },
-      myReview: async (bookingId) =>
-        load().reviews.find((r) => r.booking_id === bookingId) || null,
-      reviewable: async () => {
-        const s = load();
-        return s.bookings
-          .filter((b) => b.status === "released" &&
-                         !s.reviews.some((r) => r.booking_id === b.id))
-          .map((b) => ({ booking_id: b.id, tech_id: b.tech_id,
-                         business_name: (s.techs.find((t) => t.id === b.tech_id) || {}).business_name,
-                         // Stored bookings keep a millisecond stamp; shape()
-                         // is what turns it into the ISO string the app sees.
-                         starts_at: new Date(b.starts_at_ms).toISOString() }));
-      },
-      ratings: async (ids) => {
-        const s = load(), want = ids || [];
-        const out = [];
-        want.forEach((id) => {
-          const mine = s.reviews.filter((r) => r.tech_id === id);
-          // No row rather than a zero, exactly as the SQL does — "not rated
-          // yet" and "rated zero" must not look the same to a screen.
-          if (!mine.length) return;
-          const avg = mine.reduce((a, r) => a + r.stars, 0) / mine.length;
-          out.push({ tech_id: id, stars: Math.round(avg * 10) / 10, reviews: mine.length });
-        });
-        return out;
-      },
-      techReviews: async (techId) => {
-        const s = load();
-        const who = (id) => {
-          const n = ((id === ((s.user && s.user.id) || "me")
-                       ? (s.user && s.user.full_name) : null) || "").trim();
-          if (!n) return "Someone";
-          const p = n.split(/\s+/);
-          return p.length < 2 ? p[0] : p[0] + " " + p[1][0] + ".";
-        };
-        return s.reviews.filter((r) => r.tech_id === techId)
-          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
-          .map((r) => ({ stars: r.stars, words: r.words,
-                         who: who(r.customer_id), created_at: r.created_at }));
-      },
-
-      /* Her record of what she was actually paid, appointment by appointment,
-         with the deductions set out. Mirrors api_earnings in fee.sql. */
-      earnings: async (limit) => {
-        const s = load();
-        return (s.fees || [])
-          .slice()
-          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
-          .slice(0, limit || 30)
-          .map((f) => {
-            // Paystack IS on the full amount — that is what the card was
-            // charged. Oma is on the base. The two really are different.
-            const ps = paystackFeeKobo(f.total_kobo);
-            const base = f.base_kobo == null ? f.total_kobo : f.base_kobo;
-            return { booking_id: f.booking_id, paid_at: f.created_at,
-                     total_kobo: f.total_kobo, base_kobo: base,
-                     travel_kobo: f.total_kobo - base,
-                     oma_kobo: f.fee_kobo, paystack_kobo: ps,
-                     net_kobo: f.total_kobo - f.fee_kobo - ps };
-          });
-      },
-
       wallet: async () => {
         const s = load(), t = myTech();
         return {
@@ -4302,24 +3791,6 @@ const API = (() => {
                       delta_kobo: -b.total_kobo, kind: "release_out", at: Date.now() });
       s.ledger.push({ tech_id: b.tech_id, booking_id: b.id, bucket: "available",
                       delta_kobo: b.total_kobo, kind: "release_in", at: Date.now() });
-      // Oma's fee, charged at the scan exactly as the trigger in fee.sql
-      // charges it. A mock that released the whole amount would show a tech a
-      // balance the real system will never pay her.
-      // On the SERVICES, not the sale: a home visit's call-out and fare are
-      // the tech's time and petrol, and charging a percentage of those is
-      // what this whole design avoids. Same rule as booking_base_kobo().
-      const base = MOCK.baseKobo(b);
-      const fee = omaFeeKobo(base);
-      if (fee > 0) {
-        s.fees = s.fees || [];
-        if (!s.fees.some((f) => f.booking_id === b.id)) {
-          s.fees.push({ booking_id: b.id, tech_id: b.tech_id,
-                        total_kobo: b.total_kobo, base_kobo: base, fee_kobo: fee,
-                        created_at: new Date().toISOString() });
-          s.ledger.push({ tech_id: b.tech_id, booking_id: b.id, bucket: "available",
-                          delta_kobo: -fee, kind: "oma_fee", at: Date.now() });
-        }
-      }
       save();
       return { booking: shape(b), released_kobo: b.total_kobo,
                customer_name: (s.user || {}).full_name || "your client" };
@@ -4567,10 +4038,6 @@ function dbLoad() {
   }
   d.scans = d.scans || []; d.techs = d.techs || [];
   d.bookings = d.bookings || []; d.jobs = d.jobs || [];
-  // A customer's pinned coordinates, from before distance was asked live.
-  // Dropped rather than migrated: a stale pin is exactly the thing that made
-  // "2 km away" wrong for anybody who had moved since tapping GPS.
-  if (d.me && d.me.ll) delete d.me.ll;
   return d;
 }
 function dbSave() {
@@ -4609,11 +4076,7 @@ function bearing(a, b) {
     Math.sin(a[0] * r) * Math.cos(b[0] * r) * Math.cos((b[1] - a[1]) * r);
   return Math.atan2(y, x);
 }
-/* A TECH has a pin, because a salon is a place. A customer does not: she
-   moves, so her distance is asked of the phone each time it is needed rather
-   than remembered from whenever she last tapped GPS. DB.me.ll is no longer
-   read anywhere, and dbLoad drops it. */
-function myPos() { return (DB.biz && DB.biz.ll) || null; }
+function myPos() { return (DB.me && DB.me.ll) || (DB.biz && DB.biz.ll) || null; }
 function locate(cb) {
   if (!navigator.geolocation) { cb(null); return; }
   toast("Asking your browser for your location…");
@@ -4637,18 +4100,21 @@ function sortedTechs() {
   });
 }
 
-/* ══ phone numbers are gone ══════════════════════════
-   waOpen went on 29 Aug 2026: it opened wa.me with a pre-written message,
-   which was how a tech heard about a booking before Oma had a server, and a
-   conversation Oma cannot see is a booking that can arrive nowhere.
-
-   waNumber followed it on 3 Sep, along with the phone number itself. Signing
-   in is by email now — an SMS needs a Termii sender ID, which needs CAC, so
-   for as long as that was pending NOBODY could sign in at all. The contact
-   route phone numbers used to provide is the in-app conversation.
-
-   app_user.phone stays in the database, unused. Dropping a column is
-   destructive and buys nothing.                                          */
+/* ══ phone numbers ═══════════════════════════════════
+   People write their number the way they say it — 0803… — and share it the
+   way it dials — 234803…. wa.me wants the second.                        */
+function waNumber(raw, dial) {
+  let n = String(raw || "").replace(/[^\d+]/g, "").replace(/^\+/, "");
+  const d = String(dial || DB.dial || "234");
+  if (n.startsWith(d)) return n;
+  if (n.startsWith("0")) return d + n.slice(1);
+  return n.length <= 10 ? d + n : n;
+}
+/* waOpen lived here. It opened wa.me with a pre-written message, which was
+   how a tech heard about a booking before Oma had a server. Removed on
+   29 Aug 2026: nothing leaves the app, and a conversation Oma cannot see is
+   a booking that can arrive nowhere. waNumber stays — it still formats a
+   number for display. */
 
 /* ══ tech links, the only way a listing travels ══════
    No server, no directory. A tech's whole listing is packed into the link
@@ -4657,7 +4123,7 @@ function sortedTechs() {
    have.                                                                   */
 function techPayload(b) {
   return {
-    n: b.name, a: b.area, ad: b.address,
+    n: b.name, a: b.area, ad: b.address, p: b.phone, d: b.dial || DB.dial,
     y: b.years, c: b.cur || DB.cur, ll: b.ll,
     o: b.opens, cl: b.closes,
     s: (b.services || []).map(s => ({ n: s.n, m: s.m, p: s.p, sh: s.sh || [] }))
@@ -4739,7 +4205,6 @@ const I = {
   share: () => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8 15.8 6.7M8.2 13.2l7.6 4.1"/></svg>`,
   cog: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H2.9a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.2Z"/></svg>`,
   moon: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>`,
-  bell: () => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 7-3 9h18c0-2-3-2-3-9M10.3 21a2 2 0 0 0 3.4 0"/></svg>`,
   find: () => `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>`,
   x: () => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>`,
   tick: (w) => `<svg viewBox="0 0 24 24" width="${w || 15}" height="${w || 15}" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg>`,
@@ -4837,31 +4302,28 @@ function bottomNav() {
 
 /* ══ 01 welcome ══════════════════════════════════════ */
 function vWelcome() {
-  // The mark is a pink tile, so the ground cannot also be pink or it vanishes
-  // into its own background. It used to be a hard-coded dark ground with white
-  // ink, which meant somebody whose phone is in light mode met a black screen
-  // as the very first thing Oma showed them. Every colour here is a token now
-  // — see --wel-* in p1_head.html — so this screen follows the phone like the
-  // rest of the app.
-  return `<div style="min-height:100dvh;background:var(--wel-bg);
-      color:var(--wel-ink);display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
-    <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow1),transparent 68%)"></div>
-    <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow2),transparent 70%)"></div>
+  // The mark is a pink tile. On the pink ground this screen used to have, it
+  // disappeared into its own background — so the ground goes dark and the
+  // brand colour is spent on the mark and the button instead.
+  return `<div style="min-height:100dvh;background:#120e17;
+      color:#fff;display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
+    <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(240,81,141,.55),transparent 68%)"></div>
+    <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,143,186,.28),transparent 70%)"></div>
     <div style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-top:calc(60px + env(safe-area-inset-top))">
       <div style="margin-bottom:auto">${logoMark(78)}</div>
       <div style="font-size:56px;font-weight:800;letter-spacing:-.05em;line-height:.9;margin-top:36px">oma</div>
-      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;color:var(--wel-sub);max-width:300px">
+      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;opacity:.72;max-width:300px">
         Scan your hands, find the nail shape that actually suits them, and book the tech who does it.
       </div>
       <div class="dots" style="margin:26px 0 22px;max-width:60px">
-        <i style="background:var(--wel-dot);flex:none;width:22px"></i>
-        <i style="background:var(--wel-dot-off);flex:none;width:5px"></i>
-        <i style="background:var(--wel-dot-off);flex:none;width:5px"></i>
+        <i style="background:#fff;flex:none;width:22px"></i>
+        <i style="background:rgba(255,255,255,.45);flex:none;width:5px"></i>
+        <i style="background:rgba(255,255,255,.45);flex:none;width:5px"></i>
       </div>
       <button class="btn" style="background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#e0447f);color:#fff"
         data-a="go" data-v="role">Get started ${I.arrow()}</button>
-      <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;color:var(--wel-sub);line-height:1.5">
-        Your photos are measured on this phone and never leave it.
+      <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;opacity:.7;line-height:1.5">
+        No account, no sign-in. Everything stays on this phone.
       </div>
     </div>
   </div>`;
@@ -4916,15 +4378,18 @@ function vSignup() {
     <label class="field"><span class="lab">Your name</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
         <input id="fName" value="${esc(m.name || "")}" placeholder="What should techs call you?"></span></label>
+    <label class="field"><span class="lab">Phone number</span>
+      <span class="inp"><span class="pre">+<input id="fDial" value="${esc(DB.dial)}" inputmode="numeric" style="width:3ch;font-weight:600"></span>
+        <span class="bar"></span>
+        <input id="fPhone" value="${esc(m.phone || "")}" inputmode="tel" placeholder="803 000 0000"></span></label>
     <label class="field"><span class="lab">Your area</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-        <input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
+        <input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos">
+        <span class="act" data-a="gps" data-t="me">${myPos() ? "Pinned" : "GPS"}</span></span></label>
     <div class="note pink">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>
-      <div>This is just a label for your bookings. <b>Distance comes from your
-        phone, fresh, each time you search</b> — so it is right wherever you
-        happen to be, not wherever you were when you filled this in. Nothing
-        reaches a tech until you send them a booking yourself.</div>
+      <div>Your area only sorts nail techs by distance. Nothing reaches a tech until you send
+        them a booking yourself.</div>
     </div>
     <div style="margin-top:auto;padding-top:24px">
       <button class="btn" data-a="saveMe">Save and continue ${I.arrow()}</button>
@@ -4934,22 +4399,8 @@ function vSignup() {
 
 /* ══ 04 the tech's listing ═══════════════════════════ */
 const SERVICE_SHAPES = ["oval", "round", "square", "squoval", "almond", "coffin", "stiletto"];
-
-/* The state is what the whole-state map is drawn from — "show me everyone in
-   Lagos", not only everyone within 15 km. All 36 and the FCT, because Oma is
-   not only a Lagos app and a list that stops at six states tells a tech in
-   Enugu she is not wanted. */
-const NG_STATES = ["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa",
-  "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu",
-  "FCT — Abuja", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi",
-  "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo",
-  "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"];
 function vSetup(edit) {
   const b = DB.biz || { services: [] };
-  // Default true: a listing made before this question existed described a
-  // shop, and quietly turning those techs into travelling ones would take
-  // every one of them off the map until she found this screen again.
-  const shop = b.hasSalon !== false;
   return `<div class="pad" style="min-height:100dvh;display:flex;flex-direction:column;
       padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(30px + env(safe-area-inset-bottom))">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
@@ -4957,66 +4408,32 @@ function vSetup(edit) {
       <div style="font-size:15px;font-weight:700">${edit ? "Edit your listing" : "Set up your listing"}</div>
     </div>
     ${edit ? "" : `<h2 style="font-size:24px;line-height:1.2;margin-bottom:18px">Tell customers where to find you</h2>`}
-
-    <!-- Asked FIRST, because the answer changes the rest of the form. A salon
-         is a place with an address; a tech who travels is not a place at all,
-         and giving her an address box to fill in is what produces a pin that
-         is wrong by Tuesday. -->
-    <div class="lbl" style="margin-bottom:7px">Do you have a salon?</div>
-    <div class="pick">
-      <button type="button" class="${shop ? "on" : ""}" data-a="has-salon" data-v="1">
-        <b>Yes, a shop</b><em>Customers come to one address. Oma shows it, and
-          it stays put.</em></button>
-      <button type="button" class="${shop ? "" : "on"}" data-a="has-salon" data-v="0">
-        <b>No, I travel</b><em>Oma shows where you are while you are working,
-          and takes you off the map when you stop.</em></button>
-    </div>
-    ${shop ? "" : `<div class="note pink" style="margin-bottom:14px">
-      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-      <div><b>You will not be found unless your phone is telling Oma where you
-        are.</b> There is a switch for it below — turn it on when you start
-        work and off when you finish. Oma keeps where you are now, and no
-        record of where you have been.</div></div>`}
-
     <label class="field"><span class="lab">Business name</span>
       <span class="inp">${I.shop()}<input id="bName" value="${esc(b.name || "")}" placeholder="Thandi Nails Studio"></span></label>
-    ${shop ? `<label class="field"><span class="lab">Street &amp; shop number</span>
+    <label class="field"><span class="lab">Street &amp; shop number</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>` : ""}
+        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>
+    <label class="field"><span class="lab">Area</span>
+      <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
+        <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span></span></label>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1;min-width:0"><span class="lab">Area</span>
-        <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
-          <!-- Only a shop gets a pin. A tech who travels has no fixed point to
-               pin, and a button offering her one would be a promise Oma
-               cannot keep. -->
-          ${shop ? `<span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>` : ""}
-        </span></label>
-      <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
-        <span class="inp"><select id="bState">
-          <option value="">Choose…</option>
-          ${NG_STATES.map(x => `<option ${(b.state || "") === x ? "selected" : ""}>${x}</option>`).join("")}
-        </select></span></label>
+      <label class="field" style="flex:1"><span class="lab">WhatsApp number</span>
+        <span class="inp"><span class="pre">+<input id="bDial" value="${esc(b.dial || DB.dial)}" inputmode="numeric" style="width:3ch;font-weight:600"></span>
+          <span class="bar"></span><input id="bPhone" value="${esc(b.phone || "")}" inputmode="tel" placeholder="803 000 0000"></span></label>
     </div>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1;min-width:0"><span class="lab">Currency</span>
+      <label class="field" style="flex:1"><span class="lab">Currency</span>
         <span class="inp"><select id="bCur">${["₦", "R", "$", "£", "€", "GH₵", "KSh"].map(c =>
           `<option ${(b.cur || DB.cur) === c ? "selected" : ""}>${c}</option>`).join("")}</select></span></label>
-      <label class="field" style="flex:1;min-width:0"><span class="lab">Years doing nails</span>
+      <label class="field" style="flex:1"><span class="lab">Years doing nails</span>
         <span class="inp"><input id="bYears" value="${esc(b.years || "")}" inputmode="numeric" placeholder="6"></span></label>
     </div>
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1;min-width:0"><span class="lab">Opens</span>
+      <label class="field" style="flex:1"><span class="lab">Opens</span>
         <span class="inp"><input id="bOpen" type="time" value="${esc(b.opens || "09:00")}"></span></label>
-      <label class="field" style="flex:1;min-width:0"><span class="lab">Closes</span>
+      <label class="field" style="flex:1"><span class="lab">Closes</span>
         <span class="inp"><input id="bClose" type="time" value="${esc(b.closes || "18:00")}"></span></label>
     </div>
-
-    ${shop ? "" : `<div class="lbl" style="margin:4px 0 7px">Working right now</div>
-      ${workingCard()}<div style="height:14px"></div>`}
-
-    <!-- She comes to you. Under the menu on purpose: it is about the menu —
-         whether she travels, what the trip costs, and how far she will go. -->
-    ${homeSettings(b)}
 
     <div class="rowbetween" style="margin:6px 0 10px">
       <div style="font-size:14.5px;font-weight:800;letter-spacing:-.02em">Your service menu</div>
@@ -5026,17 +4443,8 @@ function vSetup(edit) {
 
     <div class="note mt16">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8.2v.1"/></svg>
-      <!-- The TERMS, in a sentence. Not a running total beside every price box:
-           setting a price is when a tech decides what she is worth, and a
-           deduction counting itself out while she does that is the wrong
-           screen for it. The arithmetic appears on her earnings screen once
-           an appointment is actually paid. -->
-      <div><b>Oma charges ₦250 for each completed service</b>, plus 2% of anything
-        a service costs above ₦30,000. It comes off when you scan the client's
-        code — if an appointment is refunded because you never scanned, you are
-        charged nothing. The card fee is Paystack's, not ours.
-        <b>You will see exactly what came off, on every appointment, in
-        Earnings.</b></div>
+      <div>Everything here travels inside the link you share. There is no Oma directory to be
+        listed in — a customer sees you because you sent them the link.</div>
     </div>
     <div style="margin-top:auto;padding-top:22px">
       <button class="btn" data-a="saveBiz">${edit ? "Save changes" : "Publish my listing"} ${I.arrow()}</button>
@@ -5049,31 +4457,17 @@ function svcEditor(list, cur) {
       when they book.</div>`;
   return list.map((s, i) => `<div class="card">
     <div style="display:flex;gap:10px;align-items:center">
-      <span class="inp" style="flex:1;min-width:0;min-height:46px"><input data-s="n" data-i="${i}" value="${esc(s.n || "")}" placeholder="Gel overlay"></span>
+      <span class="inp" style="flex:1;min-height:46px"><input data-s="n" data-i="${i}" value="${esc(s.n || "")}" placeholder="Gel overlay"></span>
       <button class="iconbtn" data-a="delSvc" data-i="${i}" aria-label="Remove">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></button>
     </div>
-    <div style="display:flex;gap:10px;margin-top:9px;align-items:flex-end">
-      <!-- min-width:0 is what stops these two boxes running off the edge. A
-           flex child will not shrink below the intrinsic width of the input
-           inside it unless it is told it may, and on a 320px phone the second
-           box — and the "min" after it — was simply clipped away. -->
-      <label class="field" style="flex:1;min-width:0;margin:0"><span class="lab">Price</span>
-        <span class="inp" style="min-height:46px"><span class="pre">${esc(cur)}</span>
-          <input data-s="p" data-i="${i}" value="${esc(s.p || "")}" inputmode="numeric" placeholder="3500"></span></label>
-      <!-- This box was just a number and a "min" that fell off the edge of a
-           narrow screen. Nobody should have to guess whether it means minutes
-           or a minimum price. -->
-      <label class="field" style="flex:1;min-width:0;margin:0"><span class="lab">How long</span>
-        <span class="inp" style="min-height:46px">
-          <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
-          <span class="tiny faint">min</span></span></label>
+    <div style="display:flex;gap:10px;margin-top:9px">
+      <span class="inp" style="flex:1;min-height:46px"><span class="pre">${esc(cur)}</span>
+        <input data-s="p" data-i="${i}" value="${esc(s.p || "")}" inputmode="numeric" placeholder="3500"></span>
+      <span class="inp" style="flex:1;min-height:46px">
+        <input data-s="m" data-i="${i}" value="${esc(s.m || "")}" inputmode="numeric" placeholder="75">
+        <span class="tiny faint">min</span></span>
     </div>
-    <!-- Only when she travels: a price for this service at somebody's house.
-         Blank means the same as above, which is both the default and the
-         plainest way to say it. -->
-    ${(DB.biz && DB.biz.homeService) ? svcHomeRow(s, i, cur) : ""}
-
     <div class="pills mt12">${SERVICE_SHAPES.map(sh =>
       `<button class="pill ${(s.sh || []).includes(sh) ? "on" : ""}" data-a="svcShape" data-i="${i}" data-sh="${sh}"
         style="text-transform:capitalize">${sh}</button>`).join("")}</div>
@@ -5193,9 +4587,12 @@ function vSalons() {
   </div>
   <div style="height:16px"></div>`;
 }
+/* Infinity on purpose here, and only here: this is what the sort uses, and
+   a tech with no priced service belongs last rather than first. Everything
+   that PRINTS a price uses fromPrice, which returns null instead. */
 function lowest(t) {
-  const p = (t.s || []).map(s => +s.p).filter(n => n > 0);
-  return p.length ? Math.min(...p) : Infinity;
+  const v = fromPrice(t.s);
+  return v === null ? Infinity : v;
 }
 function doesShape(t, sh) {
   return (t.s || []).some(s => (s.sh || []).includes(sh)) ? 1 : 0;
@@ -5561,7 +4958,7 @@ function vProfile() {
       <button class="avatar lg" data-a="go" data-v="editme">${esc(initials(me.name))}</button>
       <div>
         <div style="font-size:19px;font-weight:800;letter-spacing:-.025em">${esc(me.name || "Add your name")}</div>
-        <div class="small sub" style="margin-top:2px">${esc([me.area, me.email].filter(Boolean).join(" · ") || "Tap to fill in your details")}</div>
+        <div class="small sub" style="margin-top:2px">${esc([me.area, me.phone ? "+" + waNumber(me.phone, DB.dial) : null].filter(Boolean).join(" · ") || "Tap to fill in your details")}</div>
       </div>
     </div>
     <div style="display:flex;gap:9px;margin-top:18px">
@@ -5735,10 +5132,12 @@ function vEditMe() {
   <div class="pad">
     <label class="field"><span class="lab">Your name</span>
       <span class="inp"><input id="fName" value="${esc(m.name || "")}" placeholder="Your name"></span></label>
+    <label class="field"><span class="lab">Phone number</span>
+      <span class="inp"><span class="pre">+<input id="fDial" value="${esc(DB.dial)}" inputmode="numeric" style="width:3ch;font-weight:600"></span>
+        <span class="bar"></span><input id="fPhone" value="${esc(m.phone || "")}" inputmode="tel"></span></label>
     <label class="field"><span class="lab">Your area</span>
-      <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
-    <div class="tiny faint" style="margin:-8px 0 16px">A label for your bookings.
-      How far away a tech is comes from your phone each time you search.</div>
+      <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos">
+        <span class="act" data-a="gps" data-t="me">${myPos() ? "Pinned" : "GPS"}</span></span></label>
     <button class="btn" data-a="saveMe" data-back="1">Save</button>
   </div>`;
 }
@@ -5749,7 +5148,6 @@ function vSettings() {
     <div class="menu">
       <button data-a="theme"><span class="ic">${I.moon()}</span><span style="flex:1">Dark mode</span>
         <span class="switch ${isDark() ? "on" : ""}"><i></i></span></button>
-      ${pushRow()}
       <button data-a="switchRole"><span class="ic">${I.shop()}</span>
         <span style="flex:1">Use Oma as a ${DB.role === "tech" ? "customer" : "nail tech"}</span>${I.chev()}</button>
       <button data-a="go" data-v="sheet"><span class="ic">
@@ -5761,8 +5159,8 @@ function vSettings() {
         <span class="tiny ${API.live() ? "" : "faint"}" style="margin-right:6px">${
           API.live() ? "Live" : "Practice"}</span>${I.chev()}</button>
       ${API.signedIn() ? `<button data-a="signout"><span class="ic">${I.user()}</span>
-        <span style="flex:1">Sign out${DB.me && DB.me.email
-          ? ` · ${esc(DB.me.email)}` : ""}</span>${I.chev()}</button>` : ""}
+        <span style="flex:1">Sign out${DB.me && DB.me.phone
+          ? ` · +${esc(waNumber(DB.me.phone, DB.dial))}` : ""}</span>${I.chev()}</button>` : ""}
       <button data-a="export"><span class="ic">${I.chart()}</span>
         <span style="flex:1">Export my scans as JSON</span>${I.chev()}</button>
       <button data-a="wipe"><span class="ic">
@@ -5782,12 +5180,6 @@ function vSettings() {
     <div class="tiny faint" style="text-align:center;margin-top:18px;line-height:1.6">
       Ruleset ${esc(RULES.version || "—")} · thresholds are salon convention, not calibrated
       measurement.<br>Detector mean error 0.25 against hand-annotated ground truth on eight hands.
-      <!-- The build id, on screen on purpose. Twice now a bug has been chased that
-           was already fixed, because the phone was quietly running an older
-           app.html behind a stale service worker and there was no way to tell by
-           looking. Now there is: this line and the first line of /sw.js must
-           match, and if they do not, the upload is the problem, not the code. -->
-      <br>Build <b>${esc(BUILD_ID)}</b>
     </div>
   </div>
   <div style="height:20px"></div>`;
@@ -6040,60 +5432,38 @@ function afterPaint() {
 const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
 
 /* ── 20 sign in ───────────────────────────────────────── */
-/* mode: null until she picks a door, then "up" (new account) or "in".
-
-   Under the surface these are the SAME thing — an email, a six-digit code, and
-   Supabase makes the account if there is not one. One button would work, and
-   it is what was built first.
-
-   It is still wrong. Somebody arriving at a screen that says only "Sign in"
-   with no account does not think "I expect this will register me"; she thinks
-   she is in the wrong place and leaves. Two doors cost one tap and remove that
-   doubt. Nothing here pretends the mechanism differs — the words change, the
-   code path does not. */
-let SIGNIN = { email: "", sent: false, mode: null };
+let SIGNIN = { phone: "", sent: false };
 
 function vSignIn() {
   const s = SIGNIN;
-  const up = s.mode === "up";
-  const title = !s.mode ? "Your account" : up ? "Create an account" : "Sign in";
   return `
-  ${head(title, "So your bookings follow you, not this phone")}
+  ${head("Sign in", "So your bookings follow you, not this phone")}
   <div class="pad stack gap12">
     ${API.isMock() ? `<div class="note">
       <div>No backend is configured, so this is the practice version. Any
       six-digit code will let you in and no message is sent.</div></div>` : ""}
 
-    ${!s.mode ? `
-      <button class="btn" data-a="signin-mode" data-v="up">Create an account</button>
-      <button class="btn ghost" data-a="signin-mode" data-v="in">I already have one</button>
-      <div class="tiny sub" style="text-align:center;line-height:1.55;margin-top:4px">
-        Either way it is your email and a six-digit code — no password to
-        forget, and nothing else to fill in.</div>
-    ` : !s.sent ? `
+    ${!s.sent ? `
       <label class="fld">
-        <span class="lbl">Email address</span>
-        <input id="fSignEmail" type="email" inputmode="email" autocomplete="email"
-               autocapitalize="none" spellcheck="false"
-               placeholder="you@example.com" value="${esc(s.email)}">
+        <span class="lbl">Phone number</span>
+        <input id="fSignPhone" type="tel" inputmode="tel" autocomplete="tel"
+               placeholder="0801 234 5678" value="${esc(s.phone)}">
       </label>
-      <button class="btn" data-a="otp-send">${
-        up ? "Create my account" : "Send me a code"}</button>
-      <button class="btn ghost sm" data-a="signin-mode" data-v="${up ? "in" : "up"}">${
-        up ? "I already have an account" : "I need to create one"}</button>
+      <button class="btn" data-a="otp-send">Send me a code</button>
+      <div class="or"><span>or</span></div>
+      <button class="btn ghost" data-a="google">Continue with Google</button>
       <div class="tiny sub" style="text-align:center">
         We only ever use this to know it is you.</div>
     ` : `
       <div class="note"><div>We sent a six-digit code to
-        <b>${esc(s.email)}</b>. It can take a minute, and it may land in spam.</div></div>
+        <b>${esc(s.phone)}</b>.</div></div>
       <label class="fld">
         <span class="lbl">The code</span>
         <input id="fOtp" type="text" inputmode="numeric" autocomplete="one-time-code"
                maxlength="6" placeholder="000000" style="letter-spacing:.4em;font-size:22px">
       </label>
-      <button class="btn" data-a="otp-check">${
-        up ? "Create my account" : "Sign in"}</button>
-      <button class="btn ghost sm" data-a="otp-again">Use a different email</button>
+      <button class="btn" data-a="otp-check">Sign in</button>
+      <button class="btn ghost sm" data-a="otp-again">Use a different number</button>
     `}
   </div>`;
 }
@@ -6145,30 +5515,15 @@ function vNearby() {
 }
 
 /* ── 22 one tech, and her services ────────────────────── */
-let PICKED = { techId: null, name: "", ids: [], at: null, terms: null };
+let PICKED = { techId: null, name: "", ids: [], at: null };
 
 function vTechLive(id) {
   load(async () => {
-    // The reviews are asked for beside the services rather than after them:
-    // this is the screen where somebody decides whether to book, so the score
-    // should arrive with the prices, not a beat later.
-    const [list, revs, rate, terms] = await Promise.all([
-      API.services(id),
-      API.techReviews(id, 8).catch(() => []),
-      API.ratings([id]).catch(() => []),
-      // Whether she travels. Asked here so the next screen can offer "she
-      // comes to me" only when it is a real option.
-      API.homeTerms(id).catch(() => null),
-    ]);
-    const r = (rate || []).find((x) => x.tech_id === id);
-    PICKED = { techId: id, name: PICKED.name, ids: [], at: null, terms };
-    resetHome();
+    const list = await API.services(id);
+    PICKED = { techId: id, name: PICKED.name, ids: [], at: null };
     fillHost(`
       <div class="pad stack gap12">
-        <div class="rowbetween">
-          <div class="tiny sub">Choose what you want done.</div>
-          <div>${ratingLine(r)}</div>
-        </div>
+        <div class="tiny sub">Choose what you want done.</div>
         ${list.map((s) => `
           <label class="card row" style="cursor:pointer">
             <input type="checkbox" class="svc" value="${esc(s.id)}"
@@ -6181,7 +5536,6 @@ function vTechLive(id) {
           </label>`).join("")}
         <div id="svcTotal" class="tiny sub" style="text-align:right"></div>
         <button class="btn" data-a="pick-time" disabled id="toTime">Choose a time</button>
-        ${reviewsBlock(revs, r)}
       </div>`);
     wireServicePicker();
   });
@@ -6215,7 +5569,6 @@ function vTimeLive() {
   return `
   ${head("Pick a time", PICKED.name)}
   <div class="pad">
-    ${homeBlock(PICKED.terms)}
     <div class="chips" id="dayChips">
       ${days.map((d, i) => `<button class="chip${i === 0 ? " on" : ""}" data-a="mday"
          data-ts="${d.getTime()}">${dayLabel(d.getTime())}</button>`).join("")}
@@ -6453,10 +5806,8 @@ function vWallet() {
         <button class="btn" data-a="payout" ${w.available <= 0 ? "disabled" : ""}>
           Withdraw ${kobo(w.available)}</button>
 
-        <div id="paidList"></div>
-
         ${!w.recent.length ? "" : `
-          <div class="tiny sub mt16">Every movement</div>
+          <div class="tiny sub mt16">Recent</div>
           <div class="menu">
             ${w.recent.slice(0, 12).map((l) => `
               <div style="display:flex;gap:10px;align-items:center;padding:12px 14px">
@@ -6466,9 +5817,6 @@ function vWallet() {
               </div>`).join("")}
           </div>`}
       </div>`);
-    // The bill for each completed appointment, filled in after the balances so
-    // the numbers she came for are on screen first.
-    drawEarnings();
   });
   return head("Earnings", "Held, and yours") + host();
 }
@@ -6480,9 +5828,6 @@ const LEDGER_WORDS = {
   payout: "Withdrawn",
   refund: "Refunded to client",
   auto_refund_no_scan: "Auto-refunded — never scanned",
-  // Named, not hidden. A deduction a tech cannot point at is a deduction she
-  // assumes is bigger than it is.
-  oma_fee: "Oma's fee",
 };
 const ledgerWords = (k) => LEDGER_WORDS[k] || k.replace(/_/g, " ");
 
@@ -6669,15 +6014,11 @@ function vBookingsLive() {
     const up = upcoming(all), old = earlier(all);
     fillHost(`
       <div class="pad stack gap12">
-        <div id="rateNudge"></div>
         ${up.length ? `<div class="lbl">Coming up</div>${up.map(bookingRow).join("")}`
                     : emptyCard("Nothing booked yet",
                         "Find a tech under Salons and pick a time.")}
         ${old.length ? `<div class="lbl mt16">Earlier</div>${old.map(bookingRow).join("")}` : ""}
       </div>`);
-    // Filled in afterwards and quietly: an appointment waiting to be rated is
-    // worth offering, and never worth delaying the list she came to see.
-    reviewNudge();
   });
   return head("Bookings", "Everything you have booked") + host();
 }
@@ -6786,11 +6127,6 @@ function vJob(bookingId) {
           <div class="kv"><span class="k">Status</span><span class="v">${esc(words)}</span></div>
         </div></div>
 
-        <!-- Where she is going, on a home appointment. Filled after the paint
-             because the server decides how much of it either of them may see:
-             the area now, the street once the money is in escrow. -->
-        <div id="whereSlot"></div>
-
         ${["cancelled", "expired", "refunded"].includes(b.status) ? "" : `
           <button class="btn ghost" data-a="go" data-v="chat" data-id="${esc(b.id)}"
                   style="display:flex;align-items:center;justify-content:center;gap:9px">
@@ -6810,7 +6146,6 @@ function vJob(bookingId) {
           ? `<button class="btn ghost sm" data-a="cancel" data-id="${esc(b.id)}">
                Cancel this appointment</button>` : ""}
       </div>`);
-    fillWhere(bookingId);
   });
   return head("Appointment", "") + host();
 }
@@ -6834,21 +6169,6 @@ let HOMEPOS = null;  // where we centred, and whether we had to guess it
 let PICKID = null;   // the tech whose card is open, or null
 let MAPRO = null;    // watches the map's box, see drawMap
 
-/* ── near me, or the whole state ───────────────────────
-   Kamsy, 8 Sep 2026: "Oma should show all the techs in a state on the map,
-   not only nearby techs — it can still be a feature though."
-
-   So both, and she says which. NEAR ME is the default because it is the
-   question somebody standing in Lekki is actually asking; the state is for
-   the other one — is there anybody in Enugu at all — which is the question a
-   new city gets judged on, and an empty map is a bad answer to it when there
-   are eleven techs forty kilometres away.
-
-   The state list is only the states that HAVE somebody. A picker offering all
-   thirty-seven when thirty-five are empty teaches people the app is empty. */
-let MSCOPE = { all: false, state: null };
-let MSTATES = [];       // [{ state, techs }] — filled once per map screen
-
 /* paint() replaces the whole view. Leaflet keeps listeners on window and a
    running animation frame, so an instance left behind after its container is
    gone leaks and, worse, fights the next one for the same div. Every
@@ -6856,8 +6176,6 @@ let MSTATES = [];       // [{ state, techs }] — filled once per map screen
 function stopMap() {
   if (MAPRO) { try { MAPRO.disconnect(); } catch (e) { /* gone */ } MAPRO = null; }
   if (MAP) { try { MAP.remove(); } catch (e) { /* already torn down */ } }
-  // MSCOPE deliberately survives: she chose it, and coming back to the map
-  // after looking at one tech should not silently put her back on "near me".
   MAP = null; PINS = []; NEAR = []; NEXTUP = null; HOMEPOS = null; PICKID = null;
 }
 
@@ -6887,16 +6205,7 @@ function vHomeLive() {
       API.signedIn() ? API.bookings(false).catch(() => []) : Promise.resolve([]),
     ]);
     HOMEPOS = pos;
-    // Which states have anybody. Asked every time the map opens, because a
-    // stale list is how a tech who joined this morning stays invisible.
-    MSTATES = await API.states().catch(() => []);
-    MSTATES = MSTATES.filter((r) => r.state && r.state !== "(not said)");
-    if (!MSCOPE.state) MSCOPE.state = (DB.me && DB.me.state) || (MSTATES[0] || {}).state || null;
-    if (MSCOPE.all && !MSCOPE.state) MSCOPE.all = false;
-
-    NEAR = (MSCOPE.all
-      ? await API.stateTechs(MSCOPE.state, pos.lat, pos.lng).catch(() => [])
-      : await API.nearby(pos.lat, pos.lng, 15).catch(() => []))
+    NEAR = (await API.nearby(pos.lat, pos.lng, 15).catch(() => []))
       .filter((t) => Number.isFinite(+t.lat) && Number.isFinite(+t.lng));
     NEXTUP = upcoming(mine).filter((b) => b.status !== "cancelled")[0] || null;
 
@@ -6905,7 +6214,6 @@ function vHomeLive() {
 
     fillHost(`
       <div id="map"></div>
-      ${scopeBar()}
       <div class="mapbtns">
         <button class="mapbtn" data-a="map-me" aria-label="Centre the map on me">${I.pin()}</button>
         <button class="mapbtn pink" data-a="startscan" aria-label="Scan your hands">${I.scan()}</button>
@@ -6941,23 +6249,6 @@ function vHomeLive() {
       </div>
       <button class="avatar" data-a="go" data-v="profile">${esc(initials(me.name))}</button>
     </div>
-  </div>`;
-}
-
-/* The two questions the map can answer, as two taps. The state is a native
-   <select> rather than a home-made sheet: it is one line of markup, it is
-   reachable with a screen reader, and on a phone it opens the wheel everybody
-   already knows how to use. */
-function scopeBar() {
-  if (!MSTATES.length) return "";          // nothing listed anywhere yet
-  const opts = MSTATES.map((r) =>
-    `<option value="${esc(r.state)}" ${r.state === MSCOPE.state ? "selected" : ""}
-      >${esc(r.state)} · ${r.techs}</option>`).join("");
-  return `<div class="scope" role="group" aria-label="What the map shows">
-    <button type="button" class="${MSCOPE.all ? "" : "on"}" data-a="map-scope" data-v="near"
-            aria-pressed="${MSCOPE.all ? "false" : "true"}">Near me</button>
-    <select id="mState" class="${MSCOPE.all ? "on" : ""}"
-            aria-label="Show a whole state">${opts}</select>
   </div>`;
 }
 
@@ -7013,17 +6304,8 @@ function drawMap(pos, list) {
     const room = el.getBoundingClientRect().height;
     const under = Math.min(room * 0.62,
       (sheet ? sheet.getBoundingClientRect().height : 220) + 24);
-    // Near me opens on her and the five closest. A whole state has to open on
-    // the STATE — fitting Lagos to her five nearest would show her the same
-    // corner of Lekki and quietly answer a different question from the one she
-    // asked. Her own position is still in the bounds, so she can see where she
-    // sits in it.
-    const frame = MSCOPE.all
-      ? [[pos.lat, pos.lng], ...list.map((t) => [+t.lat, +t.lng])]
-      : [[pos.lat, pos.lng], ...list.slice(0, 5).map((t) => [+t.lat, +t.lng])];
-    MAP.fitBounds(frame, {
-      paddingTopLeft: [40, 132], paddingBottomRight: [40, under],
-      maxZoom: MSCOPE.all ? 13 : 15,
+    MAP.fitBounds([[pos.lat, pos.lng], ...list.slice(0, 5).map((t) => [+t.lat, +t.lng])], {
+      paddingTopLeft: [40, 48], paddingBottomRight: [40, under], maxZoom: 15,
     });
   } else {
     MAP.setView([pos.lat, pos.lng], 14);
@@ -7209,7 +6491,6 @@ function sheetMany() {
 function homeAsList() {
   const last = DB.scans[0];
   fillHost(`
-    ${scopeBar()}
     <div class="maplist">
       <div class="pad mt16">
         <button class="hero" data-a="startscan">
@@ -7234,16 +6515,14 @@ function homeAsList() {
                   <div class="pad stack gap12">${bookingRow(NEXTUP)}</div>` : ""}
 
       <div class="seehead">
-        <h3>${MSCOPE.all ? `Nail techs in ${esc(MSCOPE.state || "your state")}`
-                         : "Nail techs near you"}</h3>
+        <h3>Nail techs near you</h3>
         ${NEAR.length > 3 ? `<span class="seeall" data-a="go" data-v="salons">See all</span>` : ""}
       </div>
       <div class="pad stack gap12">
         ${NEAR.length
           ? NEAR.slice(0, 3).map(techRowLive).join("")
           : `<div class="empty"><div class="ic">${I.pin()}</div>
-               <b>${MSCOPE.all ? `No nail techs in ${esc(MSCOPE.state || "that state")} yet`
-                                : "No nail techs near you yet"}</b>
+               <b>No nail techs near you yet</b>
                Oma shows techs who have listed themselves and passed their ID check.</div>`}
       </div>
       <div style="height:16px"></div>
@@ -7271,13 +6550,7 @@ function whereAmI() {
         why: err && err.code === 1 ? "denied"
            : err && err.code === 3 ? "timeout" : "unavailable",
       })),
-      // maximumAge was a minute, so the browser could hand back a fix from
-      // wherever she was a minute ago. Zero means this really does ask the
-      // phone. Spamming the GPS is prevented one level up instead — the
-      // search screen reuses its answer for two minutes — which is the right
-      // place for it, because that layer knows whether a distance is even
-      // being shown.
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
   });
 }
@@ -7489,23 +6762,7 @@ async function sendMessage(bookingId) {
    result screen's button lands here with the shape already typed.           */
 
 let FQ = "";              // what she has typed, kept across screens
-/* Where she is, and WHEN we asked.
-
-   Kamsy: "customer locations should not be pinned, they are not shops, they
-   move around". She is right, and this was the worst offender — it asked the
-   phone once and reused that answer for the whole session, so somebody who
-   searched in Yaba and then drove to Lekki was still being sorted by where
-   she had been an hour ago.
-
-   Worth being straight about the limit: a web page cannot follow anybody
-   around in the background, and should not try. What it can do is take a
-   FRESH fix whenever a screen actually needs a distance, and that is what
-   this does — the answer is reused for two minutes, which is short enough
-   that a journey moves it and long enough that typing four letters does not
-   wake the GPS four times. */
-let FPOS = null;
-let FPOSAT = 0;
-const POS_STALE_MS = 120000;
+let FPOS = null;          // where she is, asked once
 let FSEQ = 0;             // which search is the current one
 let FTIMER = null;
 
@@ -7544,7 +6801,6 @@ function findRow(t) {
     <div style="flex:1;min-width:0;text-align:left">
       <div class="ttl">${esc(t.business_name)}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
-      <div style="margin-top:5px">${ratingSlot(t.id)}</div>
       ${bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : ""}
       ${matchTag(t.matched)}
     </div>
@@ -7573,12 +6829,10 @@ async function runFind() {
 
   // Asked once per session, and never blocking: without it search still works,
   // it just cannot say how far anything is.
-  if ((FPOS === null || Date.now() - FPOSAT > POS_STALE_MS) &&
-      typeof whereAmI === "function") {
+  if (FPOS === null && typeof whereAmI === "function") {
     const p = await whereAmI();
     if (mine !== FSEQ) return;
     FPOS = p && !p.guessed ? p : false;
-    FPOSAT = Date.now();
   }
 
   let list;
@@ -7607,11 +6861,6 @@ async function runFind() {
     <div class="tiny faint" style="padding:2px 2px 10px">${head}${
       !FPOS && q ? " · turn on location to see how far away they are" : ""}</div>
     <div class="stack gap12">${list.map(findRow).join("")}</div>`);
-
-  // After the list, never before it. Waiting on scores to show results would
-  // make every search slower for something that is decoration until she is
-  // actually choosing between two people.
-  fillRatings(list.map((t) => t.id));
 }
 
 function vFind() {
@@ -8567,6 +7816,303 @@ async function saveHomeSettings(b) {
                            kb(b.perKmNaira, 130000), Number(b.maxKm) || 15);
 }
 
+/* ══ HER WORK, UNDER EACH SERVICE ══════════════════════════════════════
+   Kamsy, 8 Sep 2026: "let the nail tech upload the picture under each service
+   that she uploads — that's if she has."
+
+   ── "that's if she has" ─────────────────────────────────────────────
+
+   That clause is the whole brief for the empty state. Most techs will have no
+   photographs on the day they list themselves, and a listing that looks
+   broken until she finds some is a listing she abandons. So: no grey
+   placeholder boxes, no "no photos yet" apology on the customer's side. A
+   service with pictures shows them; a service without simply does not.
+
+   ── the shrinking, and why it happens here ──────────────────────────
+
+   A photograph off a Nigerian phone is three to six megabytes. Uploading that
+   costs her data, costs the customer data every time it is looked at, and
+   fills the free storage tier in a few hundred pictures.
+
+   So it is resized to 1200px on the long edge and re-encoded as JPEG at 0.82
+   before a single byte leaves the phone — about 150 kB, which is more than
+   enough to judge a set of nails on a screen the size of a hand.
+
+   The decoding reuses the scan's machinery, HEIC and all. iPhones save HEIC
+   by default and no desktop browser decodes it; without this a nail tech on
+   an iPhone would meet "that file is not an image" and conclude Oma was
+   broken. That decoder is already in the page for the hand scan and this
+   costs nothing to reuse.
+
+   ── what this file does NOT decide ──────────────────────────────────
+
+   Three per service, whose folder a file may go in, and whether a photo is
+   visible: all of that is in photo.sql, enforced in the database. A cap the
+   page enforces is a cap anyone with the anon key ignores.                */
+
+const PHOTO_MAX_PX = 1200;
+const PHOTO_QUALITY = 0.82;
+const PHOTOS_PER_SERVICE = 3;
+
+/* Whatever the phone hands over — JPEG, PNG, HEIC — as a canvas. */
+async function photoToCanvas(file) {
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (isHeif(head)) return decodeHeif(file);          // p3_core.js
+  const im = await decodeStandard(file);              // p3_core.js
+  const c = document.createElement("canvas");
+  c.width = im.naturalWidth || im.width;
+  c.height = im.naturalHeight || im.height;
+  c.getContext("2d").drawImage(im, 0, 0);
+  return c;
+}
+
+/* Down to 1200px on the long edge, as a JPEG. Never UP: a small photograph
+   scaled up is a bigger file that looks worse. */
+function shrinkToBlob(canvas, maxPx, quality) {
+  const w = canvas.width, h = canvas.height;
+  const sc = Math.min(1, (maxPx || PHOTO_MAX_PX) / Math.max(w, h));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(w * sc));
+  c.height = Math.max(1, Math.round(h * sc));
+  const g = c.getContext("2d");
+  // A white ground, because a transparent PNG re-encoded as JPEG turns black
+  // otherwise, and a nail photo on black looks like a mistake.
+  g.fillStyle = "#ffffff";
+  g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(canvas, 0, 0, c.width, c.height);
+  return new Promise((res) => {
+    c.toBlob((b) => res({ blob: b, w: c.width, h: c.height }),
+             "image/jpeg", quality || PHOTO_QUALITY);
+  });
+}
+
+/* A name nobody can guess and nothing can collide with, inside her own
+   folder — which is what photo.sql and the storage policy both check. */
+function photoPath(techId, serviceId) {
+  const r = (crypto.getRandomValues(new Uint8Array(8)));
+  const hex = [...r].map((n) => n.toString(16).padStart(2, "0")).join("");
+  return `${techId}/${serviceId}-${hex}.jpg`;
+}
+
+/* ── uploading one ───────────────────────────────────────────────────
+   Bytes first, row second. If the row fails the file is orphaned, which
+   costs a few kilobytes; if it were the other way round a listing would
+   show a broken image, which costs a booking. */
+async function uploadServicePhoto(serviceId, file, ownWork) {
+  const canvas = await photoToCanvas(file);
+  const { blob, w, h } = await shrinkToBlob(canvas);
+  if (!blob) throw new Error("That photo could not be prepared.");
+
+  if (API.isMock()) {
+    // The practice app has no Storage. A data URL stands in — small, because
+    // it has been through exactly the same shrinking.
+    const url = await new Promise((res) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.readAsDataURL(blob);
+    });
+    return API.addPhoto(serviceId, url, w, h, blob.size, ownWork);
+  }
+
+  const who = await API.me();
+  const techId = who && who.tech && who.tech.id;
+  if (!techId) throw new Error("List yourself first — photos go under your services.");
+  const path = photoPath(techId, serviceId);
+  await API.storagePut(path, blob, "image/jpeg");
+  return API.addPhoto(serviceId, path, w, h, blob.size, ownWork);
+}
+
+/* ══ the tech's side ═══════════════════════════════════════════════════ */
+
+/* Her own photographs, while she is editing. Kept on PHOTOS so the editor can
+   redraw without re-fetching — the service list is rebuilt every time she adds
+   or removes a row. */
+let PHOTOS = {};          // { serviceId: [{ id, path, w, h }] }
+let PHOTO_BUSY = null;    // the service currently uploading, if any
+
+async function loadMyPhotos() {
+  if (!API.signedIn()) { PHOTOS = {}; return; }
+  try {
+    const me = await API.me();
+    const id = me && me.tech && me.tech.id;
+    PHOTOS = id ? (await API.techPhotos(id)) || {} : {};
+  } catch (e) { PHOTOS = {}; }
+  paintSvcPhotos();
+}
+
+/* The strip under one service in the editor. A service with no id yet — she
+   has typed a name but not saved — cannot have photographs, and says so
+   rather than offering a button that would fail. */
+function svcPhotoRow(s, i) {
+  if (!s.id) {
+    return `<div class="tiny faint" style="margin-top:9px">
+      Save your listing and you can add photos of this one.</div>`;
+  }
+  const list = PHOTOS[s.id] || [];
+  const busy = PHOTO_BUSY === s.id;
+  const room = list.length < PHOTOS_PER_SERVICE;
+  return `<div class="shots" data-shots="${esc(s.id)}">
+    ${list.map((p) => `<div class="shot">
+        <img src="${esc(API.photoUrl(p.path))}" alt="" loading="lazy">
+        <button class="x" data-a="photo-del" data-id="${esc(p.id)}"
+                aria-label="Remove this photo">×</button>
+      </div>`).join("")}
+    ${busy ? `<div class="shot add"><span class="tiny faint">Adding…</span></div>` : ""}
+    ${room && !busy ? `<label class="shot add">
+        <input type="file" accept="image/*" data-photo="${esc(s.id)}">
+        <span aria-hidden="true">+</span>
+        <span class="tiny faint">Add</span>
+      </label>` : ""}
+  </div>
+  ${list.length || busy ? "" : `<div class="tiny faint" style="margin-top:7px">
+    Up to ${PHOTOS_PER_SERVICE} photos of this service. Optional — a listing
+    works without them.</div>`}`;
+}
+
+/* Redraw only the strips. paint() would rebuild the editor and lose a
+   half-typed price, and an upload takes long enough that she will be typing. */
+function paintSvcPhotos() {
+  document.querySelectorAll("[data-shots]").forEach((el) => {
+    const id = el.dataset.shots;
+    const list = PHOTOS[id] || [];
+    const busy = PHOTO_BUSY === id || PHOTO_BUSY === Number(id);
+    const box = document.createElement("div");
+    box.innerHTML = svcPhotoRow({ id }, 0);
+    const next = box.querySelector("[data-shots]");
+    if (next) el.replaceWith(next);
+  });
+}
+
+/* The tick box. Asked once, above the whole menu rather than on every upload:
+   the same answer three times in a row is a form somebody stops reading. */
+function ownWorkBox() {
+  return `<label class="own">
+    <input type="checkbox" id="ownWork" checked>
+    <span>These are nails <b>I did myself</b>. Photos of somebody else's work
+      can have your listing taken down.</span>
+  </label>`;
+}
+const ownWorkTicked = () => {
+  const el = document.getElementById("ownWork");
+  return !el || el.checked;
+};
+
+/* One delegated change listener, because the service list is re-rendered
+   whenever she adds or removes a row and a bound one would be lost. */
+document.addEventListener("change", async (e) => {
+  const inp = e.target;
+  if (!inp || !inp.dataset || !inp.dataset.photo) return;
+  const serviceId = inp.dataset.photo;
+  const file = inp.files && inp.files[0];
+  inp.value = "";                       // so the same file can be chosen twice
+  if (!file) return;
+
+  if (!ownWorkTicked()) {
+    return toast("Tick the box to say the nails are your own work.");
+  }
+  if (file.size > 25 * 1024 * 1024) {
+    // Before decoding, not after: a 40 MP image can exhaust a phone's memory
+    // in the canvas rather than failing politely.
+    return toast("That photo is very large. Try one under 25 MB.");
+  }
+
+  PHOTO_BUSY = serviceId;
+  paintSvcPhotos();
+  try {
+    const isNum = /^\d+$/.test(serviceId);
+    await uploadServicePhoto(isNum ? Number(serviceId) : serviceId, file, true);
+    await loadMyPhotos();
+    toast("Photo added.");
+  } catch (err) {
+    toast(err.message || "That photo would not upload.");
+  } finally {
+    PHOTO_BUSY = null;
+    paintSvcPhotos();
+  }
+});
+
+async function deleteMyPhoto(id) {
+  try {
+    const r = await API.removePhoto(/^\d+$/.test(id) ? Number(id) : id);
+    if (r && r.path && !API.isMock()) API.storageDelete(r.path);
+    await loadMyPhotos();
+    toast("Photo removed.");
+  } catch (err) { toast(err.message || "Could not remove that."); }
+}
+
+/* ══ the customer's side ═══════════════════════════════════════════════ */
+
+let TECHPHOTOS = {};      // the tech currently being looked at
+
+/* The photographs inside one service card: a swipeable gallery with the
+   scrim and the dots. No lightbox — a full-screen viewer is a second thing to
+   get right on a slow connection, and at this size the work is already
+   legible.
+
+   A service with none returns nothing at all, and the card stays the Oma
+   gradient. That is "that's if she has": no grey box, no broken-image icon,
+   no apology on a listing that is otherwise fine. */
+function svcShots(serviceId) {
+  const list = TECHPHOTOS[serviceId] || [];
+  if (!list.length) return "";
+  return `<div class="svcpix" data-gal="${esc(serviceId)}">
+      ${list.map((p) => `<div class="pane">
+        <img src="${esc(API.photoUrl(p.path))}" alt="Nails by this tech" loading="lazy">
+        <button class="svcflag" data-a="photo-report" data-id="${esc(p.id)}"
+                aria-label="Report this photo" title="Report this photo">⚑</button>
+      </div>`).join("")}
+    </div>
+    ${list.length > 1 ? `<div class="svcdots" data-dots="${esc(serviceId)}">
+      ${list.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}
+    </div>` : ""}`;
+}
+
+/* Which one she is looking at. A scroll listener rather than an
+   IntersectionObserver: one number, no observers to tear down when the card
+   is repainted, and it is exact rather than threshold-dependent. */
+function wireGalleries() {
+  document.querySelectorAll("[data-gal]").forEach((gal) => {
+    if (gal.dataset.wired) return;
+    gal.dataset.wired = "1";
+    gal.addEventListener("scroll", () => {
+      const dots = document.querySelector(`[data-dots="${gal.dataset.gal}"]`);
+      if (!dots) return;
+      const i = Math.round(gal.scrollLeft / Math.max(1, gal.clientWidth));
+      [...dots.children].forEach((d, n) => d.classList.toggle("on", n === i));
+    }, { passive: true });
+  });
+}
+
+async function fillTechPhotos(techId) {
+  try { TECHPHOTOS = (await API.techPhotos(techId)) || {}; }
+  catch (e) { TECHPHOTOS = {}; return; }
+  document.querySelectorAll("[data-shotslot]").forEach((el) => {
+    el.innerHTML = svcShots(el.dataset.shotslot);
+    // The card only becomes a photograph when there IS one. Without this the
+    // gallery is empty, the caption is absolutely positioned, and the whole
+    // card collapses to nothing — the service disappears off her page.
+    const card = el.closest(".svccard");
+    if (card) card.classList.toggle("haspix", !!el.firstElementChild);
+  });
+  wireGalleries();
+}
+
+async function reportPhoto(id) {
+  // A prompt rather than a form: reporting has to be two taps or nobody does
+  // it, and the reason is useful but not required.
+  const why = prompt("What is wrong with this photo? (optional)");
+  if (why === null) return;               // she changed her mind
+  try {
+    await API.reportPhoto(/^\d+$/.test(id) ? Number(id) : id, why);
+    // The same words whatever happened, including for a photo that was already
+    // reported or does not exist. What Oma does about it is not this screen's
+    // business to narrate.
+    toast("Thank you — Oma will look at it.");
+  } catch (e) {
+    toast("Thank you — Oma will look at it.");
+  }
+}
+
 /* ══ being told something happened ═══════════════════
    Kamsy: "oma is not gonna be a web app forever i am just using it as a
    physical model and when we are done i publish it on playstore and app store
@@ -8786,75 +8332,6 @@ async function offerPushAfterBooking() {
   paint();
 }
 
-/* ══ the worker that receives a push ═════════════════
-   app.html had no service worker registration at all, which meant Web Push had
-   nothing to arrive at — navigator.serviceWorker.ready simply never resolved.
-   Registered here rather than on the pwa build because omaa.com.ng serves
-   app.html directly.
-
-   Guarded on http(s): inside the iOS wrapper the page is served over a custom
-   oma:// scheme, where this neither works nor is wanted — push there is APNs,
-   handled natively. */
-if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-  addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((e) => {
-      // Not fatal, and not worth a toast: the app works, it simply will not
-      // work offline or receive a web push on this device.
-      console.warn("service worker did not register:", e && e.message);
-    });
-  });
-}
-
-/* ── the switch in Settings ──────────────────────────
-   Until now the only way to turn notifications on was to finish paying for a
-   booking, because that is the one moment worth spending the permission
-   prompt on. That is right for a first-time offer and useless for everything
-   else: somebody who said no, or who got a new phone, or who simply wants
-   them, had no way in. */
-function pushIsOn() {
-  try { return !!localStorage.getItem("oma-push-token"); } catch (e) { return false; }
-}
-
-function pushRow() {
-  const avail = pushAvailability();
-  const on = pushIsOn();
-
-  // A switch that cannot do anything is worse than a sentence saying why.
-  if (!avail.ok && !on) {
-    return `<button data-a="push-why" data-v="${esc(avail.says || "")}">
-      <span class="ic">${I.bell ? I.bell() : ""}</span>
-      <span style="flex:1;text-align:left">Notifications</span>
-      <span class="tiny faint" style="margin-right:6px">${
-        avail.why === "install" ? "Add to home screen"
-        : avail.why === "denied" ? "Blocked"
-        : avail.why === "unconfigured" ? "Not set up"
-        : "Unavailable"}</span>${I.chev()}</button>`;
-  }
-  if (API.live() && !API.signedIn()) {
-    return `<button data-a="go" data-v="signin">
-      <span class="ic">${I.bell ? I.bell() : ""}</span>
-      <span style="flex:1;text-align:left">Notifications</span>
-      <span class="tiny faint" style="margin-right:6px">Sign in first</span>${I.chev()}</button>`;
-  }
-  return `<button data-a="push-toggle">
-    <span class="ic">${I.bell ? I.bell() : ""}</span>
-    <span style="flex:1;text-align:left">Notifications</span>
-    <span class="switch ${on ? "on" : ""}"><i></i></span></button>`;
-}
-
-async function togglePush() {
-  if (pushIsOn()) {
-    await forgetPush();
-    toast("Notifications off on this device.");
-    return paint();
-  }
-  toast("Asking your phone…");
-  const res = await registerForPush();
-  toast(res.ok ? "On. You will be told when somebody messages you."
-               : (res.says || "That did not work."));
-  paint();
-}
-
 /* ══ painting ════════════════════════════════════════ */
 let Q = "";
 function paint() {
@@ -8866,9 +8343,6 @@ function paint() {
     case "welcome": html = vWelcome(); break;
     case "role": html = vRole(); break;
     case "signup": html = vSignup(); break;
-    // The listing editor states Oma's TERMS in a sentence and shows no
-    // arithmetic. The breakdown belongs on her earnings screen, after she has
-    // been paid — see p19_fee.js.
     case "setup": html = vSetup(false); break;
     case "editbiz": html = vSetup(true); break;
     // The bottom bar used to lead to a second, device-only app. Every one
@@ -8905,7 +8379,6 @@ function paint() {
     case "backend": html = vBackend(); break;
     case "job": html = vJob(ROUTE.a); break;
     case "chat": html = vChat(ROUTE.a); break;
-    case "review": html = vReview(ROUTE.a); break;
     default: html = DB.role === "tech" ? vRequestsLive() : vFind();
   }
   if (typeof stopCamera === "function") stopCamera();
@@ -8939,7 +8412,7 @@ document.getElementById("shell").addEventListener("click", e => {
   const a = el.dataset.a;
   const id = el.dataset.id;
   const fields = {};
-  ["fName", "fArea"].forEach(k => {
+  ["fName", "fPhone", "fArea", "fDial"].forEach(k => {
     const n = document.getElementById(k); if (n) fields[k] = n.value.trim();
   });
 
@@ -8984,42 +8457,18 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "otp-send") {
-    const n = document.getElementById("fSignEmail");
-    // Lower-cased and trimmed: a phone keyboard loves to capitalise the first
-    // letter, and Supabase treats Amaka@ and amaka@ as two different accounts.
-    const email = (n ? n.value : "").trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-      return toast("That does not look like an email address.");
-    }
-    SIGNIN.email = email;
-    return API.sendOtp(email).then(() => { SIGNIN.sent = true; paint(); })
+    const n = document.getElementById("fSignPhone");
+    const phone = (n ? n.value : "").trim();
+    if (phone.replace(/\D/g, "").length < 7) return toast("That does not look like a phone number.");
+    SIGNIN.phone = phone;
+    return API.sendOtp(phone).then(() => { SIGNIN.sent = true; paint(); })
       .catch(err => toast(err.message));
-  }
-  if (a === "signin-mode") {
-    // The screen is about to be repainted from SIGNIN, so anything already
-    // typed has to be carried into it first. Being made to type your address
-    // again because you tapped the wrong door is a small insult, and the sort
-    // that makes people give up on a sign-up.
-    const typed = document.getElementById("fSignEmail");
-    if (typed) SIGNIN.email = typed.value;
-    SIGNIN.mode = el.dataset.v || null;
-    SIGNIN.sent = false;
-    return paint();
   }
   if (a === "otp-again") { SIGNIN.sent = false; return paint(); }
   if (a === "otp-check") {
     const n = document.getElementById("fOtp");
-    return API.verifyOtp(SIGNIN.email, (n ? n.value : "").trim())
-      .then(() => {
-        // She has just proved she owns this address, so it is the one thing
-        // about her identity this device can state without asking the server.
-        // Settings shows it, and without this the row read "Sign out" with
-        // nothing after it.
-        DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
-        dbSave();
-        toast("Signed in.");
-        nav("nearby");
-      })
+    return API.verifyOtp(SIGNIN.phone, (n ? n.value : "").trim())
+      .then(() => { toast("Signed in."); nav("nearby"); })
       .catch(err => toast(err.message));
   }
   if (a === "google") {
@@ -9036,11 +8485,6 @@ document.getElementById("shell").addEventListener("click", e => {
     return nav("techlive", el.dataset.id);
   }
   // The map: tapping Close puts the short list back, and the arrow re-centres.
-  /* reviews */
-  if (a === "rate-open") return nav("review", el.dataset.id);
-  if (a === "rate-star") return setStars(el.dataset.n);
-  if (a === "rate-save") return saveReview();
-
   if (a === "send-msg") return sendMessage(el.dataset.id);
   if (a === "map-clear") return choosePin(null);
   if (a === "map-me") return recentreMap();
@@ -9053,38 +8497,14 @@ document.getElementById("shell").addEventListener("click", e => {
     el.classList.add("on");
     return;
   }
-  if (a === "home-where") {
-    HOME.at = el.dataset.v === "1";
-    paintHome();
-    // The quote is only worth asking for once she has actually chosen it —
-    // it costs a GPS fix and a round trip.
-    if (HOME.at && !HOME.quote) askHomeQuote();
-    return;
-  }
   if (a === "mslot") {
     const day = document.querySelector("#dayChips .chip.on");
     if (!day) return toast("Pick a day first.");
     const at = new Date(Number(day.dataset.ts));
     at.setHours(Number(el.dataset.h), 0, 0, 0);
-    const shape = (DB.scans && DB.scans[0] && DB.scans[0].shape) || null;
-
-    if (HOME.at) {
-      const typed = document.getElementById("hAddr");
-      HOME.addr = typed ? typed.value.trim() : HOME.addr;
-      if (!HOME.addr) return toast("She needs an address to come to.");
-      if (!HOME.quote || !HOME.quote.ok) {
-        return toast((HOME.quote && HOME.quote.says) || "Working out the travel — one moment.");
-      }
-      el.disabled = true;
-      return API.bookAtHome(PICKED.techId, at.getTime(), PICKED.ids,
-                            HOME.pos.lat, HOME.pos.lng, HOME.addr,
-                            (DB.me && DB.me.area) || null, null, shape)
-        .then(b => nav("pay", b.id))
-        .catch(err => { el.disabled = false; toast(err.message); });
-    }
-
     el.disabled = true;
-    return API.book(PICKED.techId, at.getTime(), PICKED.ids, null, shape)
+    return API.book(PICKED.techId, at.getTime(), PICKED.ids, null,
+                    (DB.scans && DB.scans[0] && DB.scans[0].shape) || null)
       .then(b => nav("pay", b.id))
       .catch(err => { el.disabled = false; toast(err.message); });
   }
@@ -9172,22 +8592,21 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "gps") {
-    // Techs only. A salon is a place and stays where it is; a customer moves,
-    // so her distance is asked of the phone when a screen needs it rather than
-    // pinned once and trusted for ever.
-    if (el.dataset.t !== "biz") return;
+    const t = el.dataset.t;
     return locate(ll => {
       if (!ll) return;
-      DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll });
-      dbSave(); toast("Shop location pinned."); paint();
+      if (t === "biz") { DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll }); }
+      else { DB.me = Object.assign({}, DB.me, { name: fields.fName, phone: fields.fPhone, area: fields.fArea, ll }); }
+      dbSave(); toast("Location pinned."); paint();
     });
   }
   if (a === "saveMe") {
     if (!fields.fName) return toast("Your name, at least — techs need something to call you.");
+    DB.dial = (fields.fDial || DB.dial).replace(/\D/g, "") || DB.dial;
     DB.me = Object.assign({}, DB.me, {
-      name: fields.fName, area: fields.fArea,
+      name: fields.fName, phone: fields.fPhone, area: fields.fArea,
+      ll: (DB.me && DB.me.ll) || null
     });
-    delete DB.me.ll;      // a customer has no pin; see myPos()
     dbSave();
     return el.dataset.back ? (toast("Saved."), back()) : nav("home");
   }
@@ -9212,38 +8631,9 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "saveBiz") {
     const b = Object.assign({ services: [] }, DB.biz, readBiz());
     if (!b.name) return toast("Your business needs a name.");
-    // There WAS a check here demanding a WhatsApp number. The field it guarded
-    // was removed when sign-in moved to email, and nothing removed the check —
-    // so every nail tech who tried to publish was told to fill in a box that is
-    // not on the screen, with no way past it. Customers reach her through the
-    // conversation in the app now, so there is nothing to replace it with.
+    if (!b.phone) return toast("Add a WhatsApp number — that is how customers reach you.");
     b.services = (b.services || []).filter(s => (s.n || "").trim());
-    if (b.hasSalon === false) {
-      // No address to show, and keeping the one she typed before changing her
-      // answer would put a street on a listing that has no street.
-      b.address = "";
-      if (!b.state) return toast("Pick your state — it is how customers in your state find you.");
-    }
     DB.biz = b; DB.cur = b.cur || DB.cur; dbSave();
-    // The server needs to know, because it is what decides whether she is
-    // found by an address that never moves or by a phone that does. Failing
-    // this must not lose her listing, so it is reported and not thrown.
-    if (API.signedIn()) {
-      API.setMobility(b.hasSalon !== false, b.state || null)
-        .then(() => { if (b.hasSalon === false) liveResume(); })
-        .catch((e) => toast(e.message || "Saved here, but Oma did not get the change."));
-      // Her home-service terms, and any per-service home price she typed.
-      // Sent separately because a bad number in one service must not throw
-      // away her call-out.
-      saveHomeSettings(b).catch((e) =>
-        toast(e.message || "Saved here, but Oma did not get the travel settings."));
-      (b.services || []).forEach((sv) => {
-        if (!sv.id) return;                       // not on the server yet
-        const n = String(sv.hp || "").replace(/[^\d.]/g, "");
-        API.setServiceHomePrice(sv.id, n ? Math.round(Number(n) * 100) : null)
-          .catch(() => { /* reported once, above, not once per service */ });
-      });
-    }
     toast("Listing saved.");
     return nav("listing");
   }
@@ -9267,32 +8657,6 @@ document.getElementById("shell").addEventListener("click", e => {
       b64e(JSON.stringify({ n: t.n, a: t.a, ad: t.ad, p: t.p, d: t.d, y: t.y, c: t.c, ll: t.ll, o: t.o, cl: t.cl, s: t.s }));
     return copy(link, "Her link is copied — send it on.");
   }
-  /* Shop, or no shop. The answer reshapes the form, so what she has already
-     typed is read back out first — repainting over a half-filled listing and
-     losing it is the sort of thing that makes people give up on an app. */
-  if (a === "has-salon") {
-    const want = el.dataset.v === "1";
-    DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { hasSalon: want });
-    if (want) LIVE.on = false;          // a shop does not broadcast
-    dbSave();
-    return paint();
-  }
-  if (a === "work-toggle") return toggleWorking();
-  if (a === "home-toggle") {
-    DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(),
-                           { homeService: !(DB.biz && DB.biz.homeService) });
-    dbSave();
-    return paint();
-  }
-  /* Near me, or the whole state. Repainting home is what re-fetches and
-     re-frames the map; there is no separate "reload the pins" path, so there
-     is no second copy of that logic to fall out of step. */
-  if (a === "map-scope") {
-    MSCOPE.all = el.dataset.v === "all";
-    return paint();
-  }
-  if (a === "push-toggle") return togglePush();
-  if (a === "push-why") return toast(el.dataset.v || "Notifications are not available here.");
   if (a === "find-clear") { FQ = ""; paint(); const el = document.getElementById("qFind"); if (el) el.focus(); return; }
   // The bridge from a scan result to somebody who does that shape.
   if (a === "find-for") return findFor(el.dataset.v);
@@ -9404,28 +8768,11 @@ document.getElementById("shell").addEventListener("input", e => {
 });
 
 /* ══ actions ═════════════════════════════════════════ */
-/* Choosing a state on the map. A <select> does not click, so it cannot go
-   through the delegated handler with everything else. Her choice is kept on
-   the device, because "all of Lagos" should still mean Lagos tomorrow. */
-document.addEventListener("change", (e) => {
-  const n = e.target;
-  if (!n || n.id !== "mState") return;
-  MSCOPE.state = n.value;
-  MSCOPE.all = true;
-  DB.me = Object.assign({}, DB.me, { state: n.value });
-  dbSave();
-  paint();
-});
-
 function readBiz() {
   const g = k => { const n = document.getElementById(k); return n ? n.value.trim() : undefined; };
   const out = {};
-  // No phone or dial any more: signing in is by email and techs are reached
-  // through the in-app conversation, not WhatsApp.
-  const map = { bName: "name", bAddr: "address", bArea: "area", bState: "state",
-                bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes",
-                // Going to customers: the call-out, the per-km and how far.
-                hCallout: "calloutNaira", hPerKm: "perKmNaira", hMaxKm: "maxKm" };
+  const map = { bName: "name", bAddr: "address", bArea: "area", bPhone: "phone",
+                bDial: "dial", bCur: "cur", bYears: "years", bOpen: "opens", bClose: "closes" };
   for (const k in map) { const v = g(k); if (v !== undefined) out[map[k]] = v; }
   const svc = [];
   document.querySelectorAll("#svcList [data-s]").forEach(n => {
@@ -9648,12 +8995,6 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
   }
   ROUTE = { v: DB.role ? (DB.role === "tech" ? "requests" : "home") : "welcome", a: null };
   paint();
-
-  /* A nail tech who was working when she last closed the app is still working
-     now — she did not stop, the browser did. This asks the SERVER whether she
-     is a travelling tech before broadcasting anything, so a salon can never be
-     started by a stale flag on a phone. See p20_live.js. */
-  if (typeof liveResume === "function") liveResume();
 })();
 
 </script>
