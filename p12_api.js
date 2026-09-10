@@ -161,9 +161,12 @@ const API = (() => {
     return `${cfg().url}/storage/v1/object/public/portfolio/${path}`;
   }
 
-  async function storagePut(path, blob, type) {
+  // The bucket defaults to portfolio, so every existing caller is unchanged.
+  // Incident videos go to a PRIVATE bucket with no read policy at all — the
+  // uploader cannot read her own file back, and the accused can never reach it.
+  async function storagePut(path, blob, type, bucket) {
     if (!SESSION) throw new Error("sign in first");
-    const r = await fetch(`${cfg().url}/storage/v1/object/portfolio/${path}`, {
+    const r = await fetch(`${cfg().url}/storage/v1/object/${bucket || "portfolio"}/${path}`, {
       method: "POST",
       headers: {
         apikey: cfg().anon,
@@ -356,6 +359,9 @@ const API = (() => {
     /* O points. Every figure on that screen comes from here — the rate, the
        prizes and the cap all live on the season row, so changing a prize is
        one UPDATE rather than a rebuild and a re-upload. */
+    myIdentity:    ()                       => live() ? rpc("api_my_identity")   : MOCK.myIdentity(),
+    reportPerson:  (b, kind, body, vid, n)  => live() ? rpc("api_report_person", { p_booking: b, p_kind: kind, p_body: body, p_video: vid || null, p_bytes: n || null }) : MOCK.reportPerson(b, kind, body, vid),
+    myReport:      (b)                      => live() ? rpc("api_my_report", { p_booking: b }) : MOCK.myReport(b),
     placesNearby:  (lat, lng, km)           => live() ? rpc("api_places_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.placesNearby(lat, lng, km),
     salon:         (id)                     => live() ? rpc("api_salon", { p_salon: id })       : MOCK.salon(id),
     salonTechs:    (id)                     => live() ? rpc("api_salon_techs", { p_salon: id }) : MOCK.salonTechs(id),
@@ -870,6 +876,20 @@ const API = (() => {
         const ids = s.techs.filter(MOCK.visible).map((t) => t.id).slice(0, 2);
         return ids.includes(techId) ? { id: "demo-1", name: "Admiralty Nail Bar" } : null;
       },
+      /* Practice mode cannot verify anybody — there is no provider behind
+         it — so it says so rather than pretending. A fake "verified" here
+         would hide the one gate this feature exists for. */
+      myIdentity: async () => ({ kyc: "none", verified: false, at: null }),
+      reportPerson: async (b, kind, body) => {
+        const s = load();
+        s.reports = s.reports || {};
+        s.reports[b] = { filed: true, kind, status: "open",
+                         has_video: false, at: new Date().toISOString() };
+        save();
+        return { ok: true };
+      },
+      myReport: async (b) => ((load().reports || {})[b] || null),
+
       placesNearby: async (lat, lng, radius) => {
         const rows = await MOCK.nearby(lat, lng, radius);
         const out = [], seen = {};

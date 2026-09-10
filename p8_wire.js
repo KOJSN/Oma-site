@@ -36,6 +36,7 @@ function paint() {
     case "closeacct": html = vCloseAccount(); break;
     case "salon": html = vSalon(ROUTE.a); break;
     case "myshop": html = vMyShop(); break;
+    case "report": html = vReport(ROUTE.a); break;
     case "points": html = vPoints(); break;
     case "sheet": html = vSheet(); break;
     case "requests": html = vRequestsLive(); break;
@@ -238,6 +239,9 @@ document.getElementById("shell").addEventListener("click", e => {
     return;
   }
   if (a === "shopRemove") { shopRemove(el.dataset.id); return; }
+  if (a === "repKind") { REPORT.kind = el.dataset.id; paint(); return; }
+  if (a === "repDropVideo") { REPORT.video = null; paint(); return; }
+  if (a === "sendReport") { sendReport(); return; }
   if (a === "salon-open") return nav("salon", el.dataset.id);
   if (a === "tech-open") {
     // A list row carries her name in its title; the map's card is a plain
@@ -270,9 +274,14 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "home-where") {
     HOME.at = el.dataset.v === "1";
     paintHome();
-    // The quote is only worth asking for once she has actually chosen it —
-    // it costs a GPS fix and a round trip.
-    if (HOME.at && !HOME.quote) askHomeQuote();
+    if (HOME.at) {
+      // Identity first. Asking the server for a fare, and taking a GPS fix
+      // to do it, for a booking she is not allowed to make yet is two
+      // permissions spent on a refusal.
+      loadIdentity().then((id) => {
+        if (id && id.verified && !HOME.quote) askHomeQuote();
+      });
+    }
     return;
   }
   if (a === "mslot") {
@@ -730,6 +739,52 @@ async function shopRemove(techId) {
     SHOP = null; loadMyShop();
     toast("Removed from your shop.");
   } catch (e) { toast(e.message || "That did not go through."); }
+}
+
+
+/* Chosen by a file input rather than a button, so it is picked up by the
+   same delegated change listener the photos use. Capped before decoding:
+   a 300 MB video from a modern phone would be read into memory to be
+   rejected, on a phone that has just had a bad day. */
+document.addEventListener("change", (e) => {
+  const inp = e.target;
+  if (!inp || inp.id !== "fRepVideo") return;
+  const file = inp.files && inp.files[0];
+  inp.value = "";
+  if (!file) return;
+  if (file.size > 60 * 1024 * 1024) {
+    return toast("That video is over 60 MB. A shorter clip will send.");
+  }
+  REPORT.video = file;
+  paint();
+});
+
+async function sendReport() {
+  const box = document.getElementById("fReport");
+  const body = box ? box.value.trim() : "";
+  if (body.length < 10) return toast("Tell us what happened, in a sentence or two.");
+
+  REPORT.busy = true; paint();
+  try {
+    let path = null, bytes = null;
+    if (REPORT.video) {
+      // Bytes first, row second. A report whose video failed to upload is
+      // still a report worth having; a row pointing at a file that is not
+      // there is evidence that does not exist.
+      const me = await API.me();
+      path = `${me.id}/${REPORT.booking}-${Date.now()}.mp4`;
+      await API.storagePut(path, REPORT.video, REPORT.video.type || "video/mp4", "incident");
+      bytes = REPORT.video.size;
+    }
+    await API.reportPerson(REPORT.booking, REPORT.kind, body, path, bytes);
+    REPORT.busy = false; REPORT.video = null;
+    REPORT.filed = { filed: true, kind: REPORT.kind, status: "open", has_video: !!path };
+    back();
+    toast("Sent to Oma. Somebody will look at it.");
+  } catch (e) {
+    REPORT.busy = false; paint();
+    toast(e.message || "That did not send. Your words are still here.");
+  }
 }
 
 async function publishListing(b) {

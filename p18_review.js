@@ -254,3 +254,106 @@ async function reviewNudge() {
       ${I.chev()}
     </button>`;
 }
+
+/* ══ reporting a person ══════════════════════════════════════════════
+   Kamsy, 10 Sep 2026: a way for either side to report the other, with a
+   video, "for tech safety and customer safety".
+
+   Two decisions inside this screen.
+
+   The VIDEO IS OPTIONAL. Somebody who has just been assaulted, or had her
+   phone taken, or is frightened and shaking, often cannot record anything.
+   If a video were the only way to file, the worst incidents would be the
+   ones that never got reported. The words are the report; the video is
+   evidence attached when there is one.
+
+   And it does NOT promise justice. Oma can suspend an account, freeze a
+   payout, refund, and keep the evidence where nobody can delete it. It
+   cannot decide whether a crime happened, and telling somebody it will
+   look into it can leave her feeling she has done the necessary thing
+   when she has not told anyone who can act.                             */
+let REPORT = { kind: "safety", busy: false, video: null, filed: null, booking: null };
+
+const REPORT_KINDS = [
+  ["safety",     "I felt unsafe"],
+  ["harassment", "Harassment"],
+  ["theft",      "Something was taken"],
+  ["no_show",    "Did not turn up"],
+  ["other",      "Something else"],
+];
+
+async function loadReport(bookingId) {
+  REPORT = { kind: "safety", busy: false, video: null, filed: null, booking: bookingId };
+  try { REPORT.filed = await API.myReport(bookingId); } catch (e) { /* none yet */ }
+  if (ROUTE.v === "report") paint();
+}
+
+function vReport(bookingId) {
+  if (REPORT.booking !== bookingId) { loadReport(bookingId); }
+  const f = REPORT.filed;
+
+  return `
+  ${head("Report a problem")}
+  <div class="pad">
+
+    ${f && f.filed ? `
+      <div class="note">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg>
+        <div><b>You already reported this appointment.</b> Oma has it${
+          f.has_video ? ", with your video" : ""}. Writing again below replaces
+          what you sent.</div>
+      </div>` : ""}
+
+    <div class="note warn">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v5M12 16v.1M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <div><b>If you are in danger, call the police first.</b> Oma is not an
+        emergency service. Report it here as well and we will act on the
+        account — but a crime is for the police, and this is not a substitute
+        for telling them.</div>
+    </div>
+
+    <div class="seehead" style="padding-left:0;padding-right:0"><h3>What happened</h3></div>
+    <div class="pills mb12">
+      ${REPORT_KINDS.map(([k, label]) => `
+        <button class="pill ${REPORT.kind === k ? "on" : ""}"
+                data-a="repKind" data-id="${k}">${label}</button>`).join("")}
+    </div>
+
+    <label class="field"><span class="lab">In your own words</span>
+      <textarea id="fReport" rows="6" placeholder="What happened, and when."
+        style="width:100%;resize:vertical">${esc((f && f.body) || "")}</textarea></label>
+
+    <div class="seehead" style="padding-left:0;padding-right:0"><h3>A video, if you have one</h3></div>
+    <div class="card">
+      ${REPORT.video ? `
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="ic" style="width:34px;height:34px;border-radius:11px;background:var(--tint);display:flex;align-items:center;justify-content:center;color:var(--pinkd)">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 10l5-3v10l-5-3M3 7h12v10H3z"/></svg></span>
+          <span style="flex:1;min-width:0">
+            <span style="display:block;font-size:14.5px;font-weight:700">Video attached</span>
+            <span class="tiny sub">${Math.round(REPORT.video.size / 1e6)} MB</span>
+          </span>
+          <button class="tag" data-a="repDropVideo">Remove</button>
+        </div>` : `
+        <label class="btn sm ghost" style="width:100%;justify-content:center">
+          <input type="file" accept="video/*" id="fRepVideo" hidden>
+          Choose a video
+        </label>
+        <div class="small sub" style="margin-top:10px;line-height:1.5">
+          Up to about a minute, 60 MB. <b>Optional</b> — a report without one
+          is still a report, and is read the same way.
+        </div>`}
+    </div>
+
+    <button class="btn danger mt16" data-a="sendReport"${REPORT.busy ? " disabled" : ""}>
+      ${REPORT.busy ? "Sending…" : "Send this to Oma"}</button>
+
+    <div class="small sub" style="margin-top:14px;line-height:1.55">
+      Only Oma sees this. The other person is never told who reported them and
+      never sees your video. Nobody can delete it afterwards — not them, not
+      you, not by accident.
+    </div>
+  </div>
+  <div style="height:24px"></div>`;
+}
+

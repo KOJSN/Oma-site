@@ -43,6 +43,20 @@
 
 /* Where this appointment happens. Reset whenever a tech is chosen, because
    "she comes to me" is not a thing to carry over to a different tech. */
+/* Her identity, asked once and remembered for the screen. Null means we
+   have not looked yet, which is not the same as "not verified" — drawing
+   the refusal before the answer arrives would accuse her of something the
+   app has not checked. */
+let IDENT = null;
+
+async function loadIdentity() {
+  if (IDENT) return IDENT;
+  try { IDENT = await API.myIdentity(); }
+  catch (e) { IDENT = { kyc: "none", verified: false, error: e.message }; }
+  paintHome();
+  return IDENT;
+}
+
 let HOME = {
   at: false,        // she comes to me
   addr: "",         // the street, typed
@@ -100,7 +114,24 @@ function homeInner() {
       <button type="button" class="${HOME.at ? "on" : ""}" data-a="home-where" data-v="1">
         <b>She comes to me</b><em>Costs more — a call-out and the travel.</em></button>
     </div>
-    ${!HOME.at ? "" : `
+    ${!HOME.at ? "" : (IDENT && !IDENT.verified ? `
+      <!-- The gate, said out loud rather than thrown as an error after she
+           has picked a time. A nail tech coming to a private address is the
+           one moment in Oma where the person taking the risk was, until now,
+           the only person who had been checked. -->
+      <div class="note warn">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/><path d="M12 11v3M12 8v.1"/></svg>
+        <div><b>Verify yourself first for home appointments.</b>
+          She is coming to your address alone. Oma checks her identity before
+          she can be listed, and it checks yours before she is asked to
+          travel — the same check, both ways.</div>
+      </div>
+      <div class="small sub" style="margin-top:10px;line-height:1.55">
+        It takes a minute and uses your <b>virtual NIN</b>, not your NIN.
+        Oma never stores the number. Booking at her salon needs none of this.
+      </div>
+      <button class="btn mt12" data-a="go" data-v="kyc">Verify my identity</button>`
+    : `
       <label class="field"><span class="lab">Where should she come to?</span>
         <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
           <input id="hAddr" value="${esc(HOME.addr)}"
@@ -113,7 +144,7 @@ function homeInner() {
         ? `<div class="card"><div class="tiny sub">Working out the travel…</div></div>`
         : q ? (q.ok ? homeBill(q) : `<div class="note warn"><div>${esc(q.says
               || "She cannot come to you for this one.")}</div></div>`)
-            : ""}`}`;
+            : ""}`)}`;
 }
 
 /* One number, not a bill. The comparison stays: it is not a breakdown of this

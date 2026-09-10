@@ -240,6 +240,16 @@ function vJob(bookingId) {
         ${!asTech && ["awaiting_payment", "paid"].includes(b.status)
           ? `<button class="btn ghost sm" data-a="cancel" data-id="${esc(b.id)}">
                Cancel this appointment</button>` : ""}
+
+        <!-- Both sides, always. A tech reports a customer and a customer
+             reports a tech through the same door, and it stays open after
+             the appointment is over — most people do not report while it is
+             still happening. Quiet, because a loud one invites use as a
+             threat during an argument about a price. -->
+        <div style="margin-top:22px;text-align:center">
+          <button class="tag" data-a="go" data-v="report" data-id="${esc(b.id)}"
+                  style="color:var(--bad)">Report a problem with this appointment</button>
+        </div>
       </div>`);
     fillWhere(bookingId);
   });
