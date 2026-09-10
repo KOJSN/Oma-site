@@ -1,6 +1,8 @@
 # Everything here is meant to be found. That is the whole problem this file is
-# part of solving: searching omaa.com.ng showed a different company entirely,
-# because there was nothing at the root of this domain to index.
+# part of solving: searching the old domain, omaa.com.ng, showed a different
+# company entirely, because there was nothing at the root of it to index — and
+# because the name did not say what the business was. Moved to omanails.com on
+# 10 Sep 2026; the old domain is kept and forwarded here.
 User-agent: *
 Allow: /
 
@@ -8,4 +10,4 @@ Allow: /
 # no reason for it to appear in a search result and every reason not to.
 Disallow: /admin.html
 
-Sitemap: https://omaa.com.ng/sitemap.xml
+Sitemap: https://omanails.com/sitemap.xml

@@ -137,7 +137,7 @@ async function askBrowserForToken() {
   if (perm !== "granted") throw new Error("not allowed");
   // navigator.serviceWorker.ready NEVER resolves when no worker has been
   // registered — it does not reject, it simply waits for the rest of the
-  // session. omaa.com.ng serves app.html on its own with no sw.js beside it,
+  // session. omanails.com serves app.html on its own with no sw.js beside it,
   // so this is the live case today, not a hypothetical one.
   const reg = await Promise.race([
     navigator.serviceWorker.ready,
@@ -220,7 +220,7 @@ async function offerPushAfterBooking() {
 /* ══ the worker that receives a push ═════════════════
    app.html had no service worker registration at all, which meant Web Push had
    nothing to arrive at — navigator.serviceWorker.ready simply never resolved.
-   Registered here rather than on the pwa build because omaa.com.ng serves
+   Registered here rather than on the pwa build because omanails.com serves
    app.html directly.
 
    Guarded on http(s): inside the iOS wrapper the page is served over a custom

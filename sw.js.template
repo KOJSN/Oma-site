@@ -1,5 +1,5 @@
 /* Oma service worker — build __BUILD__
-   Lives at the root of omaa.com.ng, next to app.html.
+   Lives at the root of omanails.com, next to app.html.
 
    This is NOT the pwa/ one. That worker was written for a folder whose shell
    is index.html; here index.html is the landing page and the app is app.html,

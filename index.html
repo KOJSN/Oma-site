@@ -7,10 +7,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
 <!-- ══ what a search engine and a shared link see ══════════════════════
-     Kamsy, 8 Sep 2026: searching omaa.com.ng shows a Nigerian energy company
-     instead. That is not a bug — until now there was NOTHING at the root of
-     this domain to index. The app lives at /app.html and a crawler that finds
-     no page at / has no title, no description and nothing to show.
+     Kamsy, 8 Sep 2026: searching the old domain, omaa.com.ng, showed a
+     Nigerian energy company instead. Two causes, both since fixed. There was
+     NOTHING at the root to index — the app lives at /app.html, and a crawler
+     that finds no page at / has no title, no description and nothing to show.
+     And the name itself was the problem: "omaa" belonged to somebody else's
+     search results before Oma existed.
+
+     10 Sep 2026: moved to omanails.com, which says what the business is in
+     the name. omaa.com.ng is kept and forwarded here — anyone who added Oma
+     to their home screen is pinned to that origin, with their data in that
+     origin's storage, and letting it lapse would kill their app.
 
      Everything in this block exists to fix that half. The other half is
      manual and only Kamsy can do it: add the site to Google Search Console
@@ -23,23 +30,23 @@
      not winnable. "Oma nails" and "nail tech near me Nigeria" are. -->
 <title>Oma Nails — find a nail tech near you in Nigeria</title>
 <meta name="description" content="Oma helps women in Nigeria find a nail tech nearby — Lagos, Abuja, anywhere she has signed up — see her prices before booking, and pay into escrow, so the money only reaches her when the appointment actually happens.">
-<link rel="canonical" href="https://omaa.com.ng/">
+<link rel="canonical" href="https://omanails.com/">
 <meta name="theme-color" content="#f0518d">
 <meta name="robots" content="index,follow,max-image-preview:large">
 
 <!-- GOOGLE SEARCH CONSOLE goes on the line below.
      search.google.com/search-console → Add property → URL prefix →
-     https://omaa.com.ng → verify with the HTML TAG method. Google gives you
+     https://omanails.com → verify with the HTML TAG method. Google gives you
      one <meta name="google-site-verification" ...> line: delete this comment,
      paste that line in its place, commit, then press Verify.
      Nothing else on this page needs to change for it. -->
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Oma">
-<meta property="og:url" content="https://omaa.com.ng/">
+<meta property="og:url" content="https://omanails.com/">
 <meta property="og:title" content="Oma Nails — find a nail tech near you in Nigeria">
 <meta property="og:description" content="Find a nail tech nearby, see her prices before booking, and pay into escrow. The money only reaches her when the appointment actually happens.">
-<meta property="og:image" content="https://omaa.com.ng/icons/icon-512.png">
+<meta property="og:image" content="https://omanails.com/icons/icon-512.png">
 <meta property="og:image:alt" content="Oma — book a nail tech in Nigeria">
 <meta property="og:locale" content="en_NG">
 <meta name="twitter:card" content="summary_large_image">
@@ -60,15 +67,15 @@
   "@type": "WebSite",
   "name": "Oma",
   "alternateName": ["Oma Nails", "Oma nail tech"],
-  "url": "https://omaa.com.ng/",
+  "url": "https://omanails.com/",
   "inLanguage": "en-NG",
   "description": "Find a nail tech near you in Nigeria, book, and pay safely into escrow.",
   "publisher": {
     "@type": "Organization",
     "name": "Oma",
     "alternateName": "Oma Nails",
-    "url": "https://omaa.com.ng/",
-    "logo": "https://omaa.com.ng/icons/icon-512.png",
+    "url": "https://omanails.com/",
+    "logo": "https://omanails.com/icons/icon-512.png",
     "founder": { "@type": "Person", "name": "Oduagu Samben-Nwosu" },
     "areaServed": { "@type": "Country", "name": "Nigeria" }
   }
