@@ -1223,13 +1223,13 @@ if (typeof exports === 'object' && typeof module === 'object') {
 }
 </script>
 <script>
-const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as data, not code, so thresholds can be retuned without an app release.","THRESHOLDS ARE UNCALIBRATED. The bed_aspect cut points derive from the salon '50% rule' (a bed reads normal at roughly 1.5-2x longer than wide), which appears across nail-education content and in no dermatological literature. The finger_to_palm cut points have no source at all - no published work says where a short finger becomes a long one. Both need calibrating against real hands, judged by working nail techs, before this engine is anything more than a plausible guess.","Every rule carries a provenance flag. 'measured' means the statement is about what the camera saw. 'convention' means it is professional practice. The UI must keep those two voices apart."],"shapes":{"round":{"label":"Round","durability":"highest","needs_extensions":false},"oval":{"label":"Oval","durability":"high","needs_extensions":false},"squoval":{"label":"Squoval","durability":"high","needs_extensions":false},"square":{"label":"Square","durability":"medium","needs_extensions":false},"almond":{"label":"Almond","durability":"medium","needs_extensions":false},"coffin":{"label":"Coffin","durability":"low","needs_extensions":true},"stiletto":{"label":"Stiletto","durability":"lowest","needs_extensions":true}},"durability_notes":{"highest":"Curved edges spread stress evenly, so there is no weak point to break at.","high":"Curves rather than corners; holds up well to ordinary use.","medium":"Sound in itself, but the corners are where it catches and breaks.","low":"The taper concentrates stress at the tip. Expect breaks without reinforcement.","lowest":"The point is the weakest part of the nail and takes all the force."},"rules":[{"id":"wide_bed","feature":"bed_aspect_ratio","when":{"lt":1.15},"scores":{"oval":3.0,"almond":2.6,"round":2.2,"squoval":1.2,"square":-1.5,"coffin":-1.0},"provenance":"convention","measured_reason":"Your nail beds came out at {value:.2f} \u2014 wider than they are long.","convention_reason":"Nail techs would read that and reach for a taper: curved sides visually narrow a wide bed."},{"id":"narrow_bed","feature":"bed_aspect_ratio","when":{"gte":1.9},"scores":{"square":2.8,"squoval":2.4,"coffin":1.8,"oval":-0.6,"round":-1.4},"provenance":"convention","measured_reason":"Your nail beds came out at {value:.2f} \u2014 notably longer than they are wide.","convention_reason":"Straight sides fill out a narrow bed, where a taper would make it look narrower still."},{"id":"balanced_bed","feature":"bed_aspect_ratio","when":{"gte":1.15,"lt":1.9},"scores":{"squoval":2.2,"oval":1.8,"almond":1.6,"round":1.2,"square":1.0},"provenance":"convention","measured_reason":"Your nail beds came out at {value:.2f} \u2014 well proportioned.","convention_reason":"That proportion carries most shapes, so the choice is closer to preference than to fit."},{"id":"short_fingers","feature":"finger_to_palm","when":{"lt":0.95},"scores":{"almond":2.2,"oval":1.8,"stiletto":1.0,"square":-1.2,"round":-0.4},"provenance":"convention","measured_reason":"Your fingers measured {value:.2f} against your palm width \u2014 on the shorter side.","convention_reason":"A tapered tip reads as an extension of the finger, which lengthens the whole hand."},{"id":"long_fingers","feature":"finger_to_palm","when":{"gte":1.15},"scores":{"square":2.0,"coffin":1.8,"squoval":1.4,"stiletto":0.8},"provenance":"convention","measured_reason":"Your fingers measured {value:.2f} against your palm width \u2014 on the longer side.","convention_reason":"Long fingers carry a blunt, bold shape without looking out of proportion."},{"id":"tapered_fingers","feature":"finger_taper","when":{"gte":0.62},"scores":{"almond":1.2,"oval":1.0,"stiletto":0.6},"provenance":"convention","measured_reason":"Your fingers taper toward the tip.","convention_reason":"Following that taper tends to look more natural than cutting against it."},{"id":"short_bed_proxy","feature":"distal_phalanx_share","when":{"lt":0.23},"scores":{"squoval":1.6,"round":1.4,"almond":0.8,"coffin":-1.2,"stiletto":-1.6},"provenance":"convention","measured_reason":"Your nail beds sit short relative to the length of your fingers.","convention_reason":"A short bed carries a compact shape better than a long dramatic one."}],"fallback":{"shape":"squoval","reason":"Squoval is the shape nail techs reach for when they are not sure \u2014 it suits nearly everyone, which is exactly what makes it the honest answer when the measurement is not solid enough to say more."},"confidence":{"recommend_threshold":0.45,"primary_feature":"bed_aspect_ratio","primary_weight":0.6},"palettes":{"_provenance":"convention","_note":"Which colours suit which undertone is professional convention, not colour science. The measurement is ours; the mapping is the industry's.","neutral":[["#C41E28","True red"],["#9B3358","Berry"],["#6A3B5E","Plum"],["#6E8AA6","Dusty blue"],["#8B9E7E","Sage"],["#DDB9AC","Pink beige"],["#B7A99C","Greige"],["#7E6E68","Stone"]]}};
+const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as data, not code, so thresholds can be retuned without an app release.","THRESHOLDS ARE UNCALIBRATED. The bed_aspect cut points derive from the salon '50% rule' (a bed reads normal at roughly 1.5-2x longer than wide), which appears across nail-education content and in no dermatological literature. The finger_to_palm cut points have no source at all - no published work says where a short finger becomes a long one. Both need calibrating against real hands, judged by working nail techs, before this engine is anything more than a plausible guess.","Every rule carries a provenance flag. 'measured' means the statement is about what the camera saw. 'convention' means it is professional practice. The UI must keep those two voices apart."],"shapes":{"round":{"label":"Round","durability":"highest","needs_extensions":false},"oval":{"label":"Oval","durability":"high","needs_extensions":false},"squoval":{"label":"Squoval","durability":"high","needs_extensions":false},"square":{"label":"Square","durability":"medium","needs_extensions":false},"almond":{"label":"Almond","durability":"medium","needs_extensions":false},"coffin":{"label":"Coffin","durability":"low","needs_extensions":true,"long_note":"Straight sides carried out past the fingertip, squared off at the end. It suits the same hands square does \u2014 it is square with length."},"stiletto":{"label":"Stiletto","durability":"lowest","needs_extensions":true,"long_note":"A taper carried out to a point. It follows the line your fingers already make, which is what makes a shorter hand read as longer."}},"durability_notes":{"highest":"Curved edges spread stress evenly, so there is no weak point to break at.","high":"Curves rather than corners; holds up well to ordinary use.","medium":"Sound in itself, but the corners are where it catches and breaks.","low":"The taper concentrates stress at the tip. Expect breaks without reinforcement.","lowest":"The point is the weakest part of the nail and takes all the force."},"rules":[{"id":"wide_bed","feature":"bed_aspect_ratio","when":{"lt":1.15},"scores":{"oval":3.0,"almond":2.6,"round":2.2,"squoval":1.2,"square":-1.5,"coffin":-1.0},"provenance":"convention","measured_reason":"Your nail beds came out at {value:.2f} \u2014 wider than they are long.","convention_reason":"Nail techs would read that and reach for a taper: curved sides visually narrow a wide bed."},{"id":"narrow_bed","feature":"bed_aspect_ratio","when":{"gte":1.9},"scores":{"square":2.8,"squoval":2.4,"coffin":1.8,"oval":-0.6,"round":-1.4},"provenance":"convention","measured_reason":"Your nail beds came out at {value:.2f} \u2014 notably longer than they are wide.","convention_reason":"Straight sides fill out a narrow bed, where a taper would make it look narrower still."},{"id":"balanced_bed","feature":"bed_aspect_ratio","when":{"gte":1.15,"lt":1.9},"scores":{"squoval":2.2,"oval":1.8,"almond":1.6,"round":1.2,"square":1.0},"provenance":"convention","measured_reason":"Your nail beds came out at {value:.2f} \u2014 well proportioned.","convention_reason":"That proportion carries most shapes, so the choice is closer to preference than to fit."},{"id":"short_fingers","feature":"finger_to_palm","when":{"lt":0.95},"scores":{"almond":2.2,"oval":1.8,"stiletto":1.0,"square":-1.2,"round":-0.4},"provenance":"convention","measured_reason":"Your fingers measured {value:.2f} against your palm width \u2014 on the shorter side.","convention_reason":"A tapered tip reads as an extension of the finger, which lengthens the whole hand."},{"id":"long_fingers","feature":"finger_to_palm","when":{"gte":1.15},"scores":{"square":2.0,"coffin":1.8,"squoval":1.4,"stiletto":0.8},"provenance":"convention","measured_reason":"Your fingers measured {value:.2f} against your palm width \u2014 on the longer side.","convention_reason":"Long fingers carry a blunt, bold shape without looking out of proportion."},{"id":"tapered_fingers","feature":"finger_taper","when":{"gte":0.62},"scores":{"almond":1.2,"oval":1.0,"stiletto":0.6},"provenance":"convention","measured_reason":"Your fingers taper toward the tip.","convention_reason":"Following that taper tends to look more natural than cutting against it."},{"id":"short_bed_proxy","feature":"distal_phalanx_share","when":{"lt":0.23},"scores":{"squoval":1.6,"round":1.4,"almond":0.8,"coffin":-1.2,"stiletto":-1.6},"provenance":"convention","measured_reason":"Your nail beds sit short relative to the length of your fingers.","convention_reason":"A short bed carries a compact shape better than a long dramatic one."}],"fallback":{"shape":"squoval","reason":"Squoval is the shape nail techs reach for when they are not sure \u2014 it suits nearly everyone, which is exactly what makes it the honest answer when the measurement is not solid enough to say more."},"confidence":{"recommend_threshold":0.45,"primary_feature":"bed_aspect_ratio","primary_weight":0.6},"palettes":{"_provenance":"convention","_note":"Which colours suit which undertone is professional convention, not colour science. The measurement is ours; the mapping is the industry's.","neutral":[["#C41E28","True red"],["#9B3358","Berry"],["#6A3B5E","Plum"],["#6E8AA6","Dusty blue"],["#8B9E7E","Sage"],["#DDB9AC","Pink beige"],["#B7A99C","Greige"],["#7E6E68","Stone"]]}};
 
 /* Which build this actually is. build2.py substitutes it, and stamps the same
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "8c7ac12815";
+const BUILD_ID = "3a3c254558";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -2419,6 +2419,7 @@ function matches(v, w) {
 }
 function fmt(t, v) { return t.replace(/\{value:\.2f\}/g, v.toFixed(2)); }
 function recommend(F, natural, short) {
+  let out_withLength = null;
   const scores = {}, reasons = [], fired = [];
   for (const k in RULES.shapes) scores[k] = 0;
   for (const rule of RULES.rules) {
@@ -2466,6 +2467,34 @@ function recommend(F, natural, short) {
   }
   keep.sort((a, b) => b.score - a.score);
 
+  /* ── shape and length are two questions, not one ──────────────────
+     Coffin and stiletto were UNREACHABLE. Not unlikely — impossible.
+     Searching the whole feature space (1,382,304 combinations, every one
+     at maximum confidence) neither shape won a single time, because in
+     the only bands where coffin scores at all, square tops out at 4.8
+     and squoval at 3.8 against coffin's ceiling of 3.6; stiletto's 1.6
+     never passes almond's 3.4. No hand can change that, so the app could
+     never say the two shapes people actually walk in asking for.
+
+     The fix is not to bend the numbers until they win — there is no
+     evidence for whatever numbers that took, and inventing them would
+     make every other answer less trustworthy too. It is that these are
+     not geometry shapes at all. They are a LENGTH, and a nail tech asks
+     length as its own question after she has decided shape. So the
+     ranking below picks the best shape for the bed, and `withLength`
+     answers the second question — the better of the two long shapes for
+     this same hand, ranked by the same rules that were always there. */
+  const naturalShapes = keep.filter(r => !r.needsExt);
+  const longShapes    = keep.filter(r => r.needsExt);
+  if (longShapes.length) {
+    const pick = longShapes[0];
+    out_withLength = {
+      ...pick,
+      note: RULES.shapes[pick.shape].long_note || pick.note,
+      runnerUp: longShapes[1] || null,
+    };
+  }
+
   // The full ranking, best first, so the result screen can show every shape
   // rather than one plus a comma-separated afterthought. `excluded` stays
   // separate: those are not low scores, they are shapes ruled out.
@@ -2484,6 +2513,7 @@ function recommend(F, natural, short) {
      is a tie between seven zeroes. That is a photograph problem rather than a
      shape, and it says so. */
   const out = { confidence, reasons, excluded, ranked: keep,
+                withLength: out_withLength,
                 version: RULES.version, fallback: false, unread: false };
   if (!fired.length || !keep.length || keep[0].score <= 0) {
     const fb = RULES.fallback, m = RULES.shapes[fb.shape];
@@ -2492,10 +2522,10 @@ function recommend(F, natural, short) {
       durability: m.durability, note: RULES.durability_notes[m.durability], needsExt: m.needs_extensions
     };
     out.unread = true;
-    out.alternates = keep.filter(r => r.shape !== fb.shape).slice(0, 2);
+    out.alternates = naturalShapes.filter(r => r.shape !== fb.shape).slice(0, 2);
   } else {
-    out.primary = keep[0];
-    out.alternates = keep.slice(1, 3);
+    out.primary = (naturalShapes.length ? naturalShapes : keep)[0];
+    out.alternates = (naturalShapes.length ? naturalShapes : keep).slice(1, 3);
   }
   return out;
 }
@@ -4871,6 +4901,33 @@ function renderResult(F, rec) {
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.5 6.5 5 5M17.5 17.5 19 19M6.5 17.5 5 19M17.5 6.5 19 5"/><circle cx="12" cy="12" r="3.4"/></svg>
         <div>${esc(rec.primary.note)}</div>
       </div>
+
+      ${rec.withLength ? `
+      <!-- Shape and length are two questions. The ranking above answers the
+           first from her nail beds; this answers the second, which is the one
+           people actually walk into a salon asking for. Kept visually apart
+           so it does not read as "second place" — it is not competing with
+           the shape above, it is a different appointment. -->
+      <div class="seehead" style="padding-left:0;padding-right:0"><h3>If you want length</h3></div>
+      <div class="card" style="display:flex;gap:14px;align-items:flex-start">
+        <span style="flex:none;width:46px;height:62px;border-radius:12px;background:var(--tint);
+                     display:flex;align-items:center;justify-content:center">
+          ${shapeSVG(rec.withLength.shape, 20, 30, "var(--pink)", "var(--tint2)")}</span>
+        <span style="flex:1;min-width:0">
+          <span style="display:block;font-size:17px;font-weight:800;letter-spacing:-.025em">${
+            esc(rec.withLength.label)}</span>
+          <span class="small sub" style="display:block;margin-top:5px;line-height:1.5">${
+            esc(rec.withLength.note)}</span>
+          ${rec.withLength.runnerUp ? `<span class="tiny faint" style="display:block;margin-top:8px">
+            ${esc(rec.withLength.runnerUp.label)} is the other long shape — it suits
+            this hand less well, but it is a fair thing to ask your tech about.</span>` : ""}
+        </span>
+      </div>
+      <div class="small sub" style="margin-top:10px;line-height:1.55">
+        Long shapes need acrylic or gel to hold, so this is a longer appointment
+        and a costlier one than the shape above. Your nail beds do not change —
+        this is the same reading, answering a different question.
+      </div>` : ""}
 
       <div class="seehead" style="padding-left:0;padding-right:0"><h3>How each shape fits</h3></div>
       <div class="fitlist">
