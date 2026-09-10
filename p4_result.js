@@ -123,6 +123,33 @@ function renderResult(F, rec) {
         <div>${esc(rec.primary.note)}</div>
       </div>
 
+      ${rec.withLength ? `
+      <!-- Shape and length are two questions. The ranking above answers the
+           first from her nail beds; this answers the second, which is the one
+           people actually walk into a salon asking for. Kept visually apart
+           so it does not read as "second place" — it is not competing with
+           the shape above, it is a different appointment. -->
+      <div class="seehead" style="padding-left:0;padding-right:0"><h3>If you want length</h3></div>
+      <div class="card" style="display:flex;gap:14px;align-items:flex-start">
+        <span style="flex:none;width:46px;height:62px;border-radius:12px;background:var(--tint);
+                     display:flex;align-items:center;justify-content:center">
+          ${shapeSVG(rec.withLength.shape, 20, 30, "var(--pink)", "var(--tint2)")}</span>
+        <span style="flex:1;min-width:0">
+          <span style="display:block;font-size:17px;font-weight:800;letter-spacing:-.025em">${
+            esc(rec.withLength.label)}</span>
+          <span class="small sub" style="display:block;margin-top:5px;line-height:1.5">${
+            esc(rec.withLength.note)}</span>
+          ${rec.withLength.runnerUp ? `<span class="tiny faint" style="display:block;margin-top:8px">
+            ${esc(rec.withLength.runnerUp.label)} is the other long shape — it suits
+            this hand less well, but it is a fair thing to ask your tech about.</span>` : ""}
+        </span>
+      </div>
+      <div class="small sub" style="margin-top:10px;line-height:1.55">
+        Long shapes need acrylic or gel to hold, so this is a longer appointment
+        and a costlier one than the shape above. Your nail beds do not change —
+        this is the same reading, answering a different question.
+      </div>` : ""}
+
       <div class="seehead" style="padding-left:0;padding-right:0"><h3>How each shape fits</h3></div>
       <div class="fitlist">
         ${rank.length ? rank.map((x) => `

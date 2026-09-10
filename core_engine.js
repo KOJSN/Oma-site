@@ -32,6 +32,7 @@ function matches(v, w) {
 }
 function fmt(t, v) { return t.replace(/\{value:\.2f\}/g, v.toFixed(2)); }
 function recommend(F, natural, short) {
+  let out_withLength = null;
   const scores = {}, reasons = [], fired = [];
   for (const k in RULES.shapes) scores[k] = 0;
   for (const rule of RULES.rules) {
@@ -79,6 +80,34 @@ function recommend(F, natural, short) {
   }
   keep.sort((a, b) => b.score - a.score);
 
+  /* ── shape and length are two questions, not one ──────────────────
+     Coffin and stiletto were UNREACHABLE. Not unlikely — impossible.
+     Searching the whole feature space (1,382,304 combinations, every one
+     at maximum confidence) neither shape won a single time, because in
+     the only bands where coffin scores at all, square tops out at 4.8
+     and squoval at 3.8 against coffin's ceiling of 3.6; stiletto's 1.6
+     never passes almond's 3.4. No hand can change that, so the app could
+     never say the two shapes people actually walk in asking for.
+
+     The fix is not to bend the numbers until they win — there is no
+     evidence for whatever numbers that took, and inventing them would
+     make every other answer less trustworthy too. It is that these are
+     not geometry shapes at all. They are a LENGTH, and a nail tech asks
+     length as its own question after she has decided shape. So the
+     ranking below picks the best shape for the bed, and `withLength`
+     answers the second question — the better of the two long shapes for
+     this same hand, ranked by the same rules that were always there. */
+  const naturalShapes = keep.filter(r => !r.needsExt);
+  const longShapes    = keep.filter(r => r.needsExt);
+  if (longShapes.length) {
+    const pick = longShapes[0];
+    out_withLength = {
+      ...pick,
+      note: RULES.shapes[pick.shape].long_note || pick.note,
+      runnerUp: longShapes[1] || null,
+    };
+  }
+
   // The full ranking, best first, so the result screen can show every shape
   // rather than one plus a comma-separated afterthought. `excluded` stays
   // separate: those are not low scores, they are shapes ruled out.
@@ -97,6 +126,7 @@ function recommend(F, natural, short) {
      is a tie between seven zeroes. That is a photograph problem rather than a
      shape, and it says so. */
   const out = { confidence, reasons, excluded, ranked: keep,
+                withLength: out_withLength,
                 version: RULES.version, fallback: false, unread: false };
   if (!fired.length || !keep.length || keep[0].score <= 0) {
     const fb = RULES.fallback, m = RULES.shapes[fb.shape];
@@ -105,10 +135,10 @@ function recommend(F, natural, short) {
       durability: m.durability, note: RULES.durability_notes[m.durability], needsExt: m.needs_extensions
     };
     out.unread = true;
-    out.alternates = keep.filter(r => r.shape !== fb.shape).slice(0, 2);
+    out.alternates = naturalShapes.filter(r => r.shape !== fb.shape).slice(0, 2);
   } else {
-    out.primary = keep[0];
-    out.alternates = keep.slice(1, 3);
+    out.primary = (naturalShapes.length ? naturalShapes : keep)[0];
+    out.alternates = (naturalShapes.length ? naturalShapes : keep).slice(1, 3);
   }
   return out;
 }
