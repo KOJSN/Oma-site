@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+<title>Privacy — Oma Nails</title>
+<meta name="description" content="What Oma collects, why, and what it does not collect. Written from what the app actually does.">
+<link rel="canonical" href="https://omanails.com/privacy.html">
+<meta name="robots" content="index,follow">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+
+<style>
+/* Same tokens as index.html, so this reads as part of the site rather than
+   a legal page bolted onto the side of it. Light first, overridden twice. */
+:root{
+  --bg:#ffffff; --bg2:#f7f5fa; --card:#ffffff; --ink:#181220; --sub:#5f5670;
+  --faint:#8a8296; --line:rgba(24,18,32,.10);
+  --pink:#f0518d; --pinkd:#c22a66; --tint:#fff0f6;
+  --shadow:0 24px 60px -20px rgba(24,18,32,.20),0 6px 16px -6px rgba(24,18,32,.10);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a080d; --bg2:#110d16; --card:#17131e; --ink:#f7f4f9; --sub:#a79db3;
+    --faint:#7b7186; --line:rgba(255,255,255,.10);
+    --pink:#ff5f96; --pinkd:#ffa9c8; --tint:#2a1622;
+    --shadow:0 24px 60px -20px rgba(0,0,0,.72),0 6px 16px -6px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0a080d; --bg2:#110d16; --card:#17131e; --ink:#f7f4f9; --sub:#a79db3;
+  --faint:#7b7186; --line:rgba(255,255,255,.10);
+  --pink:#ff5f96; --pinkd:#ffa9c8; --tint:#2a1622;
+  --shadow:0 24px 60px -20px rgba(0,0,0,.72),0 6px 16px -6px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+.wrap{max-width:740px;margin:0 auto;padding:0 22px}
+header{border-bottom:1px solid var(--line);padding:20px 0}
+header .wrap{display:flex;align-items:center;gap:12px}
+.mark{
+  width:34px;height:34px;border-radius:11px;flex:none;
+  background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:800;font-size:16px;letter-spacing:-.03em;
+}
+header b{font-size:17px;letter-spacing:-.03em}
+header a{margin-left:auto;color:var(--pinkd);text-decoration:none;font-weight:700;font-size:14.5px}
+h1{font-size:clamp(28px,6vw,38px);letter-spacing:-.035em;line-height:1.12;margin:44px 0 10px}
+.lede{font-size:17.5px;color:var(--sub);margin:0 0 8px}
+.when{font-size:13.5px;color:var(--faint);margin:0 0 36px}
+h2{font-size:20px;letter-spacing:-.028em;margin:40px 0 12px}
+h3{font-size:16px;letter-spacing:-.02em;margin:26px 0 6px}
+p,li{color:var(--sub)}
+p{margin:0 0 14px}
+ul{margin:0 0 14px;padding-left:20px}
+li{margin-bottom:7px}
+strong,b{color:var(--ink);font-weight:700}
+a{color:var(--pinkd)}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:18px;
+  padding:20px 22px;margin:0 0 18px;box-shadow:var(--shadow);
+}
+.card.hi{background:var(--tint);border-color:rgba(240,81,141,.22)}
+.card p:last-child,.card ul:last-child{margin-bottom:0}
+table{width:100%;border-collapse:collapse;margin:0 0 18px;font-size:15px}
+th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint);font-weight:700}
+td{color:var(--sub)}
+td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+footer{border-top:1px solid var(--line);margin-top:56px;padding:26px 0 50px}
+footer p{font-size:14px;color:var(--faint);margin:0}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <span class="mark">O</span><b>Oma Nails</b>
+  <a href="/">← Back to Oma</a>
+</div></header>
+
+<main class="wrap">
+
+<h1>Privacy</h1>
+<p class="lede">What Oma collects, why, and — just as importantly — what it does not.</p>
+<p class="when">Last updated 10 September 2026</p>
+
+<div class="card hi">
+  <p><strong>The short version.</strong> Oma is a marketplace for nail
+  appointments in Nigeria. To book one you give us an email address; to be paid
+  as a nail tech you give us more. Your <strong>hand photographs are measured
+  on your own phone and are never uploaded</strong> — not to us, not to anyone.
+  We do not sell anything about you to anybody, and there is no advertising in
+  Oma.</p>
+</div>
+
+<h2>Who we are</h2>
+<p>Oma is operated by <strong>Oma Nail Services</strong>, registered in Nigeria
+with the Corporate Affairs Commission (RC <strong>[RC NUMBER]</strong>). We are
+the data controller for everything described here.</p>
+<p>Contact us about anything on this page at
+<a href="mailto:hello@omanails.com">hello@omanails.com</a>.</p>
+
+<h2>What we collect, and why</h2>
+
+<div class="scroll"><table>
+  <tr><th>What</th><th>Why</th></tr>
+  <tr><td>Email address</td>
+      <td>It is how you sign in. Oma sends a one-time code rather than keeping
+          a password.</td></tr>
+  <tr><td>Your name</td>
+      <td>So a nail tech knows who is arriving, and you know whose chair you
+          are booking.</td></tr>
+  <tr><td>Area or address</td>
+      <td>To show you techs near you. A nail tech who travels to clients gives
+          an address; a customer gives an area.</td></tr>
+  <tr><td>Location, while you are looking</td>
+      <td>Only when you ask to see who is nearby, and only while that screen is
+          open. You can refuse and search by area instead.</td></tr>
+  <tr><td>Bookings and messages</td>
+      <td>The appointment itself, and the conversation about it. A message
+          thread exists only inside a booking — strangers cannot message you.</td></tr>
+  <tr><td>Payment records</td>
+      <td>What was paid, when, and to whom. <strong>We never see or store your
+          card details</strong> — those go directly to Paystack, our licensed
+          payment processor.</td></tr>
+  <tr><td>Nail techs: bank details</td>
+      <td>To pay you. Held by Paystack, not by us.</td></tr>
+  <tr><td>Nail techs: identity check</td>
+      <td>Nigerian law and simple safety: a customer is trusting a stranger with
+          money. See below — this one deserves its own section.</td></tr>
+  <tr><td>Portfolio photographs</td>
+      <td>Only the pictures a nail tech chooses to upload of her own work. These
+          are advertising and are public by design.</td></tr>
+</table></div>
+
+<h2>Your hand photographs</h2>
+<div class="card">
+  <p><strong>They never leave your phone.</strong> When you scan your hands,
+  the measurement happens inside the web page on your own device. The image is
+  not uploaded, not stored on our servers, and not seen by us or by any nail
+  tech.</p>
+  <p>What is saved is the <em>result</em> — a nail shape, a few measurements,
+  and the date — and that is saved on your phone, not ours. Clearing it is one
+  tap in Settings.</p>
+  <p>If we ever want to keep photographs — to improve how the measurement
+  works — we will ask you first, in the app, in plain words, and you will be
+  able to say no and keep using Oma exactly as before. We will not start doing
+  it quietly and update this page afterwards.</p>
+</div>
+
+<h2>Identity checks for nail techs</h2>
+<p>A nail tech cannot appear in search until her identity is verified. This is
+what lets a customer hand money to someone she has never met.</p>
+<div class="card">
+  <p>We ask for a <strong>virtual NIN (vNIN)</strong> — the temporary
+  16-character token you generate yourself with <code>*346#</code> — and not
+  your actual NIN. The vNIN is passed to a NIMC-licensed verification provider
+  and <strong>is never stored by Oma</strong>.</p>
+  <p>What we keep is the answer: whether the check passed, the provider's
+  reference number, and whether the name matched. Not your date of birth, not
+  your address, not your photograph, none of the other information the provider
+  returns.</p>
+</div>
+
+<h2>What we do not do</h2>
+<ul>
+  <li>We do not sell your data, and we never will.</li>
+  <li>There is no advertising in Oma, and no advertising trackers.</li>
+  <li>We do not upload your hand photographs.</li>
+  <li>We do not store card numbers or bank details ourselves.</li>
+  <li>We do not store your NIN.</li>
+  <li>We do not show a customer's full name publicly. On the O points
+      leaderboard, customers appear under a shortened name.</li>
+</ul>
+
+<h2>Who else sees it</h2>
+<p>Only where the service cannot work otherwise:</p>
+<ul>
+  <li><strong>The other person in your booking.</strong> Your nail tech sees
+      your name and the appointment; you see hers.</li>
+  <li><strong>Paystack</strong> — payments and payouts. They are licensed by
+      the Central Bank of Nigeria and have their own privacy policy.</li>
+  <li><strong>Supabase</strong> — the database and servers Oma runs on.</li>
+  <li><strong>Our identity provider</strong> — the vNIN only, at the moment a
+      nail tech is verified.</li>
+  <li><strong>Our email provider</strong> — to deliver your sign-in code.</li>
+  <li><strong>The authorities</strong>, if the law requires it of us.</li>
+</ul>
+
+<h2>How long we keep it</h2>
+<p>Your account details for as long as you have an account. Records of
+completed appointments and payments for longer, because they are financial
+records and both people in a booking have a claim on them.</p>
+
+<h2>Deleting your account</h2>
+<div class="card">
+  <p>In the app: <strong>Settings → Delete my Oma account</strong>. It is not
+  hidden behind an email to support.</p>
+  <p>Your name, email, phone, area and listing are erased, your sign-in is
+  destroyed, and you cannot get back in afterwards. Past appointments remain
+  as financial records with <strong>your name removed</strong> — an appointment
+  has two people in it, and deleting yours entirely would delete a nail tech's
+  record of work she was paid for.</p>
+  <p>Oma will refuse to delete your account while money is in the middle — an
+  appointment paid for but not finished, a dispute open, or a balance in your
+  wallet. It tells you exactly what to finish first.</p>
+</div>
+
+<h2>Your rights</h2>
+<p>You can ask us for a copy of what we hold about you, ask us to correct it,
+or ask us to delete it. Email <a href="mailto:hello@omanails.com">hello@omanails.com</a>
+and we will answer within 30 days.</p>
+
+<h2>Age</h2>
+<p>You must be <strong>16 or older</strong> to hold an Oma account, whether as
+a customer or as a nail tech.</p>
+<p>Nigerian law treats anyone under 18 as a child. So if you are 16 or 17, you
+need your parent or guardian's permission to use Oma, and they may contact us
+about your information at any time using the address below.</p>
+<p>We do not knowingly hold anything about anyone under 16. If you believe we
+do, tell us and we will remove it.</p>
+
+<h2>Changes to this page</h2>
+<p>If we change what we collect, we will change this page and say so in the
+app before the change takes effect — not afterwards.</p>
+
+</main>
+
+<footer><div class="wrap">
+  <p>Oma Nails · <a href="/">omanails.com</a> ·
+     <a href="mailto:hello@omanails.com">hello@omanails.com</a></p>
+</div></footer>
+
+</body>
+</html>
