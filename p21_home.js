@@ -53,9 +53,17 @@ async function loadIdentity() {
   if (IDENT) return IDENT;
   try { IDENT = await API.myIdentity(); }
   catch (e) { IDENT = { kyc: "none", verified: false, error: e.message }; }
-  paintHome();
+  // Three screens ask this now — the home-service gate, More, and the
+  // verify screen itself — so repaint whichever is actually open. The
+  // first version always called paintHome(), which on any other screen
+  // either did nothing or redrew a hidden one.
+  if (ROUTE.v === "home") paintHome(); else paint();
   return IDENT;
 }
+
+/* Called after a check comes back, so the next screen asks the server
+   again instead of showing the answer from before she verified. */
+function forgetIdentity() { IDENT = null; }
 
 let HOME = {
   at: false,        // she comes to me

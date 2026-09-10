@@ -4,9 +4,24 @@
    taps deep. Nobody opens an app to look at themselves. They open this
    tab to GET somewhere, so it is now a list of destinations and nothing
    else — every row one tap from the tab bar.                            */
+/* The row's second line, which is the whole reason a customer would tap it.
+   IDENT is null until the answer arrives; the note stays quiet rather than
+   saying "not verified" about somebody nobody has asked about yet. */
+function kycNote(tech) {
+  const id = typeof IDENT !== "undefined" ? IDENT : null;
+  if (id && id.verified) return "Verified";
+  if (id && id.kyc === "verified" && !id.verified) return "See this";
+  if (id && id.kyc === "failed") return "The last check did not pass";
+  return tech ? "Needed before you can be listed"
+              : "Needed for appointments at your address";
+}
+
 function vMore() {
   const me = DB.me || {};
   const tech = DB.role === "tech";
+  // Asked once, here, so the row can say "Verified" rather than sending her
+  // into a screen to find out. loadIdentity repaints whatever is open.
+  if (API.signedIn()) loadIdentity();
   const row = (v, icon, label, note) => `
     <button data-a="go" data-v="${v}">
       <span class="ic">${icon}</span>
@@ -34,8 +49,10 @@ function vMore() {
       ${tech ? `
         ${row("scanner", I.tick(16), "Scan a client's code")}
         ${row("wallet", I.cal(), "Earnings and withdrawals")}
-        ${row("kyc", I.user(), "Verify your identity")}`
-      : row("nearby", I.shop(), "Nail techs near me")}
+        ${row("kyc", I.user(), "Verify your identity", kycNote(tech))}`
+      : `${row("nearby", I.shop(), "Nail techs near me")}
+        ${API.signedIn()
+          ? row("kyc", I.user(), "Verify your identity", kycNote(tech)) : ""}`}
     </div>
 
     <div class="menu">

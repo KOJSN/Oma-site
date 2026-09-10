@@ -367,7 +367,12 @@ document.getElementById("shell").addEventListener("click", e => {
     }
     toast("Checking…");
     return API.verifyNin(v).then(r => {
-      toast(r.status === "verified" ? "Verified." : (r.reason || "That did not pass."));
+      // The cached answer is now stale — she was "not verified" a second
+      // ago and the home-service gate would go on saying so.
+      forgetIdentity();
+      toast(r.status === "verified" && !r.banned
+        ? "Verified."
+        : (r.reason || "That did not pass."));
       paint();
     }).catch(err => toast(err.message));
   }

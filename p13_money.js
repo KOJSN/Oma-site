@@ -540,24 +540,57 @@ const LEDGER_WORDS = {
 const ledgerWords = (k) => LEDGER_WORDS[k] || k.replace(/_/g, " ");
 
 /* ── 28 the NIN check ─────────────────────────────────── */
+/* One check, two people.
+   This screen used to be a nail tech's screen and said so — "you can list
+   yourself and take bookings" — because until home service was gated she
+   was the only person Oma ever verified. A customer who arrived here from
+   the home-service gate was told about listing herself as a nail tech,
+   which is nobody's answer to "why are you asking for my NIN".
+
+   It also read `me.kyc`, which api_me() takes from the TECH row. A
+   customer has no tech row, so her answer was always null and the screen
+   would have gone on offering the form after she had already passed. The
+   truth about the PERSON is api_my_identity(). */
 function vKyc() {
+  const tech = DB.role === "tech";
+
   load(async () => {
-    const me = await API.me();
-    const status = (me && me.kyc) || "none";
-    if (status === "verified") {
+    const id = await API.myIdentity().catch(e => ({ kyc: "none", verified: false, error: e.message }));
+    const status = (id && id.kyc) || "none";
+
+    if (status === "verified" && id.verified) {
       return fillHost(`<div class="pad"><div class="note good">
-        <div><b>Verified.</b> You can list yourself and take bookings.</div></div>
-        <button class="btn mt16" data-a="go" data-v="listing">Your listing</button></div>`);
+        <div><b>Verified.</b> ${tech
+          ? "You can list yourself and take bookings."
+          : "You can now book a nail tech to come to you."}</div></div>
+        <button class="btn mt16" data-a="go" data-v="${tech ? "listing" : "nearby"}">${
+          tech ? "Your listing" : "Find a nail tech"}</button></div>`);
     }
+
+    // Verified with the provider and still refused. Said plainly, and
+    // without an accusation on a screen anyone might be reading over her
+    // shoulder — the reason belongs in a reply to an email, not here.
+    if (status === "verified" && !id.verified) {
+      return fillHost(`<div class="pad"><div class="note warn">
+        <div><b>This identity cannot be used on Oma.</b> If you think that is
+        a mistake, write to <a href="mailto:hello@omanails.com">hello@omanails.com</a>
+        and a person will look at it.</div></div></div>`);
+    }
+
     fillHost(`
       <div class="pad stack gap12">
-        <div class="note"><div>Clients hand money to a stranger before you touch
-          their nails. This is what makes that reasonable.</div></div>
+        <div class="note"><div>${tech
+          ? `Clients hand money to a stranger before you touch their nails.
+             This is what makes that reasonable.`
+          : `A nail tech coming to your address is arriving alone at a place
+             she has never been. Oma checks her before she can be listed, and
+             it checks you before she is asked to travel — the same check,
+             both ways.`}</div></div>
 
         <div class="tiny sub">
           <b>Use a virtual NIN, not your real one.</b> Dial <b>*346#</b> or open
           the NIMC app and generate a 16-digit vNIN. It lasts 72 hours and works
-          only for us. Oma never sees your real number, and never stores either.
+          only for us. Oma never sees your real number and stores neither.
         </div>
 
         <label class="fld"><span class="lbl">Your vNIN (16 digits)</span>
@@ -565,16 +598,30 @@ function vKyc() {
                  placeholder="0000 0000 0000 0000" style="letter-spacing:.12em"></label>
         <button class="btn" data-a="kyc-send">Check it</button>
 
-        <div class="tiny sub">We keep three things: that it passed, the checker's
-          reference, and whether the name matched. Nothing else — not your date
-          of birth, not your address.</div>
+        <!-- This used to say "three things", and adding the fingerprint quietly
+             made it four. A page that promises exactly what it keeps has to be
+             re-counted every time something is added to it, or it becomes a
+             lie by arithmetic. -->
+        <div class="tiny sub">We keep four things: that it passed, the checker's
+          reference, whether the name matched, and a scrambled code that lets
+          Oma recognise somebody it has already removed. The code cannot be
+          turned back into your name, your number or your date of birth, and
+          none of those are kept.</div>
+
+        ${!tech ? `<div class="tiny sub">Booking at her salon needs none of
+          this. It is only for appointments at your own address.</div>` : ""}
 
         ${status === "failed" ? `<div class="note warn"><div>The last check did not
-          pass. If the name on your Oma profile is your business name rather than
-          the name on your ID, fix that first.</div></div>` : ""}
+          pass. ${tech
+            ? `If the name on your Oma profile is your business name rather than
+               the name on your ID, fix that first.`
+            : `The name on your Oma profile has to be the name on your ID —
+               check Profile if you signed up with a short version of it.`}</div></div>` : ""}
       </div>`);
   });
-  return head("Verify your identity", "Once, with a virtual NIN") + host();
+  return head("Verify your identity",
+              tech ? "Once, with a virtual NIN"
+                   : "Once, for home appointments") + host();
 }
 
 /* ── 29 connect a backend ─────────────────────────────────
