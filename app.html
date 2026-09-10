@@ -1237,7 +1237,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "eccee71935";
+const BUILD_ID = "230bc69cde";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -8409,6 +8409,91 @@ function howFar(km) {
   return `<b>${Math.round(km).toLocaleString("en")} km</b> away`;
 }
 
+/* Browsing shows PLACES; searching shows people.
+   Five techs renting chairs in one shop used to be five cards on one pin,
+   which reads as duplicated data rather than a busy salon. Collapsed while
+   she is browsing — but the moment she types a name or a service she is
+   looking for a particular person, so search still returns individuals. */
+
+/* ══ one salon ═══════════════════════════════════════════════════════
+   The techs who work in a shop, and nothing about the shop itself
+   beyond its name and where it is. A salon has no rating and no
+   services of its own, because a salon does not do nails — the people
+   inside it do, and it is one of them the customer is choosing. */
+let SALON = null, SALON_ID = null;
+
+async function loadSalon(id) {
+  SALON_ID = id;
+  try {
+    const [s, list] = await Promise.all([API.salon(id), API.salonTechs(id)]);
+    SALON = { ...s, list };
+  } catch (e) {
+    SALON = { error: e.message, list: [] };
+  }
+  if (ROUTE.v === "salon") {
+    paint();
+    // ratingSlot paints a "·" placeholder that fillRatings replaces. Without
+    // this the salon page shows a row of lonely middle dots where the scores
+    // should be — it looked like a rendering bug, and was a missing call.
+    fillRatings((SALON.list || []).map((x) => x.id));
+  }
+}
+
+function vSalon(id) {
+  if (!SALON || SALON_ID !== id) { SALON = null; loadSalon(id); }
+  const s = SALON;
+  if (!s) return head("Loading…") + `<div class="pad"><div class="tiny faint">Looking…</div></div>`;
+  if (s.error) return head("Salon") + `<div class="pad"><div class="note warn"><div>${esc(s.error)}</div></div></div>`;
+
+  return `
+  ${head(s.name, [s.area, s.address].filter(Boolean).join(" · ") || null)}
+  <div class="pad">
+    <div class="note">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M9 21v-6h6v6"/></svg>
+      <div><b>${s.techs} nail tech${Number(s.techs) === 1 ? "" : "s"} work here.</b>
+        You book one of them, not the shop — she is the one Oma pays, and the
+        one whose reviews you are reading.</div>
+    </div>
+
+    <div class="seehead" style="padding-left:0;padding-right:0"><h3>Who works here</h3></div>
+    ${s.list.length ? `<div class="stack gap12">
+      ${s.list.map((x) => `
+        <button class="card row" data-a="tech-open" data-id="${esc(x.id)}">
+          <div class="avatar sq">${esc(initials(x.business_name))}</div>
+          <div style="flex:1;min-width:0;text-align:left">
+            <div class="ttl">${esc(x.business_name)}${verifiedBadge()}</div>
+            <div class="tiny sub">${x.years ? `${x.years} yrs` : ""}${
+              x.years && x.opens ? " · " : ""}${x.opens ? `${String(x.opens).slice(0,5)}–${String(x.closes).slice(0,5)}` : ""}</div>
+            <div style="margin-top:5px">${ratingSlot(x.id)}</div>
+            ${x.from_kobo ? `<div class="tiny" style="margin-top:6px">from ${kobo(x.from_kobo)}</div>` : ""}
+          </div>
+          ${I.chev()}
+        </button>`).join("")}
+    </div>` : `<div class="empty"><b>Nobody is listed here yet</b>
+        The techs who work here have not finished their listings.</div>`}
+  </div>
+  <div style="height:24px"></div>`;
+}
+
+function placeRow(r) {
+  if (r.kind !== "salon") return findRow({ ...r, business_name: r.name });
+  const bits = [howFar(r.km), r.from_kobo ? "from " + kobo(r.from_kobo) : null]
+    .filter(Boolean).join(" · ");
+  return `
+  <button class="card row" data-a="salon-open" data-id="${esc(r.id)}">
+    <div class="avatar sq" style="background:var(--fill2);color:var(--sub)">
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M9 21v-6h6v6"/></svg>
+    </div>
+    <div style="flex:1;min-width:0;text-align:left">
+      <div class="ttl">${esc(r.name)}</div>
+      <div class="tiny sub">${esc(r.area || "")}${r.area ? " · " : ""}<b>${
+        r.techs} nail tech${Number(r.techs) === 1 ? "" : "s"}</b></div>
+      ${bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : ""}
+    </div>
+    ${I.chev()}
+  </button>`;
+}
+
 function findRow(t) {
   const bits = [howFar(t.km), t.from_kobo ? "from " + kobo(t.from_kobo) : null]
     .filter(Boolean).join(" · ");
@@ -8457,7 +8542,11 @@ async function runFind() {
 
   let list;
   try {
-    list = await API.search(q, FPOS ? FPOS.lat : null, FPOS ? FPOS.lng : null);
+    list = q
+      ? await API.search(q, FPOS ? FPOS.lat : null, FPOS ? FPOS.lng : null)
+      // No query means she is browsing, and browsing is where a shop with
+      // three chairs should be one card rather than three.
+      : await API.placesNearby(FPOS ? FPOS.lat : 6.4478, FPOS ? FPOS.lng : 3.4723, 25);
   } catch (e) {
     if (mine !== FSEQ) return;
     return findInto(`<div class="note warn"><div>${esc(
@@ -8480,12 +8569,12 @@ async function runFind() {
   findInto(`
     <div class="tiny faint" style="padding:2px 2px 10px">${head}${
       !FPOS && q ? " · turn on location to see how far away they are" : ""}</div>
-    <div class="stack gap12">${list.map(findRow).join("")}</div>`);
+    <div class="stack gap12">${list.map(q ? findRow : placeRow).join("")}</div>`);
 
   // After the list, never before it. Waiting on scores to show results would
   // make every search slower for something that is decoration until she is
   // actually choosing between two people.
-  fillRatings(list.map((t) => t.id));
+  fillRatings(list.filter((r) => q || r.kind !== "salon").map((r) => r.id));
 }
 
 function vFind() {
