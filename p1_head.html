@@ -46,6 +46,7 @@
   --bezel:#e7e4ec; --ph1:#e9e3ee; --ph2:#dcd4e4;
   --good:#1b9e5a; --goodbg:rgba(27,158,90,.12);
   --warn:#b8791b; --warnbg:rgba(184,121,27,.12);
+  --bad:#c02a4d;  --badbg:rgba(192,42,77,.10);
   --grad:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
   /* The welcome screen. It had its colours written into the markup — a dark
      ground and white ink, whatever the phone was set to — so somebody in
@@ -89,6 +90,7 @@
     --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
     --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
     --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+  --bad:#ff7b9c;  --badbg:rgba(255,123,156,.14);
     --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
     --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
     --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
@@ -116,6 +118,7 @@
   --bezel:#241f2b; --ph1:#251f2f; --ph2:#2e2739;
   --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
   --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+  --bad:#ff7b9c;  --badbg:rgba(255,123,156,.14);
   --wel-bg:#120e17; --wel-ink:#ffffff; --wel-sub:rgba(255,255,255,.72);
   --wel-glow1:rgba(240,81,141,.55); --wel-glow2:rgba(255,143,186,.28);
   --wel-dot:#ffffff; --wel-dot-off:rgba(255,255,255,.45);
@@ -633,6 +636,11 @@ h3{font-size:16px}
   box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
 .switch.on{background:var(--pink)}
 .switch.on i{transform:translateX(19px)}
+
+/* The one button that cannot be undone. Red, not the pink gradient: the
+   gradient is Oma saying yes to something, and this is not that. */
+.btn.danger{background:var(--bad);color:#fff;border:0}
+.btn.danger[disabled]{opacity:.55}
 
 /* ═══ the verified mark ═══════════════════════════════
    Shown on a tech because the database cannot let an unverified one be

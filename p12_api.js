@@ -356,6 +356,8 @@ const API = (() => {
     /* O points. Every figure on that screen comes from here — the rate, the
        prizes and the cap all live on the season row, so changing a prize is
        one UPDATE rather than a rebuild and a re-upload. */
+    deleteAccount: ()                     => live() ? rpc("api_delete_account") : MOCK.deleteAccount(),
+    accountBlockers: ()                   => live() ? rpc("api_my_account_blockers") : MOCK.accountBlockers(),
     myPoints:      ()                       => live() ? rpc("api_my_points") : MOCK.myPoints(),
     leaderboard:   (role, limit)            => live() ? rpc("api_leaderboard", { p_role: role || "tech", p_limit: limit || 20 }) : MOCK.leaderboard(role, limit),
     myReferralCode:()                       => live() ? rpc("api_my_referral_code") : MOCK.myReferralCode(),
@@ -1092,6 +1094,15 @@ const API = (() => {
          the board what it is. It does NOT invent rivals: a fake leaderboard
          with invented names is the one thing on this screen that would still
          look true after somebody screenshotted it. */
+      /* Practice mode has no account to delete, and saying "done" would be a
+         lie that looks identical to the real thing. It reports the one honest
+         blocker instead: there is nothing here to delete. */
+      accountBlockers: async () => ({ bookings_in_escrow: 0, jobs_in_escrow: 0,
+        disputes: 0, wallet_kobo: 0, payouts_pending: 0 }),
+      deleteAccount: async () => {
+        fail("Practice mode has no account. Switch to the real Oma in Settings first.");
+      },
+
       myPoints: async () => {
         const s = load(); s.opoints = s.opoints || { code: null, used: false, milli: 0 };
         return { season: "Practice season", ends_at: null,

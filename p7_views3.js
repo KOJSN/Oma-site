@@ -51,6 +51,114 @@ function vMore() {
   <div style="height:20px"></div>`;
 }
 
+
+/* ══ 14b closing the account ═════════════════════════════════════════
+   App Store Review Guideline 5.1.1(v): an app that lets you make an
+   account must let you delete it from inside the app. Oma had "erase
+   everything on this device", which clears this phone and touches the
+   account not at all.
+
+   Two things this screen refuses to do. It does not hide the button
+   behind an email to support, and it does not pretend the account is
+   gone while money is still in escrow. Both are ways of saying no while
+   appearing to say yes.                                              */
+let CLOSE_BLOCKERS = null, CLOSE_BUSY = false;
+
+async function loadCloseBlockers() {
+  try { CLOSE_BLOCKERS = await API.accountBlockers(); }
+  catch (e) { CLOSE_BLOCKERS = { error: e.message }; }
+  if (ROUTE.v === "closeacct") paint();
+}
+
+function vCloseAccount() {
+  if (!CLOSE_BLOCKERS) { loadCloseBlockers(); }
+  const b = CLOSE_BLOCKERS || {};
+  const n = (k) => Number(b[k] || 0);
+  // Both forms written out. Appending "s" to the end of a phrase gives
+  // "2 appointment you have been paid for but not yet dones", which is what
+  // it did before somebody read it.
+  const stop = [];
+  const add = (k, one, many, fix) => { const c = n(k); if (c) stop.push([c, c === 1 ? one : many, fix]); };
+  add("jobs_in_escrow",
+      "appointment you have been paid for but not yet done",
+      "appointments you have been paid for but not yet done",
+      "Scan the client's code when you finish, and the money is yours.");
+  add("bookings_in_escrow",
+      "appointment you have paid for", "appointments you have paid for",
+      "Let it finish, or cancel it and take the refund.");
+  add("disputes",
+      "appointment under dispute", "appointments under dispute",
+      "Someone is looking at it. Deleting your account now would end the case with no one to answer for it.");
+  add("payouts_pending",
+      "withdrawal still going through", "withdrawals still going through",
+      "Wait for it to land in your bank.");
+  const money = n("wallet_kobo");
+
+  return `
+  ${head("Delete my account")}
+  <div class="pad">
+
+    ${b.error ? `<div class="note warn"><div>${esc(b.error)}</div></div>` : ""}
+
+    ${(stop.length || money > 0) ? `
+      <div class="note warn">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v5M12 16v.1M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <div><b>Not yet — there is money in the middle.</b>
+          Deleting your account now would leave it with nobody to pay it to.</div>
+      </div>
+      <div class="stack gap10 mt16">
+        ${money > 0 ? `<div class="card">
+          <div style="font-size:15px;font-weight:800">${kobo(money)} in your wallet</div>
+          <div class="small sub" style="margin-top:4px">Withdraw it first. It is yours,
+            and it does not come back after the account is gone.</div></div>` : ""}
+        ${stop.map(([c, what, fix]) => `<div class="card">
+          <div style="font-size:15px;font-weight:800">${c} ${esc(what)}</div>
+          <div class="small sub" style="margin-top:4px">${esc(fix)}</div></div>`).join("")}
+      </div>
+      <div class="small sub" style="margin-top:16px;line-height:1.55">
+        Finish these and come back — the delete button appears once nothing is
+        outstanding. Signing out works either way, and does not delete anything.
+      </div>`
+    : `
+      <div class="note">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.1"/></svg>
+        <div><b>This cannot be undone.</b> You will be signed out and will not be
+          able to sign back in with this address.</div>
+      </div>
+
+      <div class="seehead" style="padding-left:0;padding-right:0"><h3>What goes</h3></div>
+      <div class="menu">
+        <div class="r"><span style="flex:1">Your name, email, phone and area</span></div>
+        <div class="r"><span style="flex:1">Your listing, and it leaves search at once</span></div>
+        <div class="r"><span style="flex:1">Your saved scans on this phone</span></div>
+        <div class="r"><span style="flex:1">Notifications to your devices</span></div>
+        <div class="r"><span style="flex:1">Your referral code and O points</span></div>
+      </div>
+
+      <div class="seehead" style="padding-left:0;padding-right:0"><h3>What stays</h3></div>
+      <div class="menu">
+        <div class="r"><span style="flex:1">Past appointments, with your name removed</span></div>
+      </div>
+      <div class="small sub" style="margin-top:10px;line-height:1.55">
+        An appointment has two people in it. Deleting yours entirely would delete
+        a nail tech's record of work she was paid for, so what is left carries no
+        name, no address and no way back to you.
+      </div>
+
+      <div class="card mt20">
+        <div style="font-size:15px;font-weight:700">Type <b>DELETE</b> to confirm</div>
+        <div class="small sub" style="margin-top:4px;margin-bottom:10px">
+          Deliberately awkward. This is the one button in Oma that cannot be undone.</div>
+        <input id="fDelConfirm" placeholder="DELETE" autocapitalize="characters"
+               maxlength="10" style="width:100%;text-transform:uppercase;letter-spacing:.14em;
+               font-family:ui-monospace,Menlo,monospace">
+      </div>
+      <button class="btn danger mt12" data-a="doDelete"${CLOSE_BUSY ? " disabled" : ""}>
+        ${CLOSE_BUSY ? "Deleting…" : "Delete my account for ever"}</button>`}
+  </div>
+  <div style="height:24px"></div>`;
+}
+
 /* ══ 15 scan history ═════════════════════════════════
    The design put a "nail strength +18%" chart here. Nothing in the pipeline
    measures nail strength, so this plots the one thing that was measured —
@@ -206,6 +314,14 @@ function vSettings() {
       <button data-a="wipe"><span class="ic">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></span>
         <span style="flex:1">Erase everything on this device</span>${I.chev()}</button>
+      ${/* Two different things, deliberately next to each other. The one above
+            clears this phone. This one ends the account everywhere — Apple
+            requires it be reachable from inside the app, and it is the honest
+            counterpart to a service that holds your money. */
+        API.signedIn() ? `
+      <button data-a="go" data-v="closeacct"><span class="ic">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--bad)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></span>
+        <span style="flex:1;color:var(--bad)">Delete my Oma account</span>${I.chev()}</button>` : ""}
     </div>
     <div class="note mt20">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>

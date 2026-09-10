@@ -33,6 +33,7 @@ function paint() {
     case "scan": html = vScan(ROUTE.a); break;
     case "editme": html = vEditMe(); break;
     case "settings": html = vSettings(); break;
+    case "closeacct": html = vCloseAccount(); break;
     case "points": html = vPoints(); break;
     case "sheet": html = vSheet(); break;
     case "requests": html = vRequestsLive(); break;
@@ -210,6 +211,14 @@ document.getElementById("shell").addEventListener("click", e => {
     return;
   }
 
+  if (a === "doDelete") {
+    const box = document.getElementById("fDelConfirm");
+    if (!box || box.value.trim().toUpperCase() !== "DELETE") {
+      return toast("Type DELETE to confirm.");
+    }
+    closeAccount();
+    return;
+  }
   if (a === "tech-open") {
     // A list row carries her name in its title; the map's card is a plain
     // button, so it says the name outright. The title also carries the
@@ -610,6 +619,34 @@ document.addEventListener("change", (e) => {
 
    Anything that fails is reported once, in her words, and never throws away
    what she typed — the local copy is already saved before any of this runs. */
+
+/* Its own function because the click listener is not async, and because a
+   thing that cannot be undone should be readable in one piece. */
+async function closeAccount() {
+  CLOSE_BUSY = true; paint();
+  try {
+    const r = await API.deleteAccount();
+    if (r && r.ok === false) {
+      // Something started while she was on the screen. Show the new reason
+      // rather than a failure — the answer changed, it did not break.
+      CLOSE_BLOCKERS = r.blockers; CLOSE_BUSY = false; paint();
+      return toast("Something is still in the middle. See below.");
+    }
+    // Local state goes too. Leaving her scans and her role behind would mean
+    // the next person to open this phone meets a half-signed-in stranger.
+    try { localStorage.removeItem("oma-db-v1"); } catch (e) { /* private mode */ }
+    try { localStorage.removeItem("oma-ref"); } catch (e) { /* private mode */ }
+    API.signOut();
+    DB = dbLoad();
+    CLOSE_BLOCKERS = null; CLOSE_BUSY = false;
+    nav("welcome");
+    toast("Your account has been deleted.");
+  } catch (e) {
+    CLOSE_BUSY = false; paint();
+    toast(e.message || "That did not go through.");
+  }
+}
+
 async function publishListing(b) {
   try {
     await API.becomeTech({
