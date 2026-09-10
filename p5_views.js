@@ -209,6 +209,140 @@ const I = {
   wa: () => `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.04 2A9.9 9.9 0 0 0 2.1 11.9c0 1.75.46 3.46 1.34 4.96L2 22l5.28-1.38a9.9 9.9 0 0 0 4.76 1.21h.01a9.9 9.9 0 0 0 9.93-9.9A9.9 9.9 0 0 0 12.04 2Zm5.8 14.1c-.24.68-1.4 1.3-1.94 1.34-.5.05-1.13.07-1.82-.11-.42-.13-.96-.31-1.65-.61-2.9-1.25-4.8-4.17-4.94-4.36-.15-.2-1.19-1.58-1.19-3.01 0-1.43.75-2.14 1.02-2.43.27-.29.58-.36.78-.36l.56.01c.18.01.42-.07.66.5.24.58.83 2 .9 2.15.07.14.12.31.02.5-.1.2-.15.32-.29.49l-.44.51c-.15.14-.3.3-.13.59.17.29.76 1.25 1.63 2.03 1.12 1 2.06 1.3 2.35 1.45.29.15.46.12.63-.07.17-.2.72-.84.91-1.13.19-.29.39-.24.65-.14.26.09 1.68.79 1.97.94.29.14.48.22.55.34.07.12.07.68-.17 1.36Z"/></svg>`,
 };
 
+/* The workplace picker. Four states, and each one asks for exactly one
+   thing: nothing, a name, permission, or nobody.
+
+   The ownership question matters more than it looks. An owner APPROVES
+   people; she cannot create their accounts. Every tech passes her own NIN
+   check and is paid into her own account — if an owner could register her
+   staff she could verify all of them with her own identity and collect
+   their money, which is the exact trust that verification buys.          */
+function workplaceRow(b) {
+  // 1 · she asked somewhere that has an owner, and is waiting
+  if (b.salon_waiting) {
+    return `<div class="note">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <div><b>Waiting for ${esc(b.salon_waiting)}</b> to say yes. Until they do
+        you are listed on your own, which is not a problem — customers can
+        still find and book you.
+        <button class="tag" data-a="leaveShop" style="margin-top:8px">Cancel</button></div>
+    </div>`;
+  }
+
+  // 2 · she owns the place
+  if (b.salon_name && b.salon_own) {
+    return `<div class="menu">
+      <div class="r"><span class="ic">${I.shop()}</span>
+        <span style="flex:1">You own <b>${esc(b.salon_name)}</b>
+          <span class="tiny sub" style="display:block;font-weight:600;margin-top:1px">
+            Techs ask to join, and you decide.</span></span></div>
+      <button data-a="go" data-v="myshop"><span class="ic">${I.user()}</span>
+        <span style="flex:1">Who works here${
+          b.salon_pending ? ` <b style="color:var(--pinkd)">· ${b.salon_pending} waiting</b>` : ""}</span>
+        ${I.chev()}</button>
+    </div>`;
+  }
+
+  // 3 · she works somewhere she does not own
+  if (b.salon_name) {
+    return `<div class="menu">
+      <div class="r"><span class="ic">${I.shop()}</span>
+        <span style="flex:1">You work at <b>${esc(b.salon_name)}</b>
+          <span class="tiny sub" style="display:block;font-weight:600;margin-top:1px">
+            Customers see the shop, then choose you inside it.</span></span>
+        <button class="tag" data-a="leaveShop">Leave</button></div>
+    </div>`;
+  }
+
+  // 4 · nowhere yet
+  const near = (b.salonsNear || []);
+  return `
+    ${near.length ? `<div class="menu" style="margin-bottom:10px">
+      ${near.map((s) => `<button data-a="joinShop" data-id="${esc(s.id)}">
+        <span class="ic">${I.shop()}</span>
+        <span style="flex:1">${esc(s.name)}
+          <span class="tiny sub" style="display:block;font-weight:600;margin-top:1px">${
+            esc(s.area || "")}${s.area ? " · " : ""}${s.techs} already here</span></span>
+        <span class="tag">${s.owned ? "Ask" : "Join"}</span></button>`).join("")}
+    </div>` : ""}
+    <div class="btnrow">
+      <input id="bShop" placeholder="${near.length ? "or name your shop" : "Name of the shop, if you share one"}"
+             style="flex:1">
+      <button class="btn sm ghost" data-a="nameShop">Save</button>
+    </div>
+    <label class="own" style="margin-top:10px">
+      <input type="checkbox" id="bShopOwn">
+      <span>I <b>own</b> this shop. Other techs here will ask me before they
+        appear under it.</span>
+    </label>
+    <div class="tiny faint" style="margin-top:8px">
+      Leave this empty if you work alone or you travel to clients.
+    </div>`;
+}
+
+/* ══ who works here ══════════════════════════════════════════════════
+   The owner's list: people waiting, then people inside. Removing
+   somebody takes her off this address and nothing else — her listing,
+   her reviews, her O points and her money were always hers.          */
+let SHOP = null, SHOP_BUSY = false;
+
+async function loadMyShop() {
+  try {
+    const [mine, reqs, list] = await Promise.all([
+      API.mySalon(), API.salonRequests(),
+      API.mySalon().then((m) => m.salon_id ? API.salonTechs(m.salon_id) : []),
+    ]);
+    SHOP = { ...mine, reqs: reqs || [], list: list || [] };
+  } catch (e) { SHOP = { error: e.message, reqs: [], list: [] }; }
+  if (ROUTE.v === "myshop") paint();
+}
+
+function vMyShop() {
+  if (!SHOP) { loadMyShop(); }
+  const s = SHOP || {};
+  return `
+  ${head(s.name || "Your shop", s.i_own ? "You own this" : null)}
+  <div class="pad">
+    ${s.error ? `<div class="note warn"><div>${esc(s.error)}</div></div>` : ""}
+
+    ${s.reqs && s.reqs.length ? `
+      <div class="seehead" style="padding-left:0;padding-right:0"><h3>Asking to join</h3></div>
+      <div class="stack gap10">
+        ${s.reqs.map((r) => `<div class="card">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span class="avatar sq">${esc(initials(r.business_name))}</span>
+            <span style="flex:1;min-width:0">
+              <span style="display:block;font-size:15px;font-weight:800">${esc(r.business_name)}</span>
+              <span class="tiny sub">${r.years ? r.years + " yrs" : "New to Oma"}</span>
+            </span>
+          </div>
+          <div class="btnrow mt12">
+            <button class="btn sm" data-a="joinYes" data-id="${esc(r.tech_id)}">Let her in</button>
+            <button class="btn sm ghost" data-a="joinNo" data-id="${esc(r.tech_id)}">No</button>
+          </div>
+        </div>`).join("")}
+      </div>` : ""}
+
+    <div class="seehead" style="padding-left:0;padding-right:0"><h3>Working here</h3></div>
+    ${s.list && s.list.length ? `<div class="stack gap10">
+      ${s.list.map((x) => `<div class="prow">
+        <span class="pname">${esc(x.business_name)}</span>
+        ${x.from_kobo ? `<span class="tiny sub">from ${kobo(x.from_kobo)}</span>` : ""}
+        <button class="tag" data-a="shopRemove" data-id="${esc(x.id)}">Remove</button>
+      </div>`).join("")}
+    </div>` : `<div class="empty"><b>Only you, so far</b>
+        A tech who works here names your shop in her own listing and asks to
+        join. She signs herself up — you cannot create her account, because
+        her identity check and her payouts have to be hers.</div>`}
+
+    <div class="small sub" style="margin-top:16px;line-height:1.55">
+      Removing somebody takes her off this address. Her listing, her reviews,
+      her O points and anything she has earned stay hers — they always were.
+    </div>
+  </div>
+  <div style="height:24px"></div>`;
+}
+
 /* ══ routing ═════════════════════════════════════════ */
 const TABS = {
   customer: [
@@ -459,7 +593,14 @@ function vSetup(edit) {
       <span class="inp">${I.shop()}<input id="bName" value="${esc(b.name || "")}" placeholder="Thandi Nails Studio"></span></label>
     ${shop ? `<label class="field"><span class="lab">Street &amp; shop number</span>
       <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>` : ""}
+        <input id="bAddr" value="${esc(b.address || "")}" placeholder="12 Admiralty Way, Shop 4"></span></label>
+
+    <!-- Several techs renting chairs in one shop is the normal case, not the
+         exception, and without this they appear as identical cards on one
+         pin. Picking an existing shop beats typing its name again: two
+         spellings of one salon is the failure this is here to avoid. -->
+    <div class="field"><span class="lab">Do you share this shop?</span>
+      <div id="workplaceBox">${workplaceRow(b)}</div></div>` : ""}
     <div style="display:flex;gap:10px">
       <label class="field" style="flex:1;min-width:0"><span class="lab">Area</span>
         <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">

@@ -356,6 +356,15 @@ const API = (() => {
     /* O points. Every figure on that screen comes from here — the rate, the
        prizes and the cap all live on the season row, so changing a prize is
        one UPDATE rather than a rebuild and a re-upload. */
+    placesNearby:  (lat, lng, km)           => live() ? rpc("api_places_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.placesNearby(lat, lng, km),
+    salon:         (id)                     => live() ? rpc("api_salon", { p_salon: id })       : MOCK.salon(id),
+    salonTechs:    (id)                     => live() ? rpc("api_salon_techs", { p_salon: id }) : MOCK.salonTechs(id),
+    salonsNear:    (lat, lng, km)           => live() ? rpc("api_salons_near", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.salonsNear(lat, lng, km),
+    setWorkplace:  (id, name, address, own) => live() ? rpc("api_set_workplace", { p_salon_id: id == null ? null : id, p_name: name || null, p_address: address || null, p_owner: !!own }) : MOCK.setWorkplace(id, name, address, own),
+    mySalon:       ()                       => live() ? rpc("api_my_salon")        : MOCK.mySalon(),
+    salonRequests: ()                       => live() ? rpc("api_salon_requests")  : MOCK.salonRequests(),
+    answerJoin:    (techId, ok)             => live() ? rpc("api_answer_join", { p_tech: techId, p_accept: !!ok }) : MOCK.answerJoin(techId, ok),
+    salonRemove:   (techId)                 => live() ? rpc("api_salon_remove", { p_tech: techId }) : MOCK.salonRemove(techId),
     deleteAccount: ()                     => live() ? rpc("api_delete_account") : MOCK.deleteAccount(),
     accountBlockers: ()                   => live() ? rpc("api_my_account_blockers") : MOCK.accountBlockers(),
     myPoints:      ()                       => live() ? rpc("api_my_points") : MOCK.myPoints(),
@@ -852,6 +861,65 @@ const API = (() => {
         if (p) { p.reports = (p.reports || 0) + 1; save(); }
         return { ok: true };
       },
+
+      /* Practice mode needs a salon in it or the feature is invisible until
+         she is live. The first two demo techs share one, which is exactly the
+         case the real thing exists to handle. */
+      salonOf: (techId) => {
+        const s = load();
+        const ids = s.techs.filter(MOCK.visible).map((t) => t.id).slice(0, 2);
+        return ids.includes(techId) ? { id: "demo-1", name: "Admiralty Nail Bar" } : null;
+      },
+      placesNearby: async (lat, lng, radius) => {
+        const rows = await MOCK.nearby(lat, lng, radius);
+        const out = [], seen = {};
+        for (const t of rows) {
+          const sal = MOCK.salonOf(t.id);
+          if (!sal) { out.push({ ...t, kind: "tech", name: t.business_name, techs: 1 }); continue; }
+          if (seen[sal.id]) {
+            seen[sal.id].techs++;
+            seen[sal.id].from_kobo = Math.min(seen[sal.id].from_kobo, t.from_kobo);
+            continue;
+          }
+          seen[sal.id] = { ...t, kind: "salon", id: sal.id, name: sal.name, techs: 1 };
+          out.push(seen[sal.id]);
+        }
+        return out.sort((a, b) => a.km - b.km);
+      },
+      salon: async (id) => {
+        const n = (await MOCK.salonTechs(id)).length;
+        return { id, name: "Admiralty Nail Bar", area: "Lekki", address: null, techs: n };
+      },
+      salonTechs: async () => {
+        const s = load();
+        return s.techs.filter(MOCK.visible).slice(0, 2).map((t) => ({
+          id: t.id, business_name: t.business_name, area: t.area, years: t.years,
+          opens: t.opens, closes: t.closes,
+          from_kobo: Math.min(...s.services.filter((x) => x.tech_id === t.id).map((x) => x.price_kobo)),
+        }));
+      },
+      salonsNear: async () => [{ id: "demo-1", name: "Admiralty Nail Bar",
+        address: "12 Admiralty Way", area: "Lekki", km: 0.2, techs: 2 }],
+      setWorkplace: async (id, name, address, own) => {
+        const s = load(); s.work = s.work || {};
+        if (!id && !name) { s.work = {}; save(); return { ok: true, salon_id: null }; }
+        // Practice mode has one demo shop and nobody owns it, so joining is
+        // immediate — the pending path only exists where there is an owner.
+        s.work = { salon_id: id || "demo-1", name: name || "Admiralty Nail Bar", own: !!own };
+        save();
+        return { ok: true, salon_id: s.work.salon_id, name: s.work.name,
+                 joined: true, owner: !!own };
+      },
+      mySalon: async () => {
+        const w = (load().work) || {};
+        return { salon_id: w.salon_id || null, name: w.name || null,
+                 i_own: !!w.own, pending: w.own ? 1 : 0, waiting: false };
+      },
+      salonRequests: async () => (load().work || {}).own
+        ? [{ tech_id: "demo-t1", business_name: "Chi Nails", years: 4,
+             asked_at: new Date().toISOString() }] : [],
+      answerJoin: async (id, ok) => ({ ok: true, accepted: !!ok }),
+      salonRemove: async () => ({ ok: true }),
 
       nearby: async (lat, lng, radius) => {
         const s = load();

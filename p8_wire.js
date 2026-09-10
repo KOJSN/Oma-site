@@ -14,8 +14,8 @@ function paint() {
     // been paid — see p19_fee.js.
     // Her photographs are fetched after the paint, like everything else that
     // needs the network, and the strips redraw themselves when they arrive.
-    case "setup": html = vSetup(false); setTimeout(loadMyPhotos, 0); break;
-    case "editbiz": html = vSetup(true); setTimeout(loadMyPhotos, 0); break;
+    case "setup": html = vSetup(false); setTimeout(loadMyPhotos, 0); setTimeout(loadSalonsNear, 0); break;
+    case "editbiz": html = vSetup(true); setTimeout(loadMyPhotos, 0); setTimeout(loadSalonsNear, 0); break;
     // The bottom bar used to lead to a second, device-only app. Every one
     // of these now reads the database instead. See oma-two-apps.md.
     case "home": html = vHomeLive(); break;
@@ -34,6 +34,8 @@ function paint() {
     case "editme": html = vEditMe(); break;
     case "settings": html = vSettings(); break;
     case "closeacct": html = vCloseAccount(); break;
+    case "salon": html = vSalon(ROUTE.a); break;
+    case "myshop": html = vMyShop(); break;
     case "points": html = vPoints(); break;
     case "sheet": html = vSheet(); break;
     case "requests": html = vRequestsLive(); break;
@@ -219,6 +221,24 @@ document.getElementById("shell").addEventListener("click", e => {
     closeAccount();
     return;
   }
+  if (a === "joinShop" || a === "nameShop" || a === "leaveShop") {
+    const name = a === "nameShop"
+      ? (document.getElementById("bShop") || {}).value : null;
+    if (a === "nameShop" && !String(name || "").trim()) {
+      return toast("Type the name of the shop first.");
+    }
+    const own = a === "nameShop" &&
+      !!(document.getElementById("bShopOwn") || {}).checked;
+    setWorkplace(a === "joinShop" ? el.dataset.id : null,
+                 a === "nameShop" ? name : null, own);
+    return;
+  }
+  if (a === "joinYes" || a === "joinNo") {
+    answerJoin(el.dataset.id, a === "joinYes");
+    return;
+  }
+  if (a === "shopRemove") { shopRemove(el.dataset.id); return; }
+  if (a === "salon-open") return nav("salon", el.dataset.id);
   if (a === "tech-open") {
     // A list row carries her name in its title; the map's card is a plain
     // button, so it says the name outright. The title also carries the
@@ -645,6 +665,71 @@ async function closeAccount() {
     CLOSE_BUSY = false; paint();
     toast(e.message || "That did not go through.");
   }
+}
+
+
+/* Saving where she works. The listing editor is NOT repainted — she may be
+   half-way through typing a price — so only the one box is redrawn. */
+async function setWorkplace(id, name, own) {
+  try {
+    const r = await API.setWorkplace(id, name, (DB.biz && DB.biz.address) || null, own);
+    DB.biz = DB.biz || {};
+    // Pending is not joined. Showing her as inside a shop she has only asked
+    // to join would be a lie she would find out about from a customer.
+    DB.biz.salon_waiting = r.pending ? (r.name || "them") : null;
+    DB.biz.salon_id   = r.pending ? null : (r.salon_id || null);
+    DB.biz.salon_name = r.pending ? null : (r.name || null);
+    DB.biz.salon_own  = !!r.owner;
+    dbSave();
+    const box = document.getElementById("workplaceBox");
+    if (box) box.innerHTML = workplaceRow(DB.biz);
+    toast(r.pending ? `Asked ${r.name}. They will say yes or no.`
+        : r.salon_id ? (r.owner ? `${r.name} is yours.` : `You work at ${r.name}.`)
+        : "You work alone now.");
+  } catch (e) {
+    toast(e.message || "That did not save.");
+  }
+}
+
+/* Offered while she is filling in the listing, so the shop next door is one
+   tap rather than a retyped name. Silent on failure: this is a convenience,
+   and a tech with no location yet simply gets the free-text box. */
+async function loadSalonsNear() {
+  if (!DB.biz || DB.biz.lat == null || DB.biz.lng == null) return;
+  try {
+    // Her own state first: cached DB.biz can be stale if an owner accepted
+    // or removed her since she last opened this screen.
+    try {
+      const mine = await API.mySalon();
+      DB.biz.salon_id   = mine.salon_id || null;
+      DB.biz.salon_name = mine.name || null;
+      DB.biz.salon_own  = !!mine.i_own;
+      DB.biz.salon_pending = mine.pending || 0;
+      DB.biz.salon_waiting = mine.waiting && !mine.salon_id ? "them" : null;
+      dbSave();
+    } catch (e) { /* offline: the cached view still renders */ }
+    const near = await API.salonsNear(DB.biz.lat, DB.biz.lng, 2);
+    DB.biz.salonsNear = (near || []).filter((s) => String(s.id) !== String(DB.biz.salon_id));
+    const box = document.getElementById("workplaceBox");
+    if (box) box.innerHTML = workplaceRow(DB.biz);
+  } catch (e) { /* the box still works without it */ }
+}
+
+
+async function answerJoin(techId, yes) {
+  try {
+    await API.answerJoin(techId, yes);
+    SHOP = null; loadMyShop();
+    toast(yes ? "She is in." : "Declined.");
+  } catch (e) { toast(e.message || "That did not go through."); }
+}
+
+async function shopRemove(techId) {
+  try {
+    await API.salonRemove(techId);
+    SHOP = null; loadMyShop();
+    toast("Removed from your shop.");
+  } catch (e) { toast(e.message || "That did not go through."); }
 }
 
 async function publishListing(b) {
