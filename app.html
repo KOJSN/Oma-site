@@ -1237,7 +1237,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "230bc69cde";
+const BUILD_ID = "f9d61dee49";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -3634,9 +3634,12 @@ const API = (() => {
     return `${cfg().url}/storage/v1/object/public/portfolio/${path}`;
   }
 
-  async function storagePut(path, blob, type) {
+  // The bucket defaults to portfolio, so every existing caller is unchanged.
+  // Incident videos go to a PRIVATE bucket with no read policy at all — the
+  // uploader cannot read her own file back, and the accused can never reach it.
+  async function storagePut(path, blob, type, bucket) {
     if (!SESSION) throw new Error("sign in first");
-    const r = await fetch(`${cfg().url}/storage/v1/object/portfolio/${path}`, {
+    const r = await fetch(`${cfg().url}/storage/v1/object/${bucket || "portfolio"}/${path}`, {
       method: "POST",
       headers: {
         apikey: cfg().anon,
@@ -3829,6 +3832,9 @@ const API = (() => {
     /* O points. Every figure on that screen comes from here — the rate, the
        prizes and the cap all live on the season row, so changing a prize is
        one UPDATE rather than a rebuild and a re-upload. */
+    myIdentity:    ()                       => live() ? rpc("api_my_identity")   : MOCK.myIdentity(),
+    reportPerson:  (b, kind, body, vid, n)  => live() ? rpc("api_report_person", { p_booking: b, p_kind: kind, p_body: body, p_video: vid || null, p_bytes: n || null }) : MOCK.reportPerson(b, kind, body, vid),
+    myReport:      (b)                      => live() ? rpc("api_my_report", { p_booking: b }) : MOCK.myReport(b),
     placesNearby:  (lat, lng, km)           => live() ? rpc("api_places_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.placesNearby(lat, lng, km),
     salon:         (id)                     => live() ? rpc("api_salon", { p_salon: id })       : MOCK.salon(id),
     salonTechs:    (id)                     => live() ? rpc("api_salon_techs", { p_salon: id }) : MOCK.salonTechs(id),
@@ -4343,6 +4349,20 @@ const API = (() => {
         const ids = s.techs.filter(MOCK.visible).map((t) => t.id).slice(0, 2);
         return ids.includes(techId) ? { id: "demo-1", name: "Admiralty Nail Bar" } : null;
       },
+      /* Practice mode cannot verify anybody — there is no provider behind
+         it — so it says so rather than pretending. A fake "verified" here
+         would hide the one gate this feature exists for. */
+      myIdentity: async () => ({ kyc: "none", verified: false, at: null }),
+      reportPerson: async (b, kind, body) => {
+        const s = load();
+        s.reports = s.reports || {};
+        s.reports[b] = { filed: true, kind, status: "open",
+                         has_video: false, at: new Date().toISOString() };
+        save();
+        return { ok: true };
+      },
+      myReport: async (b) => ((load().reports || {})[b] || null),
+
       placesNearby: async (lat, lng, radius) => {
         const rows = await MOCK.nearby(lat, lng, radius);
         const out = [], seen = {};
@@ -7683,6 +7703,16 @@ function vJob(bookingId) {
         ${!asTech && ["awaiting_payment", "paid"].includes(b.status)
           ? `<button class="btn ghost sm" data-a="cancel" data-id="${esc(b.id)}">
                Cancel this appointment</button>` : ""}
+
+        <!-- Both sides, always. A tech reports a customer and a customer
+             reports a tech through the same door, and it stays open after
+             the appointment is over — most people do not report while it is
+             still happening. Quiet, because a loud one invites use as a
+             threat during an argument about a price. -->
+        <div style="margin-top:22px;text-align:center">
+          <button class="tag" data-a="go" data-v="report" data-id="${esc(b.id)}"
+                  style="color:var(--bad)">Report a problem with this appointment</button>
+        </div>
       </div>`);
     fillWhere(bookingId);
   });
@@ -8869,6 +8899,109 @@ async function reviewNudge() {
     </button>`;
 }
 
+/* ══ reporting a person ══════════════════════════════════════════════
+   Kamsy, 10 Sep 2026: a way for either side to report the other, with a
+   video, "for tech safety and customer safety".
+
+   Two decisions inside this screen.
+
+   The VIDEO IS OPTIONAL. Somebody who has just been assaulted, or had her
+   phone taken, or is frightened and shaking, often cannot record anything.
+   If a video were the only way to file, the worst incidents would be the
+   ones that never got reported. The words are the report; the video is
+   evidence attached when there is one.
+
+   And it does NOT promise justice. Oma can suspend an account, freeze a
+   payout, refund, and keep the evidence where nobody can delete it. It
+   cannot decide whether a crime happened, and telling somebody it will
+   look into it can leave her feeling she has done the necessary thing
+   when she has not told anyone who can act.                             */
+let REPORT = { kind: "safety", busy: false, video: null, filed: null, booking: null };
+
+const REPORT_KINDS = [
+  ["safety",     "I felt unsafe"],
+  ["harassment", "Harassment"],
+  ["theft",      "Something was taken"],
+  ["no_show",    "Did not turn up"],
+  ["other",      "Something else"],
+];
+
+async function loadReport(bookingId) {
+  REPORT = { kind: "safety", busy: false, video: null, filed: null, booking: bookingId };
+  try { REPORT.filed = await API.myReport(bookingId); } catch (e) { /* none yet */ }
+  if (ROUTE.v === "report") paint();
+}
+
+function vReport(bookingId) {
+  if (REPORT.booking !== bookingId) { loadReport(bookingId); }
+  const f = REPORT.filed;
+
+  return `
+  ${head("Report a problem")}
+  <div class="pad">
+
+    ${f && f.filed ? `
+      <div class="note">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg>
+        <div><b>You already reported this appointment.</b> Oma has it${
+          f.has_video ? ", with your video" : ""}. Writing again below replaces
+          what you sent.</div>
+      </div>` : ""}
+
+    <div class="note warn">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v5M12 16v.1M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <div><b>If you are in danger, call the police first.</b> Oma is not an
+        emergency service. Report it here as well and we will act on the
+        account — but a crime is for the police, and this is not a substitute
+        for telling them.</div>
+    </div>
+
+    <div class="seehead" style="padding-left:0;padding-right:0"><h3>What happened</h3></div>
+    <div class="pills mb12">
+      ${REPORT_KINDS.map(([k, label]) => `
+        <button class="pill ${REPORT.kind === k ? "on" : ""}"
+                data-a="repKind" data-id="${k}">${label}</button>`).join("")}
+    </div>
+
+    <label class="field"><span class="lab">In your own words</span>
+      <textarea id="fReport" rows="6" placeholder="What happened, and when."
+        style="width:100%;resize:vertical">${esc((f && f.body) || "")}</textarea></label>
+
+    <div class="seehead" style="padding-left:0;padding-right:0"><h3>A video, if you have one</h3></div>
+    <div class="card">
+      ${REPORT.video ? `
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="ic" style="width:34px;height:34px;border-radius:11px;background:var(--tint);display:flex;align-items:center;justify-content:center;color:var(--pinkd)">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 10l5-3v10l-5-3M3 7h12v10H3z"/></svg></span>
+          <span style="flex:1;min-width:0">
+            <span style="display:block;font-size:14.5px;font-weight:700">Video attached</span>
+            <span class="tiny sub">${Math.round(REPORT.video.size / 1e6)} MB</span>
+          </span>
+          <button class="tag" data-a="repDropVideo">Remove</button>
+        </div>` : `
+        <label class="btn sm ghost" style="width:100%;justify-content:center">
+          <input type="file" accept="video/*" id="fRepVideo" hidden>
+          Choose a video
+        </label>
+        <div class="small sub" style="margin-top:10px;line-height:1.5">
+          Up to about a minute, 60 MB. <b>Optional</b> — a report without one
+          is still a report, and is read the same way.
+        </div>`}
+    </div>
+
+    <button class="btn danger mt16" data-a="sendReport"${REPORT.busy ? " disabled" : ""}>
+      ${REPORT.busy ? "Sending…" : "Send this to Oma"}</button>
+
+    <div class="small sub" style="margin-top:14px;line-height:1.55">
+      Only Oma sees this. The other person is never told who reported them and
+      never sees your video. Nobody can delete it afterwards — not them, not
+      you, not by accident.
+    </div>
+  </div>
+  <div style="height:24px"></div>`;
+}
+
+
 /* ══ what Oma charges, shown once it has been charged ══
    ₦250 for every completed service, plus 2% of whatever a sale is ABOVE
    ₦30,000. The tech pays it, and she pays the card fee too.
@@ -9345,6 +9478,20 @@ document.addEventListener("visibilitychange", () => {
 
 /* Where this appointment happens. Reset whenever a tech is chosen, because
    "she comes to me" is not a thing to carry over to a different tech. */
+/* Her identity, asked once and remembered for the screen. Null means we
+   have not looked yet, which is not the same as "not verified" — drawing
+   the refusal before the answer arrives would accuse her of something the
+   app has not checked. */
+let IDENT = null;
+
+async function loadIdentity() {
+  if (IDENT) return IDENT;
+  try { IDENT = await API.myIdentity(); }
+  catch (e) { IDENT = { kyc: "none", verified: false, error: e.message }; }
+  paintHome();
+  return IDENT;
+}
+
 let HOME = {
   at: false,        // she comes to me
   addr: "",         // the street, typed
@@ -9402,7 +9549,24 @@ function homeInner() {
       <button type="button" class="${HOME.at ? "on" : ""}" data-a="home-where" data-v="1">
         <b>She comes to me</b><em>Costs more — a call-out and the travel.</em></button>
     </div>
-    ${!HOME.at ? "" : `
+    ${!HOME.at ? "" : (IDENT && !IDENT.verified ? `
+      <!-- The gate, said out loud rather than thrown as an error after she
+           has picked a time. A nail tech coming to a private address is the
+           one moment in Oma where the person taking the risk was, until now,
+           the only person who had been checked. -->
+      <div class="note warn">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/><path d="M12 11v3M12 8v.1"/></svg>
+        <div><b>Verify yourself first for home appointments.</b>
+          She is coming to your address alone. Oma checks her identity before
+          she can be listed, and it checks yours before she is asked to
+          travel — the same check, both ways.</div>
+      </div>
+      <div class="small sub" style="margin-top:10px;line-height:1.55">
+        It takes a minute and uses your <b>virtual NIN</b>, not your NIN.
+        Oma never stores the number. Booking at her salon needs none of this.
+      </div>
+      <button class="btn mt12" data-a="go" data-v="kyc">Verify my identity</button>`
+    : `
       <label class="field"><span class="lab">Where should she come to?</span>
         <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
           <input id="hAddr" value="${esc(HOME.addr)}"
@@ -9415,7 +9579,7 @@ function homeInner() {
         ? `<div class="card"><div class="tiny sub">Working out the travel…</div></div>`
         : q ? (q.ok ? homeBill(q) : `<div class="note warn"><div>${esc(q.says
               || "She cannot come to you for this one.")}</div></div>`)
-            : ""}`}`;
+            : ""}`)}`;
 }
 
 /* One number, not a bill. The comparison stays: it is not a breakdown of this
@@ -10383,6 +10547,7 @@ function paint() {
     case "closeacct": html = vCloseAccount(); break;
     case "salon": html = vSalon(ROUTE.a); break;
     case "myshop": html = vMyShop(); break;
+    case "report": html = vReport(ROUTE.a); break;
     case "points": html = vPoints(); break;
     case "sheet": html = vSheet(); break;
     case "requests": html = vRequestsLive(); break;
@@ -10585,6 +10750,9 @@ document.getElementById("shell").addEventListener("click", e => {
     return;
   }
   if (a === "shopRemove") { shopRemove(el.dataset.id); return; }
+  if (a === "repKind") { REPORT.kind = el.dataset.id; paint(); return; }
+  if (a === "repDropVideo") { REPORT.video = null; paint(); return; }
+  if (a === "sendReport") { sendReport(); return; }
   if (a === "salon-open") return nav("salon", el.dataset.id);
   if (a === "tech-open") {
     // A list row carries her name in its title; the map's card is a plain
@@ -10617,9 +10785,14 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "home-where") {
     HOME.at = el.dataset.v === "1";
     paintHome();
-    // The quote is only worth asking for once she has actually chosen it —
-    // it costs a GPS fix and a round trip.
-    if (HOME.at && !HOME.quote) askHomeQuote();
+    if (HOME.at) {
+      // Identity first. Asking the server for a fare, and taking a GPS fix
+      // to do it, for a booking she is not allowed to make yet is two
+      // permissions spent on a refusal.
+      loadIdentity().then((id) => {
+        if (id && id.verified && !HOME.quote) askHomeQuote();
+      });
+    }
     return;
   }
   if (a === "mslot") {
@@ -11077,6 +11250,52 @@ async function shopRemove(techId) {
     SHOP = null; loadMyShop();
     toast("Removed from your shop.");
   } catch (e) { toast(e.message || "That did not go through."); }
+}
+
+
+/* Chosen by a file input rather than a button, so it is picked up by the
+   same delegated change listener the photos use. Capped before decoding:
+   a 300 MB video from a modern phone would be read into memory to be
+   rejected, on a phone that has just had a bad day. */
+document.addEventListener("change", (e) => {
+  const inp = e.target;
+  if (!inp || inp.id !== "fRepVideo") return;
+  const file = inp.files && inp.files[0];
+  inp.value = "";
+  if (!file) return;
+  if (file.size > 60 * 1024 * 1024) {
+    return toast("That video is over 60 MB. A shorter clip will send.");
+  }
+  REPORT.video = file;
+  paint();
+});
+
+async function sendReport() {
+  const box = document.getElementById("fReport");
+  const body = box ? box.value.trim() : "";
+  if (body.length < 10) return toast("Tell us what happened, in a sentence or two.");
+
+  REPORT.busy = true; paint();
+  try {
+    let path = null, bytes = null;
+    if (REPORT.video) {
+      // Bytes first, row second. A report whose video failed to upload is
+      // still a report worth having; a row pointing at a file that is not
+      // there is evidence that does not exist.
+      const me = await API.me();
+      path = `${me.id}/${REPORT.booking}-${Date.now()}.mp4`;
+      await API.storagePut(path, REPORT.video, REPORT.video.type || "video/mp4", "incident");
+      bytes = REPORT.video.size;
+    }
+    await API.reportPerson(REPORT.booking, REPORT.kind, body, path, bytes);
+    REPORT.busy = false; REPORT.video = null;
+    REPORT.filed = { filed: true, kind: REPORT.kind, status: "open", has_video: !!path };
+    back();
+    toast("Sent to Oma. Somebody will look at it.");
+  } catch (e) {
+    REPORT.busy = false; paint();
+    toast(e.message || "That did not send. Your words are still here.");
+  }
 }
 
 async function publishListing(b) {
