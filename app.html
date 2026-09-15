@@ -1237,7 +1237,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "0df81c7bb6";
+const BUILD_ID = "2d67840765";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -7765,9 +7765,9 @@ function vJob(bookingId) {
           ? `<div class="note pink"><div>Do her nails first, then scan her code from
                the Scan tab. Scanning is what pays you.</div></div>
              <button class="btn" data-a="go" data-v="scanner">Open the scanner</button>` : ""}
-       ${!asTech && b.status === "awaiting_payment"
+             ${!asTech && ["awaiting_payment", "paid"].includes(b.status)
           ? `<button class="btn ghost sm" data-a="cancel" data-id="${esc(b.id)}">
-                    Give up this slot</button>` : ""}
+               Cancel this appointment</button>` : ""}
 
         <!-- Both sides, always. A tech reports a customer and a customer
              reports a tech through the same door, and it stays open after
