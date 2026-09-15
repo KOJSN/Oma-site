@@ -162,13 +162,6 @@ a{color:var(--pink);text-decoration:none}
   height:100dvh;min-height:100dvh;overflow:hidden;
   background:var(--bg);display:flex;flex-direction:column;
 }
-@media (min-width:900px){
-  body{background:var(--bezel);padding:22px 0}
-  #shell{
-    min-height:min(880px,calc(100dvh - 44px));height:min(880px,calc(100dvh - 44px));
-    border-radius:44px;overflow:hidden;box-shadow:var(--shadow);border:10px solid var(--bezel);
-  }
-}
 #view{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
   padding-bottom:calc(80px + env(safe-area-inset-bottom))}
 #view.nonav{padding-bottom:32px}
@@ -881,7 +874,8 @@ h3{font-size:16px}
 }
 #scan.live{display:flex}
 @media (min-width:900px){
-  #scan{position:absolute;inset:0;border-radius:34px}
+  /* No phone frame to round off any more. */
+  #scan{position:absolute;inset:0;border-radius:0}
 }
 #scan::before{
   content:"";position:absolute;inset:0;
@@ -1034,6 +1028,78 @@ h3{font-size:16px}
 }
 #toast.on{opacity:1;transform:translate(-50%,0)}
 .hidden,[hidden]{display:none !important}
+
+/* ═══ tablet, iPad and desktop ═════════════════════════
+   This used to draw a 430px phone centred on a bezel — the design's device
+   frame. Right for showing the app off in a deck, wrong for using it: a
+   person on a laptop got a postcard with nine tenths of her screen empty,
+   and the map, which is the screen Oma is actually for, was a strip.
+
+   Two changes carry the whole thing. The shell fills the window, and the
+   bottom tab bar stands up into a left rail. Everything else follows: the
+   rail is the same five buttons in the same order running the same handlers,
+   and #view takes what is left.                                            */
+@media (min-width:900px){
+  body{background:var(--bg);padding:0}
+  #shell{
+    max-width:none;width:100%;
+    height:100dvh;min-height:100dvh;
+    border:0;border-radius:0;box-shadow:none;
+    flex-direction:row;
+  }
+
+  /* The tab bar, stood up. order:-1 puts it first visually without moving it
+     in the markup, so the tab order still reads the way it does on a phone. */
+  #nav{
+    position:relative;left:auto;right:auto;bottom:auto;
+    order:-1;flex:none;width:232px;height:100%;
+    flex-direction:column;align-items:stretch;justify-content:flex-start;
+    gap:2px;padding:20px 12px;
+    border-top:0;border-right:1px solid var(--line);
+    box-shadow:none;
+  }
+  #nav button{
+    flex:none;width:100%;
+    flex-direction:row;align-items:center;justify-content:flex-start;gap:13px;
+    padding:12px 14px;border-radius:14px;
+    font-size:14.5px;
+  }
+  #nav button.on{background:var(--tint);color:var(--pink)}
+  /* The scan button hangs 22px above a bottom bar so it reads as the primary
+     action. In a vertical rail there is nothing to hang above, so it becomes
+     a full-width row like the rest — still the gradient, still unmistakable. */
+  #nav .fab{width:100%;justify-content:flex-start}
+  #nav .fab i{
+    width:100%;height:46px;border-radius:14px;margin-top:0;border:0;
+    justify-content:flex-start;padding:0 16px;
+    box-shadow:0 10px 20px -10px rgba(240,81,141,.7);
+  }
+  /* The scan button carries no text — on a bottom bar it is a wordless FAB
+     and that reads fine. Sitting in a rail between four labelled rows it
+     just looks like a button somebody forgot to finish, so the label is
+     added here rather than in the markup, which the phone still shares. */
+  #nav .fab i::after{content:"Scan";margin-left:13px;font-size:14.5px;font-weight:700}
+
+  #view{flex:1;min-height:0;padding-bottom:28px}
+
+  /* Text and forms stay readable. Capping .pad rather than #view's children
+     leaves the map and the scanner alone — both are absolutely positioned to
+     fill #view and never wanted a column in the first place. */
+  #view .pad,#view .topbar{max-width:840px;margin-left:auto;margin-right:auto}
+
+  /* The update bar floated centred over a phone-width column. Sit it in the
+     content area instead of half under the rail. */
+  #updbar{left:calc(232px + 20px);right:20px;margin:0;max-width:420px}
+}
+
+/* Wider still: the reading column can breathe, and lists that were one card
+   per row on a phone have room for two. */
+@media (min-width:1280px){
+  #nav{width:252px}
+  #view .pad,#view .topbar{max-width:1040px}
+  #updbar{left:calc(252px + 20px)}
+}
+
 </style>
 </head>
 <body>
@@ -1237,7 +1303,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "1d72d73fd0";
+const BUILD_ID = "963a15ceb6";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -4082,7 +4148,28 @@ const API = (() => {
 
     const myTech = () => {
       const s = load();
-      const t = s.techs.find((x) => x.id === (s.user && s.user.tech_id)) || null;
+      let t = s.techs.find((x) => x.id === (s.user && s.user.tech_id)) || null;
+
+      /* A nail tech being SHOWN the practice app has not built a listing yet,
+         so this returned null, nothing below ever seeded, and Requests, Diary
+         and Earnings were three empty screens — the exact thing the practice
+         mode exists to prevent. Waiting for her to create a listing first is
+         backwards: she is being shown what the app does, not using it.
+
+         So practice mode hands her one. The first demo tech becomes hers,
+         complete with the services seed() already gave it. Guarded on the
+         app's own role so a customer browsing the practice app is never
+         quietly turned into a nail tech. */
+      if (!t && s.techs.length &&
+          typeof DB !== "undefined" && DB && DB.role === "tech") {
+        t = s.techs[0];
+        s.user = s.user || { id: "me", full_name: "", phone: null, email: null,
+                             area: null, is_tech: false, tech: null, kyc: null };
+        s.user.tech_id = t.id;
+        s.user.is_tech = true;
+        save();
+      }
+
       if (t) seedTechLife(t);
       return t;
     };
@@ -4136,12 +4223,40 @@ const API = (() => {
         return b;
       };
 
-      // Done, scanned, paid out. This is what makes Earnings a number.
+      /* Done, scanned, paid out. All three movements, in the order the real
+         system writes them — held in on payment, held out and available in
+         on the scan — because the ledger is the screen where a tech works
+         out what Oma actually does with her money, and a demo that skips
+         half the entries teaches her something untrue. The kinds are the
+         real ones too: LEDGER_WORDS keys off them, and an invented name
+         falls through to its own underscores printed on screen. */
       [8, 5, 2].forEach((d, i) => {
         const b = make(i, at(-d, 11 + i), "released");
+        const paid = b.starts_at_ms - 2 * DAY;
+        const done = b.starts_at_ms + b.minutes * 60000;
+        s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "held",
+                        delta_kobo: b.total_kobo, kind: "capture", at: paid });
+        s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "held",
+                        delta_kobo: -b.total_kobo, kind: "release_out", at: done });
         s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "available",
-                        delta_kobo: b.total_kobo, kind: "release_in",
-                        at: b.starts_at_ms + b.minutes * 60000 });
+                        delta_kobo: b.total_kobo, kind: "release_in", at: done });
+
+        /* And Oma's cut, the way release() charges it. The "Past payments"
+           block reads s.fees rather than the ledger, so without this the
+           screen said "No completed appointments yet" underneath a balance
+           of twenty-one thousand naira. It also answers the first question
+           any nail tech asks, which is what Oma takes — better shown on her
+           own numbers than quoted at her. */
+        const base = b.total_kobo;
+        const fee = typeof omaFeeKobo === "function" ? omaFeeKobo(base) : 0;
+        if (fee > 0) {
+          s.fees = s.fees || [];
+          s.fees.push({ booking_id: b.id, tech_id: t.id,
+                        total_kobo: b.total_kobo, base_kobo: base,
+                        fee_kobo: fee, created_at: new Date(done).toISOString() });
+          s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "available",
+                          delta_kobo: -fee, kind: "oma_fee", at: done });
+        }
       });
 
       // Paid but not yet scanned, so the money is HELD. The difference
@@ -4150,7 +4265,7 @@ const API = (() => {
       [0, 1, 3].forEach((d, i) => {
         const b = make(3 + i, at(d, d === 0 ? 16 : 10 + i * 3), "paid");
         s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "held",
-                        delta_kobo: b.total_kobo, kind: "hold_in",
+                        delta_kobo: b.total_kobo, kind: "capture",
                         at: Date.now() - (3 - d) * DAY });
       });
 
