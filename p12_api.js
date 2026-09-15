@@ -609,7 +609,28 @@ const API = (() => {
 
     const myTech = () => {
       const s = load();
-      const t = s.techs.find((x) => x.id === (s.user && s.user.tech_id)) || null;
+      let t = s.techs.find((x) => x.id === (s.user && s.user.tech_id)) || null;
+
+      /* A nail tech being SHOWN the practice app has not built a listing yet,
+         so this returned null, nothing below ever seeded, and Requests, Diary
+         and Earnings were three empty screens — the exact thing the practice
+         mode exists to prevent. Waiting for her to create a listing first is
+         backwards: she is being shown what the app does, not using it.
+
+         So practice mode hands her one. The first demo tech becomes hers,
+         complete with the services seed() already gave it. Guarded on the
+         app's own role so a customer browsing the practice app is never
+         quietly turned into a nail tech. */
+      if (!t && s.techs.length &&
+          typeof DB !== "undefined" && DB && DB.role === "tech") {
+        t = s.techs[0];
+        s.user = s.user || { id: "me", full_name: "", phone: null, email: null,
+                             area: null, is_tech: false, tech: null, kyc: null };
+        s.user.tech_id = t.id;
+        s.user.is_tech = true;
+        save();
+      }
+
       if (t) seedTechLife(t);
       return t;
     };
@@ -663,12 +684,40 @@ const API = (() => {
         return b;
       };
 
-      // Done, scanned, paid out. This is what makes Earnings a number.
+      /* Done, scanned, paid out. All three movements, in the order the real
+         system writes them — held in on payment, held out and available in
+         on the scan — because the ledger is the screen where a tech works
+         out what Oma actually does with her money, and a demo that skips
+         half the entries teaches her something untrue. The kinds are the
+         real ones too: LEDGER_WORDS keys off them, and an invented name
+         falls through to its own underscores printed on screen. */
       [8, 5, 2].forEach((d, i) => {
         const b = make(i, at(-d, 11 + i), "released");
+        const paid = b.starts_at_ms - 2 * DAY;
+        const done = b.starts_at_ms + b.minutes * 60000;
+        s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "held",
+                        delta_kobo: b.total_kobo, kind: "capture", at: paid });
+        s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "held",
+                        delta_kobo: -b.total_kobo, kind: "release_out", at: done });
         s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "available",
-                        delta_kobo: b.total_kobo, kind: "release_in",
-                        at: b.starts_at_ms + b.minutes * 60000 });
+                        delta_kobo: b.total_kobo, kind: "release_in", at: done });
+
+        /* And Oma's cut, the way release() charges it. The "Past payments"
+           block reads s.fees rather than the ledger, so without this the
+           screen said "No completed appointments yet" underneath a balance
+           of twenty-one thousand naira. It also answers the first question
+           any nail tech asks, which is what Oma takes — better shown on her
+           own numbers than quoted at her. */
+        const base = b.total_kobo;
+        const fee = typeof omaFeeKobo === "function" ? omaFeeKobo(base) : 0;
+        if (fee > 0) {
+          s.fees = s.fees || [];
+          s.fees.push({ booking_id: b.id, tech_id: t.id,
+                        total_kobo: b.total_kobo, base_kobo: base,
+                        fee_kobo: fee, created_at: new Date(done).toISOString() });
+          s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "available",
+                          delta_kobo: -fee, kind: "oma_fee", at: done });
+        }
       });
 
       // Paid but not yet scanned, so the money is HELD. The difference
@@ -677,7 +726,7 @@ const API = (() => {
       [0, 1, 3].forEach((d, i) => {
         const b = make(3 + i, at(d, d === 0 ? 16 : 10 + i * 3), "paid");
         s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "held",
-                        delta_kobo: b.total_kobo, kind: "hold_in",
+                        delta_kobo: b.total_kobo, kind: "capture",
                         at: Date.now() - (3 - d) * DAY });
       });
 
