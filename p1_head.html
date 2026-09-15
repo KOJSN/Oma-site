@@ -1041,6 +1041,15 @@ h3{font-size:16px}
    and #view takes what is left.                                            */
 @media (min-width:900px){
   body{background:var(--bg);padding:0}
+
+  /* --navgap is the height of the bottom tab bar, and the two things that
+     read it — the map sheet and the no-Leaflet fallback list — use it to
+     avoid sitting underneath it. Up here the tab bar is a rail down the left
+     side, so there is no bar at the bottom to avoid, and that 74px became a
+     strip of map below the sheet: the sheet floating rather than resting on
+     anything. Reset to the same 12px the sheet already leaves left and
+     right, so it sits on the bottom edge the way it does on a phone. */
+  :root{--navgap:12px}
   #shell{
     max-width:none;width:100%;
     height:100dvh;min-height:100dvh;
@@ -1094,6 +1103,50 @@ h3{font-size:16px}
      paired buttons are untouched. */
   #view .btn{max-width:360px;margin-left:auto;margin-right:auto}
   #view .btn.big{max-width:440px}
+
+  /* The welcome screen. On a phone it is a column resting on the bottom-left
+     of the screen, and that is right — a thumb is down there and the eye
+     travels up the text to the wordmark. On a laptop the identical markup
+     leaves that wordmark marooned in the bottom-left corner of a very wide,
+     very empty page, and it is the first thing Oma shows anybody who opens
+     it on a desktop.
+
+     So above 900px the column is centred, in both directions, and the text
+     with it. !important because the geometry being overridden is inline on
+     the elements — an inline style beats a stylesheet rule whatever its
+     specificity — and the alternative is threading a second set of styles
+     through markup the phone would have to carry and ignore.
+
+     .welmark is the logo tile above the wordmark and carries
+     margin-bottom:auto, which is the thing pushing the rest of the column to
+     the floor. An auto margin eats all the free space, so it defeats
+     justify-content on its own: it has to become a real gap or nothing below
+     it moves. */
+  #view .welcome .welbody{
+    justify-content:center!important;
+    align-items:center!important;
+    text-align:center;
+    max-width:640px;margin-left:auto;margin-right:auto;
+    padding-top:0!important;
+  }
+  #view .welcome .welmark{margin-bottom:30px!important}
+
+  /* The sentence is capped at 300px on a phone, which is the whole column
+     there. Centred on a laptop that same cap folded it into three short lines
+     stacked under a big wordmark — a paragraph the width of a phone sitting
+     in the middle of a fourteen-inch screen, which reads as a box rather than
+     a sentence. Given the room to run to two long lines instead, with the
+     leading opened up to match. */
+  #view .welcome .welsub{
+    max-width:600px!important;
+    font-size:19px!important;line-height:1.6!important;
+    margin-top:18px!important;
+  }
+  /* Same reason: a wordmark and a sentence pressed together read as one
+     block. The gaps down the column do the spreading. */
+  #view .welcome .dots{
+    margin:34px auto 30px!important;
+  }
 
   /* The update bar floated centred over a phone-width column. Sit it in the
      content area instead of half under the rail. */

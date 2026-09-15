@@ -458,14 +458,18 @@ function vWelcome() {
   // as the very first thing Oma showed them. Every colour here is a token now
   // — see --wel-* in p1_head.html — so this screen follows the phone like the
   // rest of the app.
-  return `<div style="min-height:100dvh;background:var(--wel-bg);
+  // The class hooks below exist for one reason: on a laptop this column is
+  // pinned to the bottom-left of a very wide, very empty page, and the
+  // wordmark ends up stranded in a corner. The desktop block in p1_head.html
+  // centres it. Nothing here changes on a phone.
+  return `<div class="welcome" style="min-height:100dvh;background:var(--wel-bg);
       color:var(--wel-ink);display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
     <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow1),transparent 68%)"></div>
     <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow2),transparent 70%)"></div>
-    <div style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-top:calc(60px + env(safe-area-inset-top))">
-      <div style="margin-bottom:auto">${logoMark(78)}</div>
+    <div class="welbody" style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-top:calc(60px + env(safe-area-inset-top))">
+      <div class="welmark" style="margin-bottom:auto">${logoMark(78)}</div>
       <div style="font-size:56px;font-weight:800;letter-spacing:-.05em;line-height:.9;margin-top:36px">oma</div>
-      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;color:var(--wel-sub);max-width:300px">
+      <div class="welsub" style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;color:var(--wel-sub);max-width:300px">
         Scan your hands, find the nail shape that actually suits them, and book the tech who does it.
       </div>
       <div class="dots" style="margin:26px 0 22px;max-width:60px">
