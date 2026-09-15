@@ -347,7 +347,8 @@ const API = (() => {
 
     // These two go to edge functions, because they talk to somebody else's API.
     payInit:       (bookingId)              => live() ? edge("pay-init", { booking_id: bookingId }) : MOCK.payInit(bookingId),
-    verifyNin:     (vnin)                   => live() ? edge("kyc", { vnin })      : MOCK.verifyNin(vnin),
+    const v = (n ? n.value : "").replace(/\D/g, "");
+if (v.length !== 11 && v.length !== 16) return toast("A vNIN is 16 digits, a NIN is 11.");
 
     /* HER WHOLE MENU, in one call. Add/edit/delete as three endpoints would
        mean the phone working out the difference and firing a burst of them —
