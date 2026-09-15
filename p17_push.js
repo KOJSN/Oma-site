@@ -279,7 +279,7 @@ async function togglePush() {
     toast("Notifications off on this device.");
     return paint();
   }
-  toast("Asking your phone…");
+  toast("Asking your device…");
   const res = await registerForPush();
   toast(res.ok ? "On. You will be told when somebody messages you."
                : (res.says || "That did not work."));

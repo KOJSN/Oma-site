@@ -180,7 +180,7 @@ window.OmaLive = {
   // rather than showing a switch that is on and a listing nobody can find.
   denied(why) {
     LIVE.err = why === "denied"
-      ? "Location is off for Oma in your phone's settings, so customers "
+      ? "Location is off for Oma in your device's settings, so customers "
         + "cannot see you."
       : "Oma cannot get your position right now.";
     paintWorking();
@@ -272,7 +272,7 @@ function workingCard() {
               aria-label="Working now"><i></i></button>
     </div>
     ${LIVE.on && !LIVE.native ? `<div class="tiny faint" style="margin-top:9px">
-      Keep Oma open while you work. A website cannot follow you once the phone
+      Keep Oma open while you work. A website cannot follow you once the device
       is locked — the Oma app from the App Store will, and this switch is what
       it uses.</div>` : ""}
   </div>`;

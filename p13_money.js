@@ -70,9 +70,9 @@ const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
    she is in the wrong place and leaves. Two doors cost one tap and remove that
    doubt. Nothing here pretends the mechanism differs — the words change, the
    code path does not. */
-/* sent: false | "confirm" (account made, waiting on the link) | "reset" (reset
-   link sent). reset: true while she is setting a new password after following
-   one. */
+/* sent: false | "confirm" (account made, waiting on the six-digit code from
+   the confirmation email) | "reset" (reset link sent). reset: true while she
+   is setting a new password after following one. */
 let SIGNIN = { email: "", sent: false, mode: null, reset: false };
 
 function vSignIn() {
@@ -82,7 +82,7 @@ function vSignIn() {
               : !s.mode ? "Your account"
               : up ? "Create an account" : "Sign in";
   return `
-  ${head(title, "So your bookings follow you, not this phone")}
+  ${head(title, "So your bookings follow you, not this device")}
   <div class="pad stack gap12">
     ${API.isMock() ? `<div class="note">
       <div>No backend is configured, so this is the practice version. Any
@@ -98,12 +98,30 @@ function vSignIn() {
       </label>
       <button class="btn" data-a="pass-set">Save it and continue</button>
 
+    ` : s.sent === "confirm" ? `
+      <!-- A code, typed here, rather than a link tapped in a mail app that
+           would have opened a different browser and signed her in somewhere
+           she is not looking. Until she types it there is no account she can
+           use — the session only exists on the other side of this box. -->
+      <div class="note"><div>We sent a six-digit code to <b>${esc(s.email)}</b>.
+        Type it in below to finish creating your account. It can take a
+        minute, and it may land in spam.${API.isMock()
+          ? " In the practice version any six digits will do." : ""}</div></div>
+      <label class="fld">
+        <span class="lbl">The code from your email</span>
+        <!-- one-time-code is what makes a phone offer the code from the
+             notification, so the common case is one tap and no typing. -->
+        <input id="fSignCode" inputmode="numeric" autocomplete="one-time-code"
+               maxlength="7" placeholder="123456"
+               style="letter-spacing:.34em;font-size:20px;font-weight:800;text-align:center">
+      </label>
+      <button class="btn" data-a="signup-confirm">Confirm my email</button>
+      <button class="btn ghost sm" data-a="signup-resend">Send me a new code</button>
+      <button class="btn ghost sm" data-a="signin-mode" data-v="up">Use a different email</button>
+
     ` : s.sent ? `
-      <div class="note"><div>${s.sent === "confirm"
-        ? `Check <b>${esc(s.email)}</b> and click the link to finish creating
-           your account, then come back and sign in.`
-        : `We sent a reset link to <b>${esc(s.email)}</b>. It can take a minute,
-           and it may land in spam.`}</div></div>
+      <div class="note"><div>We sent a reset link to <b>${esc(s.email)}</b>. It
+        can take a minute, and it may land in spam.</div></div>
       <button class="btn ghost" data-a="signin-mode" data-v="in">Back to sign in</button>
 
     ` : !s.mode ? `
@@ -438,9 +456,9 @@ function vScanner() {
           <div class="camwrap"><video id="camv" playsinline muted></video>
             <div class="camframe"></div></div>
           <div class="tiny sub" style="text-align:center" id="camMsg">
-            Point at the code on her phone</div>
+            Point at the code on her screen</div>
           <div class="or"><span>or type it</span></div>
-        ` : `<div class="note"><div>This phone cannot scan a code from the camera —
+        ` : `<div class="note"><div>This device cannot scan a code from the camera —
              Safari does not offer it. Type the six digits from her screen instead.
              </div></div>`}
 
@@ -673,7 +691,7 @@ function vBackend() {
     <div class="note ${API.live() ? "good" : ""}">
       <div>${API.live()
         ? "Bookings and payments are going to your Supabase project."
-        : "Oma is running its practice version: everything works, nothing is real, and it all stays on this phone."}</div>
+        : "Oma is running its practice version: everything works, nothing is real, and it all stays on this device."}</div>
     </div>
 
     <label class="fld"><span class="lbl">Project URL</span>
@@ -690,7 +708,7 @@ function vBackend() {
 
     <div class="note warn"><div><b>Only ever paste the anon key here.</b> It is meant to be
       public — it ships inside the app. The <i>service_role</i> key bypasses every
-      rule in your database and belongs on a server, never on a phone.</div></div>
+      rule in your database and belongs on a server, never on a device.</div></div>
 
     <div class="tiny sub">Settings → API in your Supabase dashboard has both.
       Everything in your project is protected by the row-level security in

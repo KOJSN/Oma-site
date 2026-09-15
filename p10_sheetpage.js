@@ -74,7 +74,7 @@ function drawSheet(ctx, s, hand) {
   };
   text("OMA", 60, 9, "#c22a66", 800);
   text("Lay your hand flat inside the outline. Spread your fingers.", 71, 3.6, "#46404a", 600);
-  text("Hold the phone directly above, and keep all four corner squares in shot.",
+  text("Hold the device directly above, and keep all four corner squares in shot.",
        78, 3.6, "#46404a", 600);
   text("The white paper is the colour reference — do not write on this sheet.",
        SHEET.H - 26, 3.0, "#928a90", 500);

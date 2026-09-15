@@ -158,7 +158,7 @@ document.getElementById("shell").addEventListener("click", e => {
     API.setPractice(on);
     // Signed out either way — setPractice drops the session, because a session
     // belongs to the backend that issued it.
-    toast(on ? "Practice mode. Nothing leaves this phone."
+    toast(on ? "Practice mode. Nothing leaves this device."
              : "You are on the real Oma. Sign in to use your account.");
     return paint();
   }
@@ -188,8 +188,15 @@ document.getElementById("shell").addEventListener("click", e => {
     return (up ? API.signUp(email, pass) : API.signInPassword(email, pass))
       .then((r) => {
         // Confirm email is on: there is no session yet, and there must not be
-        // one — she has not proved she owns this address.
-        if (up && r && r.signedIn === false) { SIGNIN.sent = "confirm"; return paint(); }
+        // one — she has not proved she owns this address. The next screen is
+        // the six-digit code, and the account is not usable until it is typed.
+        if (up && r && r.signedIn === false) {
+          SIGNIN.sent = "confirm";
+          paint();
+          const box = document.getElementById("fSignCode");
+          if (box) box.focus();
+          return;
+        }
         // She has just proved she owns this address, so it is the one thing
         // about her identity this device can state without asking the server.
         DB.me = Object.assign({}, DB.me, { email });
@@ -197,6 +204,37 @@ document.getElementById("shell").addEventListener("click", e => {
         toast("Signed in.");
         nav("nearby");
       })
+      .catch(err => toast(err.message));
+  }
+
+  /* The code from the confirmation email. This is the line the account is
+     made real on: before it there is a row in Supabase with an unconfirmed
+     address and no session, and nothing in Oma will talk to it. */
+  if (a === "signup-confirm") {
+    const n = document.getElementById("fSignCode");
+    // Stripped of everything that is not a digit, because a code pasted out
+    // of an email arrives with a space in the middle often enough to matter.
+    const code = (n ? n.value : "").replace(/\D/g, "");
+    if (code.length !== 6) return toast("The code is six digits.");
+    return API.confirmSignUp(SIGNIN.email, code)
+      .then(() => {
+        // She has just proved she owns this address, so it is the one thing
+        // about her identity this device can state without asking the server.
+        DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
+        dbSave();
+        SIGNIN.sent = false;
+        SIGNIN.mode = null;
+        toast("Email confirmed — you are signed in.");
+        nav("nearby");
+      })
+      .catch(err => toast(err.message ||
+        "That code did not work. Check it, or ask for a new one."));
+  }
+
+  if (a === "signup-resend") {
+    if (!SIGNIN.email) return toast("Start again with your email address.");
+    return API.resendSignUp(SIGNIN.email)
+      .then(() => toast("New code sent. It can take a minute."))
       .catch(err => toast(err.message));
   }
 
@@ -513,7 +551,7 @@ document.getElementById("shell").addEventListener("click", e => {
     // tech published a listing with zero services and became unbookable
     // without a word on screen. See menu.sql.
     if (!API.signedIn()) {
-      toast("Saved on this phone. Sign in to publish it.");
+      toast("Saved on this device. Sign in to publish it.");
       return nav("listing");
     }
     publishListing(b);

@@ -258,10 +258,65 @@ const API = (() => {
     if (!live()) return MOCK.signUp(email, password);
     const r = await call("/auth/v1/signup", { email, password }, { auth: false });
     // With "Confirm email" ON, Supabase answers with a user and NO tokens —
-    // she has to click the link first. With it OFF a session comes straight
+    // the address is not proved yet. With it OFF a session comes straight
     // back. Both are success; only one of them signs her in here.
     if (r && r.access_token) { setSession(stamp(r)); return { signedIn: true }; }
     return { signedIn: false, confirm: true };
+  }
+
+  /* ── proving the address: a code, not a link ────────────
+     Kamsy, 15 Sep 2026: "let it not be a magic link just a code to confirm
+     that the mail belongs to them and when they type it then and only then
+     can someone be a user."
+
+     A link is one tap and it is the wrong tap on a phone. The mail app opens
+     it in whatever browser IT prefers, which is usually not the one Oma is
+     running in — so she ends up signed in inside a second browser while the
+     first one still says "waiting", and the app she was actually using never
+     finds out. A code is typed into the window she is already looking at, so
+     the session lands where she is. It also survives the link being mangled
+     by a mail client, and it makes "I never got it" answerable with a resend
+     rather than a shrug.
+
+     WHAT HAS TO BE TRUE IN SUPABASE for this to work at all:
+       Authentication → Emails → "Confirm signup" must contain {{ .Token }}.
+     Out of the box that template contains {{ .ConfirmationURL }} and nothing
+     else, and then the email carries a link and no code — no amount of app
+     code can conjure a six-digit number that was never sent. If somebody
+     reports getting a link, that template is the thing to fix.
+
+     Supabase mints a signup code under type "signup". Some projects answer to
+     "email" instead, and the failure looks identical to a wrong code, so both
+     are tried rather than being confident from documentation. The cost is one
+     extra request on a code that was going to fail anyway. */
+  async function confirmSignUp(email, token) {
+    if (!live()) return MOCK.confirmSignUp(email, token);
+    let s;
+    try {
+      s = stamp(await call("/auth/v1/verify",
+                           { type: "signup", email, token }, { auth: false }));
+    } catch (first) {
+      try {
+        s = stamp(await call("/auth/v1/verify",
+                             { type: "email", email, token }, { auth: false }));
+      } catch (second) {
+        // The first failure is the ordinary one and its wording is the one
+        // worth showing; the fallback's message would just be confusing.
+        throw first;
+      }
+    }
+    // Only now. Until this line there is no session, which is the whole point
+    // — an unconfirmed address cannot do anything in the app.
+    setSession(s);
+    return s;
+  }
+
+  /* "It never arrived" is the single most common thing that happens next, and
+     it is usually true — spam, or a slow relay. A new code costs one email. */
+  async function resendSignUp(email) {
+    if (!live()) return MOCK.resendSignUp(email);
+    await call("/auth/v1/resend", { type: "signup", email }, { auth: false });
+    return { sent: true };
   }
 
   async function signInPassword(email, password) {
@@ -336,7 +391,8 @@ const API = (() => {
     configure, live, signedIn, userId, signOut, googleUrl, captureRedirect,
     practice, setPractice, hasBuiltIn,
     sendOtp, verifyOtp,
-    signUp, signInPassword, resetPassword, setPassword,
+    signUp, confirmSignUp, resendSignUp,
+    signInPassword, resetPassword, setPassword,
 
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
@@ -782,14 +838,28 @@ const API = (() => {
       /* Practice mode takes any email and any password of the right length.
          It exists so the screens can be shown to a nail tech with no backend
          at all, so it must not be the place a real rule is enforced. */
+      /* Practice mode asks for the code too, and deliberately. This is the
+         version Kamsy shows a nail tech, and a demo that skips a step the
+         real app takes teaches her the wrong thing about her own sign-up. No
+         session is set here — the same rule as live: unconfirmed is not a
+         user. The email is parked until the code comes back. */
       signUp: async (email) => {
+        const s = load();
+        s.pending_email = email;
+        save();
+        return { signedIn: false, confirm: true, mock: true };
+      },
+      confirmSignUp: async (email, token) => {
+        if (String(token).replace(/\D/g, "").length !== 6) fail("that code is six digits");
         const s = load();
         s.user = s.user || {};
         Object.assign(s.user, { id: s.user.id || "me", email, full_name: s.user.full_name || "" });
+        s.pending_email = null;
         save();
         setSession({ access_token: "mock", refresh_token: "mock", user: { id: s.user.id } });
-        return { signedIn: true, mock: true };
+        return { mock: true };
       },
+      resendSignUp: async () => ({ sent: true, mock: true }),
       signInPassword: async (email) => {
         const s = load();
         s.user = s.user || {};

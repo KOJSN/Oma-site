@@ -480,7 +480,7 @@ function vWelcome() {
       <button class="btn" style="background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#e0447f);color:#fff"
         data-a="go" data-v="role">Get started ${I.arrow()}</button>
       <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;color:var(--wel-sub);line-height:1.5">
-        Your photos are measured on this phone and never leave it.
+        Your photos are measured on this device and never leave it.
       </div>
     </div>
   </div>`;
@@ -541,7 +541,7 @@ function vSignup() {
     <div class="note pink">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>
       <div>This is just a label for your bookings. <b>Distance comes from your
-        phone, fresh, each time you search</b> — so it is right wherever you
+        device, fresh, each time you search</b> — so it is right wherever you
         happen to be, not wherever you were when you filled this in. Nothing
         reaches a tech until you send them a booking yourself.</div>
     </div>
@@ -592,7 +592,7 @@ function vSetup(edit) {
     </div>
     ${shop ? "" : `<div class="note pink" style="margin-bottom:14px">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-      <div><b>You will not be found unless your phone is telling Oma where you
+      <div><b>You will not be found unless your device is telling Oma where you
         are.</b> There is a switch for it below — turn it on when you start
         work and off when you finish. Oma keeps where you are now, and no
         record of where you have been.</div></div>`}

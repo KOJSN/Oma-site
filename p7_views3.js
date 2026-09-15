@@ -147,9 +147,13 @@ function vCloseAccount() {
 
       <div class="seehead" style="padding-left:0;padding-right:0"><h3>What goes</h3></div>
       <div class="menu">
-        <div class="r"><span style="flex:1">Your name, email, phone and area</span></div>
+        <!-- "phone" used to be listed here. Oma stopped collecting a phone
+             number on 3 Sep — signing in is by email and the contact route is
+             the in-app conversation — so naming it told somebody a number was
+             being deleted that was never taken in the first place. -->
+        <div class="r"><span style="flex:1">Your name, email and area</span></div>
         <div class="r"><span style="flex:1">Your listing, and it leaves search at once</span></div>
-        <div class="r"><span style="flex:1">Your saved scans on this phone</span></div>
+        <div class="r"><span style="flex:1">Your saved scans on this device</span></div>
         <div class="r"><span style="flex:1">Notifications to your devices</span></div>
         <div class="r"><span style="flex:1">Your referral code and O points</span></div>
       </div>
@@ -226,7 +230,7 @@ function vHistory() {
       </button>`).join("")}
   </div>
   <div class="small faint" style="text-align:center;margin:16px 20px;line-height:1.5">
-    Scans stay on this phone. Nothing is uploaded, and clearing your browser data deletes them.</div>`;
+    Scans stay on this device. Nothing is uploaded, and clearing your browser data deletes them.</div>`;
 }
 
 function vScan(id) {
@@ -288,7 +292,7 @@ function vEditMe() {
     <label class="field"><span class="lab">Your area</span>
       <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
     <div class="tiny faint" style="margin:-8px 0 16px">A label for your bookings.
-      How far away a tech is comes from your phone each time you search.</div>
+      How far away a tech is comes from your device each time you search.</div>
     <button class="btn" data-a="saveMe" data-back="1">Save</button>
   </div>`;
 }
@@ -316,7 +320,7 @@ function vSettings() {
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
         <span style="flex:1">Practice mode<span class="tiny faint" style="display:block">${
           API.practice()
-            ? "Nothing leaves this phone"
+            ? "Nothing leaves this device"
             : "Off — you are on the real Oma"}</span></span>
         <span class="switch ${API.practice() ? "on" : ""}"><i></i></span></button>`
       : `
@@ -334,7 +338,7 @@ function vSettings() {
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></span>
         <span style="flex:1">Erase everything on this device</span>${I.chev()}</button>
       ${/* Two different things, deliberately next to each other. The one above
-            clears this phone. This one ends the account everywhere — Apple
+            clears this device. This one ends the account everywhere — Apple
             requires it be reachable from inside the app, and it is the honest
             counterpart to a service that holds your money. */
         API.signedIn() ? `
@@ -347,10 +351,10 @@ function vSettings() {
       <div>${API.live()
         ? `Your <b>scan photos</b> are still measured in this page and never leave it — that
            does not change. Bookings, payments and your profile now live in your Supabase
-           project, which is why they follow you to another phone.`
+           project, which is why they follow you to another device.`
         : `Oma has no account and no server. Your photos are measured in the page and never
            leave it; your scans, techs and bookings live in this browser's storage only.
-           Clearing site data erases them, and nothing syncs to another phone.`}</div>
+           Clearing site data erases them, and nothing syncs to another device.`}</div>
     </div>
     <div class="tiny faint" style="text-align:center;margin-top:18px;line-height:1.6">
       Ruleset ${esc(RULES.version || "—")} · thresholds are salon convention, not calibrated
