@@ -237,9 +237,9 @@ function vJob(bookingId) {
           ? `<div class="note pink"><div>Do her nails first, then scan her code from
                the Scan tab. Scanning is what pays you.</div></div>
              <button class="btn" data-a="go" data-v="scanner">Open the scanner</button>` : ""}
-        ${!asTech && ["awaiting_payment", "paid"].includes(b.status)
+       ${!asTech && b.status === "awaiting_payment"
           ? `<button class="btn ghost sm" data-a="cancel" data-id="${esc(b.id)}">
-               Cancel this appointment</button>` : ""}
+                    Give up this slot</button>` : ""}
 
         <!-- Both sides, always. A tech reports a customer and a customer
              reports a tech through the same door, and it stays open after
