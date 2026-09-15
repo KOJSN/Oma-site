@@ -1052,7 +1052,7 @@ h3{font-size:16px}
      in the markup, so the tab order still reads the way it does on a phone. */
   #nav{
     position:relative;left:auto;right:auto;bottom:auto;
-    order:-1;flex:none;width:232px;height:100%;
+    order:-1;flex:none;width:208px;height:100%;
     flex-direction:column;align-items:stretch;justify-content:flex-start;
     gap:2px;padding:20px 12px;
     border-top:0;border-right:1px solid var(--line);
@@ -1087,17 +1087,25 @@ h3{font-size:16px}
      fill #view and never wanted a column in the first place. */
   #view .pad,#view .topbar{max-width:840px;margin-left:auto;margin-right:auto}
 
+  /* .btn is width:100%, which is exactly right on a phone and reads as a
+     banner at nine hundred pixels — a thing announcing itself rather than a
+     thing to press. Capped near a phone's own button width and centred in
+     whatever column it sits in. #scan is outside #view, so the scanner's
+     paired buttons are untouched. */
+  #view .btn{max-width:360px;margin-left:auto;margin-right:auto}
+  #view .btn.big{max-width:440px}
+
   /* The update bar floated centred over a phone-width column. Sit it in the
      content area instead of half under the rail. */
-  #updbar{left:calc(232px + 20px);right:20px;margin:0;max-width:420px}
+  #updbar{left:calc(208px + 20px);right:20px;margin:0;max-width:420px}
 }
 
 /* Wider still: the reading column can breathe, and lists that were one card
    per row on a phone have room for two. */
 @media (min-width:1280px){
-  #nav{width:252px}
+  #nav{width:224px}
   #view .pad,#view .topbar{max-width:1040px}
-  #updbar{left:calc(252px + 20px)}
+  #updbar{left:calc(224px + 20px)}
 }
 
 </style>
@@ -1303,7 +1311,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "963a15ceb6";
+const BUILD_ID = "548913fc20";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
