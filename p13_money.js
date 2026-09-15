@@ -593,7 +593,7 @@ function vKyc() {
           only for us. Oma never sees your real number and stores neither.
         </div>
 
-        <label class="fld"><span class="lbl">Your vNIN (16 digits)</span>
+       <label class="fld"><span class="lbl">Your vNIN (16 digits) or NIN (11)</span>
           <input id="fNin" type="text" inputmode="numeric" maxlength="19"
                  placeholder="0000 0000 0000 0000" style="letter-spacing:.12em"></label>
         <button class="btn" data-a="kyc-send">Check it</button>
