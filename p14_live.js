@@ -237,9 +237,12 @@ function vJob(bookingId) {
           ? `<div class="note pink"><div>Do her nails first, then scan her code from
                the Scan tab. Scanning is what pays you.</div></div>
              <button class="btn" data-a="go" data-v="scanner">Open the scanner</button>` : ""}
-             ${!asTech && ["awaiting_payment", "paid"].includes(b.status)
-          ? `<button class="btn ghost sm" data-a="cancel" data-id="${esc(b.id)}">
-               Cancel this appointment</button>` : ""}
+        <!-- No cancel button, deliberately. An unpaid hold expires on its own
+             after 30 minutes, and a paid one is escrow's problem: the tech
+             scans at the end, and money nobody scanned auto-refunds after 7
+             days. A free cancel button is a way to hold a tech's slot and
+             drop it at no cost, over and over; making a pest pay first and
+             wait a week for it back is the deterrent. -->
 
         <!-- Both sides, always. A tech reports a customer and a customer
              reports a tech through the same door, and it stays open after
