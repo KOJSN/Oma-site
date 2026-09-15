@@ -1,4 +1,4 @@
-/* Oma service worker — build 1026bfcee0
+/* Oma service worker — build 1d72d73fd0
    Lives at the root of omanails.com, next to app.html.
 
    This is NOT the pwa/ one. That worker was written for a folder whose shell
@@ -14,9 +14,12 @@
    the next launch is current — nobody is ever more than one launch behind, and
    nobody is ever stuck. */
 
-const CACHE = "oma-1026bfcee0";
+const CACHE = "oma-1d72d73fd0";
 const SHELL = "/app.html";
-const CORE = [SHELL, "/manifest.webmanifest",
+/* "/" is in here so the landing page survives offline too. It could be left
+   out and the site would still work online — but a worker that caches the app
+   and not the page people actually arrive on is a strange thing to ship. */
+const CORE = [SHELL, "/", "/manifest.webmanifest",
               "/icons/icon-192.png", "/icons/icon-512.png",
               "/icons/maskable-512.png", "/icons/icon-180.png"];
 
@@ -54,8 +57,14 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;   // CDNs look after themselves
 
-  // A navigation, or the app itself: answer now, update behind.
-  const isShell = req.mode === "navigate" || url.pathname === SHELL;
+  /* Only the APP is the shell.
+     This used to read `req.mode === "navigate" || url.pathname === SHELL`,
+     and req.mode is "navigate" for EVERY page load on this origin — so once
+     the worker was installed, somebody who searched for Oma and tapped the
+     result was handed app.html instead of the landing page she asked for.
+     There is no redirect anywhere in index.html; the request never reached
+     it. This origin serves two documents and only /app.html is the app. */
+  const isShell = url.pathname === SHELL;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const key = isShell ? SHELL : req;
