@@ -1364,7 +1364,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "27d9e43633";
+const BUILD_ID = "e303c01939";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -3861,6 +3861,23 @@ const API = (() => {
     // the address is not proved yet. With it OFF a session comes straight
     // back. Both are success; only one of them signs her in here.
     if (r && r.access_token) { setSession(stamp(r)); return { signedIn: true }; }
+
+    /* ── the silent one: this address already has an account ──
+       Signing up again with an address that is already registered does NOT
+       return an error. GoTrue deliberately answers 200 with a user-shaped
+       object and sends NO email, because an error here would let anybody
+       type addresses at the endpoint and learn which ones have accounts.
+
+       The tell is `identities: []` — an empty array where a genuinely new
+       user has one entry. It is the documented way to spot this and the only
+       one; every other field looks like a normal signup.
+
+       Without this check the app shows a code screen and waits for a code
+       that was never sent, which reads as "the email is broken" when the
+       real answer is "you already have an account". */
+    if (r && Array.isArray(r.identities) && r.identities.length === 0) {
+      return { signedIn: false, exists: true };
+    }
     return { signedIn: false, confirm: true };
   }
 
@@ -11252,6 +11269,15 @@ document.getElementById("shell").addEventListener("click", e => {
     const up = a === "pw-signup";
     return (up ? API.signUp(email, pass) : API.signInPassword(email, pass))
       .then((r) => {
+        // Already registered. Supabase sends nothing in this case, so sending
+        // her to the code screen would be a wait with no end to it. Straight
+        // to sign-in with her address already filled in.
+        if (up && r && r.exists) {
+          SIGNIN.mode = "in";
+          SIGNIN.sent = false;
+          paint();
+          return toast("That address already has an Oma account — sign in.");
+        }
         // Confirm email is on: there is no session yet, and there must not be
         // one — she has not proved she owns this address. The next screen is
         // the six-digit code, and the account is not usable until it is typed.
