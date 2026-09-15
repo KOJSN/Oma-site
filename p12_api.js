@@ -246,6 +246,62 @@ const API = (() => {
     return s;
   }
 
+  /* ── email and password ────────────────────────────────
+     OTP costs an email on EVERY sign-in. A password costs one at signup and
+     nothing afterwards — the difference between a few hundred emails a month
+     and a few thousand, against a free tier of 3,000.
+
+     OTP is not deleted. Google comes back through the same door, and every
+     account made before this change has no password until its owner resets
+     one. */
+  async function signUp(email, password) {
+    if (!live()) return MOCK.signUp(email, password);
+    const r = await call("/auth/v1/signup", { email, password }, { auth: false });
+    // With "Confirm email" ON, Supabase answers with a user and NO tokens —
+    // she has to click the link first. With it OFF a session comes straight
+    // back. Both are success; only one of them signs her in here.
+    if (r && r.access_token) { setSession(stamp(r)); return { signedIn: true }; }
+    return { signedIn: false, confirm: true };
+  }
+
+  async function signInPassword(email, password) {
+    if (!live()) return MOCK.signInPassword(email, password);
+    const s = stamp(await call("/auth/v1/token?grant_type=password",
+                               { email, password }, { auth: false }));
+    setSession(s);
+    return s;
+  }
+
+  /* redirect_to is a QUERY parameter on this endpoint, not a body field. Put
+     it in the body and it is accepted, ignored, and the link in her email
+     lands on Supabase's own page instead of Oma. */
+  async function resetPassword(email) {
+    if (!live()) return MOCK.resetPassword(email);
+    const back = encodeURIComponent(location.origin + location.pathname);
+    await call(`/auth/v1/recover?redirect_to=${back}`, { email }, { auth: false });
+    return { sent: true };
+  }
+
+  /* She comes back from the reset link already signed in — captureRedirect()
+     took the tokens out of the fragment. This is the second half: giving her a
+     password so the next sign-in needs no email at all. Its own fetch, because
+     call() is POST-only and this endpoint is PUT. */
+  async function setPassword(password) {
+    if (!live()) return MOCK.setPassword(password);
+    if (!SESSION) throw new Error("sign in first");
+    const r = await fetch(`${cfg().url}/auth/v1/user`, {
+      method: "PUT",
+      headers: { apikey: cfg().anon, "Content-Type": "application/json",
+                 Authorization: `Bearer ${SESSION.access_token}` },
+      body: JSON.stringify({ password }),
+    });
+    if (!r.ok) {
+      const p = await r.json().catch(() => ({}));
+      throw new Error(p.msg || p.message || "could not set that password");
+    }
+    return { ok: true };
+  }
+
   function googleUrl() {
     const back = location.origin + location.pathname;
     return `${cfg().url}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(back)}`;
@@ -264,8 +320,13 @@ const API = (() => {
       user: null,
     });
     setSession(s);
+    // A recovery link and a Google sign-in both come back with tokens in the
+    // fragment, and they must not be treated alike: after a recovery she has
+    // to be taken to the "set a password" screen, or she is signed in once
+    // and locked out again the next time.
+    const recovery = p.get("type") === "recovery";
     history.replaceState(null, "", location.pathname + location.search);
-    return true;
+    return recovery ? "recovery" : true;
   }
 
   function signOut() { setSession(null); }
@@ -275,6 +336,7 @@ const API = (() => {
     configure, live, signedIn, userId, signOut, googleUrl, captureRedirect,
     practice, setPractice, hasBuiltIn,
     sendOtp, verifyOtp,
+    signUp, signInPassword, resetPassword, setPassword,
 
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
@@ -347,8 +409,7 @@ const API = (() => {
 
     // These two go to edge functions, because they talk to somebody else's API.
     payInit:       (bookingId)              => live() ? edge("pay-init", { booking_id: bookingId }) : MOCK.payInit(bookingId),
-    const v = (n ? n.value : "").replace(/\D/g, "");
-if (v.length !== 11 && v.length !== 16) return toast("A vNIN is 16 digits, a NIN is 11.");
+    verifyNin:     (vnin)                   => live() ? edge("kyc", { vnin })      : MOCK.verifyNin(vnin),
 
     /* HER WHOLE MENU, in one call. Add/edit/delete as three endpoints would
        mean the phone working out the difference and firing a burst of them —
@@ -593,6 +654,27 @@ if (v.length !== 11 && v.length !== 16) return toast("A vNIN is 16 digits, a NIN
 
     return {
       sendOtp: async () => ({ sent: true, mock: true }),
+      /* Practice mode takes any email and any password of the right length.
+         It exists so the screens can be shown to a nail tech with no backend
+         at all, so it must not be the place a real rule is enforced. */
+      signUp: async (email) => {
+        const s = load();
+        s.user = s.user || {};
+        Object.assign(s.user, { id: s.user.id || "me", email, full_name: s.user.full_name || "" });
+        save();
+        setSession({ access_token: "mock", refresh_token: "mock", user: { id: s.user.id } });
+        return { signedIn: true, mock: true };
+      },
+      signInPassword: async (email) => {
+        const s = load();
+        s.user = s.user || {};
+        Object.assign(s.user, { id: s.user.id || "me", email, full_name: s.user.full_name || "" });
+        save();
+        setSession({ access_token: "mock", refresh_token: "mock", user: { id: s.user.id } });
+        return { mock: true };
+      },
+      resetPassword: async () => ({ sent: true, mock: true }),
+      setPassword: async () => ({ ok: true, mock: true }),
       verifyOtp: async (email, token) => {
         if (String(token).replace(/\D/g, "").length !== 6) fail("that code is six digits");
         const s = load();
