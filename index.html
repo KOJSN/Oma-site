@@ -53,8 +53,33 @@
 <meta name="twitter:title" content="Oma Nails — find a nail tech near you in Nigeria">
 <meta name="twitter:description" content="Find a nail tech nearby, see her prices before booking, and pay into escrow.">
 
-<link rel="icon" type="image/png" href="/icons/icon-192.png">
-<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<!-- ── the favicon, and why there are four lines of it ──────────────────
+     Google was showing a grey globe beside this result instead of the mark.
+     It fetches a site's favicon on its own schedule, separately from the
+     page, and falls back to the globe whenever it cannot get one it is happy
+     with. Its stated rules: square, a multiple of 48px, at a stable URL that
+     robots.txt allows — and it takes the icon from the site ROOT and uses it
+     for every result on the host, so this page is the one that decides it.
+
+     One <link> was doing all of that work. Now:
+       /favicon.ico    the file every crawler and every old browser asks for
+                       by default, whether or not a page links to it. If the
+                       linked PNG is ever missing or moved, this still answers.
+       48 and 192      the sized PNGs Google's own documentation asks for, with
+                       explicit sizes= so nothing has to guess by downloading.
+       apple-touch     the home-screen icon on iOS, unchanged.
+     A few hundred bytes for three more fallbacks is not a trade worth
+     thinking about.
+
+     IF THE GLOBE PERSISTS: open https://omanails.com/favicon.ico directly.
+     A 404 means the file is not deployed and no markup will fix it. If it
+     loads, the remaining answer is time — Google refreshes favicons on a
+     cycle of days to weeks, and Search Console → URL Inspection → Request
+     Indexing on the homepage is what nudges it. -->
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="48x48" href="/icons/icon-48.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
@@ -522,16 +547,16 @@ footer a:hover{color:var(--pink)}
         <span>Made for your booking, closed after it.</span></div></div>
       <div class="step"><div class="dot"></div>
         <div><b>It sits there. Nobody can spend it</b>
-        <span>Not The Tech, not you, not Oma.</span></div></div>
+        <span>Not her, not you, not Oma.</span></div></div>
       <div class="step"><div class="dot"></div>
-        <div><b>Your nails are done</b>
-        <span>You show the code on your phone. It gets scanned.</span></div></div>
+        <div><b>She does your nails</b>
+        <span>You show the code on your phone. She scans it.</span></div></div>
       <div class="step"><div class="dot"></div>
         <div><b>That scan releases the money</b>
         <span>It is the only thing that does.</span></div></div>
       <div class="step"><div class="dot"></div>
         <div><b>No scan, no payment</b>
-        <span>If the appointment never happened? , you get it back.</span></div></div>
+        <span>If the appointment never happened, you get it back.</span></div></div>
     </div>
   </div>
 </section>
@@ -573,7 +598,7 @@ footer a:hover{color:var(--pink)}
       <div>
         <h2 style="font-size:clamp(24px,3.2vw,32px)">Oduagu Samben-Nwosu</h2>
         <p style="color:var(--sub);margin-top:10px;max-width:56ch;font-size:16.5px">
-          Oma was founded and built by Oduagu to make booking a nail tech in Nigeria
+          Oma was founded and built to make booking a nail tech in Nigeria
           something you can do without knowing her already.</p>
       </div>
     </div>
@@ -634,7 +659,7 @@ footer a:hover{color:var(--pink)}
       <div class="tag">Contact us</div>
       <h2>Say hello.</h2>
       <p>A question, a nail tech who wants to join, or something that went
-        wrong — this reaches Oduagu directly.</p>
+        wrong — this reaches Kamsy directly.</p>
     </div>
     <form id="contactForm" novalidate>
       <div>
@@ -839,7 +864,7 @@ form.addEventListener("submit", async (e) => {
       say("bad", msg);
     } else {
       form.reset();
-      say("ok", "Sent. Oduagu will get back to you.");
+      say("ok", "Sent. Kamsy will get back to you.");
     }
   } catch (err) {
     say("bad", "Could not reach Oma. Check your connection and try again.");
