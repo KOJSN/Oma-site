@@ -1228,7 +1228,7 @@ h3{font-size:16px}
     <div class="scanbody">
       <div style="font-size:22px;font-weight:800;letter-spacing:-.035em">Nothing to tap</div>
       <div class="small sub" style="margin-top:6px">Oma finds your nails itself. It takes a
-        few seconds, and your photo never leaves this phone.</div>
+        few seconds, and your photo never leaves this device.</div>
       <div class="stagewrap" id="stage3">
         <img id="photo3" alt="Your hand">
         <svg id="ov3" preserveAspectRatio="none"></svg>
@@ -1239,7 +1239,7 @@ h3{font-size:16px}
         </div>
         <div class="bar"><i id="autoBar" style="width:0%"></i></div>
         <div class="small faint" style="margin-top:12px">The first scan downloads the
-          reader — about 9 MB, once. Your phone keeps it, so later scans start
+          reader — about 9 MB, once. Your device keeps it, so later scans start
           straight away.</div>
       </div>
       <div class="small faint" style="margin-top:12px;line-height:1.5">The outlines
@@ -1364,7 +1364,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "16ac8b9e94";
+const BUILD_ID = "1e589d2f63";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -3095,7 +3095,7 @@ function drawSheet(ctx, s, hand) {
   };
   text("OMA", 60, 9, "#c22a66", 800);
   text("Lay your hand flat inside the outline. Spread your fingers.", 71, 3.6, "#46404a", 600);
-  text("Hold the phone directly above, and keep all four corner squares in shot.",
+  text("Hold the device directly above, and keep all four corner squares in shot.",
        78, 3.6, "#46404a", 600);
   text("The white paper is the colour reference — do not write on this sheet.",
        SHEET.H - 26, 3.0, "#928a90", 500);
@@ -3858,10 +3858,65 @@ const API = (() => {
     if (!live()) return MOCK.signUp(email, password);
     const r = await call("/auth/v1/signup", { email, password }, { auth: false });
     // With "Confirm email" ON, Supabase answers with a user and NO tokens —
-    // she has to click the link first. With it OFF a session comes straight
+    // the address is not proved yet. With it OFF a session comes straight
     // back. Both are success; only one of them signs her in here.
     if (r && r.access_token) { setSession(stamp(r)); return { signedIn: true }; }
     return { signedIn: false, confirm: true };
+  }
+
+  /* ── proving the address: a code, not a link ────────────
+     Kamsy, 15 Sep 2026: "let it not be a magic link just a code to confirm
+     that the mail belongs to them and when they type it then and only then
+     can someone be a user."
+
+     A link is one tap and it is the wrong tap on a phone. The mail app opens
+     it in whatever browser IT prefers, which is usually not the one Oma is
+     running in — so she ends up signed in inside a second browser while the
+     first one still says "waiting", and the app she was actually using never
+     finds out. A code is typed into the window she is already looking at, so
+     the session lands where she is. It also survives the link being mangled
+     by a mail client, and it makes "I never got it" answerable with a resend
+     rather than a shrug.
+
+     WHAT HAS TO BE TRUE IN SUPABASE for this to work at all:
+       Authentication → Emails → "Confirm signup" must contain {{ .Token }}.
+     Out of the box that template contains {{ .ConfirmationURL }} and nothing
+     else, and then the email carries a link and no code — no amount of app
+     code can conjure a six-digit number that was never sent. If somebody
+     reports getting a link, that template is the thing to fix.
+
+     Supabase mints a signup code under type "signup". Some projects answer to
+     "email" instead, and the failure looks identical to a wrong code, so both
+     are tried rather than being confident from documentation. The cost is one
+     extra request on a code that was going to fail anyway. */
+  async function confirmSignUp(email, token) {
+    if (!live()) return MOCK.confirmSignUp(email, token);
+    let s;
+    try {
+      s = stamp(await call("/auth/v1/verify",
+                           { type: "signup", email, token }, { auth: false }));
+    } catch (first) {
+      try {
+        s = stamp(await call("/auth/v1/verify",
+                             { type: "email", email, token }, { auth: false }));
+      } catch (second) {
+        // The first failure is the ordinary one and its wording is the one
+        // worth showing; the fallback's message would just be confusing.
+        throw first;
+      }
+    }
+    // Only now. Until this line there is no session, which is the whole point
+    // — an unconfirmed address cannot do anything in the app.
+    setSession(s);
+    return s;
+  }
+
+  /* "It never arrived" is the single most common thing that happens next, and
+     it is usually true — spam, or a slow relay. A new code costs one email. */
+  async function resendSignUp(email) {
+    if (!live()) return MOCK.resendSignUp(email);
+    await call("/auth/v1/resend", { type: "signup", email }, { auth: false });
+    return { sent: true };
   }
 
   async function signInPassword(email, password) {
@@ -3936,7 +3991,8 @@ const API = (() => {
     configure, live, signedIn, userId, signOut, googleUrl, captureRedirect,
     practice, setPractice, hasBuiltIn,
     sendOtp, verifyOtp,
-    signUp, signInPassword, resetPassword, setPassword,
+    signUp, confirmSignUp, resendSignUp,
+    signInPassword, resetPassword, setPassword,
 
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
@@ -4382,14 +4438,28 @@ const API = (() => {
       /* Practice mode takes any email and any password of the right length.
          It exists so the screens can be shown to a nail tech with no backend
          at all, so it must not be the place a real rule is enforced. */
+      /* Practice mode asks for the code too, and deliberately. This is the
+         version Kamsy shows a nail tech, and a demo that skips a step the
+         real app takes teaches her the wrong thing about her own sign-up. No
+         session is set here — the same rule as live: unconfirmed is not a
+         user. The email is parked until the code comes back. */
       signUp: async (email) => {
+        const s = load();
+        s.pending_email = email;
+        save();
+        return { signedIn: false, confirm: true, mock: true };
+      },
+      confirmSignUp: async (email, token) => {
+        if (String(token).replace(/\D/g, "").length !== 6) fail("that code is six digits");
         const s = load();
         s.user = s.user || {};
         Object.assign(s.user, { id: s.user.id || "me", email, full_name: s.user.full_name || "" });
+        s.pending_email = null;
         save();
         setSession({ access_token: "mock", refresh_token: "mock", user: { id: s.user.id } });
-        return { signedIn: true, mock: true };
+        return { mock: true };
       },
+      resendSignUp: async () => ({ sent: true, mock: true }),
       signInPassword: async (email) => {
         const s = load();
         s.user = s.user || {};
@@ -5946,7 +6016,7 @@ function vWelcome() {
       <button class="btn" style="background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#e0447f);color:#fff"
         data-a="go" data-v="role">Get started ${I.arrow()}</button>
       <div style="text-align:center;font-size:13px;font-weight:500;margin-top:16px;color:var(--wel-sub);line-height:1.5">
-        Your photos are measured on this phone and never leave it.
+        Your photos are measured on this device and never leave it.
       </div>
     </div>
   </div>`;
@@ -6007,7 +6077,7 @@ function vSignup() {
     <div class="note pink">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>
       <div>This is just a label for your bookings. <b>Distance comes from your
-        phone, fresh, each time you search</b> — so it is right wherever you
+        device, fresh, each time you search</b> — so it is right wherever you
         happen to be, not wherever you were when you filled this in. Nothing
         reaches a tech until you send them a booking yourself.</div>
     </div>
@@ -6058,7 +6128,7 @@ function vSetup(edit) {
     </div>
     ${shop ? "" : `<div class="note pink" style="margin-bottom:14px">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-      <div><b>You will not be found unless your phone is telling Oma where you
+      <div><b>You will not be found unless your device is telling Oma where you
         are.</b> There is a switch for it below — turn it on when you start
         work and off when you finish. Oma keeps where you are now, and no
         record of where you have been.</div></div>`}
@@ -6793,9 +6863,13 @@ function vCloseAccount() {
 
       <div class="seehead" style="padding-left:0;padding-right:0"><h3>What goes</h3></div>
       <div class="menu">
-        <div class="r"><span style="flex:1">Your name, email, phone and area</span></div>
+        <!-- "phone" used to be listed here. Oma stopped collecting a phone
+             number on 3 Sep — signing in is by email and the contact route is
+             the in-app conversation — so naming it told somebody a number was
+             being deleted that was never taken in the first place. -->
+        <div class="r"><span style="flex:1">Your name, email and area</span></div>
         <div class="r"><span style="flex:1">Your listing, and it leaves search at once</span></div>
-        <div class="r"><span style="flex:1">Your saved scans on this phone</span></div>
+        <div class="r"><span style="flex:1">Your saved scans on this device</span></div>
         <div class="r"><span style="flex:1">Notifications to your devices</span></div>
         <div class="r"><span style="flex:1">Your referral code and O points</span></div>
       </div>
@@ -6872,7 +6946,7 @@ function vHistory() {
       </button>`).join("")}
   </div>
   <div class="small faint" style="text-align:center;margin:16px 20px;line-height:1.5">
-    Scans stay on this phone. Nothing is uploaded, and clearing your browser data deletes them.</div>`;
+    Scans stay on this device. Nothing is uploaded, and clearing your browser data deletes them.</div>`;
 }
 
 function vScan(id) {
@@ -6934,7 +7008,7 @@ function vEditMe() {
     <label class="field"><span class="lab">Your area</span>
       <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
     <div class="tiny faint" style="margin:-8px 0 16px">A label for your bookings.
-      How far away a tech is comes from your phone each time you search.</div>
+      How far away a tech is comes from your device each time you search.</div>
     <button class="btn" data-a="saveMe" data-back="1">Save</button>
   </div>`;
 }
@@ -6962,7 +7036,7 @@ function vSettings() {
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
         <span style="flex:1">Practice mode<span class="tiny faint" style="display:block">${
           API.practice()
-            ? "Nothing leaves this phone"
+            ? "Nothing leaves this device"
             : "Off — you are on the real Oma"}</span></span>
         <span class="switch ${API.practice() ? "on" : ""}"><i></i></span></button>`
       : `
@@ -6980,7 +7054,7 @@ function vSettings() {
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></span>
         <span style="flex:1">Erase everything on this device</span>${I.chev()}</button>
       ${/* Two different things, deliberately next to each other. The one above
-            clears this phone. This one ends the account everywhere — Apple
+            clears this device. This one ends the account everywhere — Apple
             requires it be reachable from inside the app, and it is the honest
             counterpart to a service that holds your money. */
         API.signedIn() ? `
@@ -6993,10 +7067,10 @@ function vSettings() {
       <div>${API.live()
         ? `Your <b>scan photos</b> are still measured in this page and never leave it — that
            does not change. Bookings, payments and your profile now live in your Supabase
-           project, which is why they follow you to another phone.`
+           project, which is why they follow you to another device.`
         : `Oma has no account and no server. Your photos are measured in the page and never
            leave it; your scans, techs and bookings live in this browser's storage only.
-           Clearing site data erases them, and nothing syncs to another phone.`}</div>
+           Clearing site data erases them, and nothing syncs to another device.`}</div>
     </div>
     <div class="tiny faint" style="text-align:center;margin-top:18px;line-height:1.6">
       Ruleset ${esc(RULES.version || "—")} · thresholds are salon convention, not calibrated
@@ -7273,9 +7347,9 @@ const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
    she is in the wrong place and leaves. Two doors cost one tap and remove that
    doubt. Nothing here pretends the mechanism differs — the words change, the
    code path does not. */
-/* sent: false | "confirm" (account made, waiting on the link) | "reset" (reset
-   link sent). reset: true while she is setting a new password after following
-   one. */
+/* sent: false | "confirm" (account made, waiting on the six-digit code from
+   the confirmation email) | "reset" (reset link sent). reset: true while she
+   is setting a new password after following one. */
 let SIGNIN = { email: "", sent: false, mode: null, reset: false };
 
 function vSignIn() {
@@ -7285,7 +7359,7 @@ function vSignIn() {
               : !s.mode ? "Your account"
               : up ? "Create an account" : "Sign in";
   return `
-  ${head(title, "So your bookings follow you, not this phone")}
+  ${head(title, "So your bookings follow you, not this device")}
   <div class="pad stack gap12">
     ${API.isMock() ? `<div class="note">
       <div>No backend is configured, so this is the practice version. Any
@@ -7301,12 +7375,30 @@ function vSignIn() {
       </label>
       <button class="btn" data-a="pass-set">Save it and continue</button>
 
+    ` : s.sent === "confirm" ? `
+      <!-- A code, typed here, rather than a link tapped in a mail app that
+           would have opened a different browser and signed her in somewhere
+           she is not looking. Until she types it there is no account she can
+           use — the session only exists on the other side of this box. -->
+      <div class="note"><div>We sent a six-digit code to <b>${esc(s.email)}</b>.
+        Type it in below to finish creating your account. It can take a
+        minute, and it may land in spam.${API.isMock()
+          ? " In the practice version any six digits will do." : ""}</div></div>
+      <label class="fld">
+        <span class="lbl">The code from your email</span>
+        <!-- one-time-code is what makes a phone offer the code from the
+             notification, so the common case is one tap and no typing. -->
+        <input id="fSignCode" inputmode="numeric" autocomplete="one-time-code"
+               maxlength="7" placeholder="123456"
+               style="letter-spacing:.34em;font-size:20px;font-weight:800;text-align:center">
+      </label>
+      <button class="btn" data-a="signup-confirm">Confirm my email</button>
+      <button class="btn ghost sm" data-a="signup-resend">Send me a new code</button>
+      <button class="btn ghost sm" data-a="signin-mode" data-v="up">Use a different email</button>
+
     ` : s.sent ? `
-      <div class="note"><div>${s.sent === "confirm"
-        ? `Check <b>${esc(s.email)}</b> and click the link to finish creating
-           your account, then come back and sign in.`
-        : `We sent a reset link to <b>${esc(s.email)}</b>. It can take a minute,
-           and it may land in spam.`}</div></div>
+      <div class="note"><div>We sent a reset link to <b>${esc(s.email)}</b>. It
+        can take a minute, and it may land in spam.</div></div>
       <button class="btn ghost" data-a="signin-mode" data-v="in">Back to sign in</button>
 
     ` : !s.mode ? `
@@ -7641,9 +7733,9 @@ function vScanner() {
           <div class="camwrap"><video id="camv" playsinline muted></video>
             <div class="camframe"></div></div>
           <div class="tiny sub" style="text-align:center" id="camMsg">
-            Point at the code on her phone</div>
+            Point at the code on her screen</div>
           <div class="or"><span>or type it</span></div>
-        ` : `<div class="note"><div>This phone cannot scan a code from the camera —
+        ` : `<div class="note"><div>This device cannot scan a code from the camera —
              Safari does not offer it. Type the six digits from her screen instead.
              </div></div>`}
 
@@ -7876,7 +7968,7 @@ function vBackend() {
     <div class="note ${API.live() ? "good" : ""}">
       <div>${API.live()
         ? "Bookings and payments are going to your Supabase project."
-        : "Oma is running its practice version: everything works, nothing is real, and it all stays on this phone."}</div>
+        : "Oma is running its practice version: everything works, nothing is real, and it all stays on this device."}</div>
     </div>
 
     <label class="fld"><span class="lbl">Project URL</span>
@@ -7893,7 +7985,7 @@ function vBackend() {
 
     <div class="note warn"><div><b>Only ever paste the anon key here.</b> It is meant to be
       public — it ships inside the app. The <i>service_role</i> key bypasses every
-      rule in your database and belongs on a server, never on a phone.</div></div>
+      rule in your database and belongs on a server, never on a device.</div></div>
 
     <div class="tiny sub">Settings → API in your Supabase dashboard has both.
       Everything in your project is protected by the row-level security in
@@ -9760,7 +9852,7 @@ window.OmaLive = {
   // rather than showing a switch that is on and a listing nobody can find.
   denied(why) {
     LIVE.err = why === "denied"
-      ? "Location is off for Oma in your phone's settings, so customers "
+      ? "Location is off for Oma in your device's settings, so customers "
         + "cannot see you."
       : "Oma cannot get your position right now.";
     paintWorking();
@@ -9852,7 +9944,7 @@ function workingCard() {
               aria-label="Working now"><i></i></button>
     </div>
     ${LIVE.on && !LIVE.native ? `<div class="tiny faint" style="margin-top:9px">
-      Keep Oma open while you work. A website cannot follow you once the phone
+      Keep Oma open while you work. A website cannot follow you once the device
       is locked — the Oma app from the App Store will, and this switch is what
       it uses.</div>` : ""}
   </div>`;
@@ -10953,7 +11045,7 @@ async function togglePush() {
     toast("Notifications off on this device.");
     return paint();
   }
-  toast("Asking your phone…");
+  toast("Asking your device…");
   const res = await registerForPush();
   toast(res.ok ? "On. You will be told when somebody messages you."
                : (res.says || "That did not work."));
@@ -11120,7 +11212,7 @@ document.getElementById("shell").addEventListener("click", e => {
     API.setPractice(on);
     // Signed out either way — setPractice drops the session, because a session
     // belongs to the backend that issued it.
-    toast(on ? "Practice mode. Nothing leaves this phone."
+    toast(on ? "Practice mode. Nothing leaves this device."
              : "You are on the real Oma. Sign in to use your account.");
     return paint();
   }
@@ -11150,8 +11242,15 @@ document.getElementById("shell").addEventListener("click", e => {
     return (up ? API.signUp(email, pass) : API.signInPassword(email, pass))
       .then((r) => {
         // Confirm email is on: there is no session yet, and there must not be
-        // one — she has not proved she owns this address.
-        if (up && r && r.signedIn === false) { SIGNIN.sent = "confirm"; return paint(); }
+        // one — she has not proved she owns this address. The next screen is
+        // the six-digit code, and the account is not usable until it is typed.
+        if (up && r && r.signedIn === false) {
+          SIGNIN.sent = "confirm";
+          paint();
+          const box = document.getElementById("fSignCode");
+          if (box) box.focus();
+          return;
+        }
         // She has just proved she owns this address, so it is the one thing
         // about her identity this device can state without asking the server.
         DB.me = Object.assign({}, DB.me, { email });
@@ -11159,6 +11258,37 @@ document.getElementById("shell").addEventListener("click", e => {
         toast("Signed in.");
         nav("nearby");
       })
+      .catch(err => toast(err.message));
+  }
+
+  /* The code from the confirmation email. This is the line the account is
+     made real on: before it there is a row in Supabase with an unconfirmed
+     address and no session, and nothing in Oma will talk to it. */
+  if (a === "signup-confirm") {
+    const n = document.getElementById("fSignCode");
+    // Stripped of everything that is not a digit, because a code pasted out
+    // of an email arrives with a space in the middle often enough to matter.
+    const code = (n ? n.value : "").replace(/\D/g, "");
+    if (code.length !== 6) return toast("The code is six digits.");
+    return API.confirmSignUp(SIGNIN.email, code)
+      .then(() => {
+        // She has just proved she owns this address, so it is the one thing
+        // about her identity this device can state without asking the server.
+        DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
+        dbSave();
+        SIGNIN.sent = false;
+        SIGNIN.mode = null;
+        toast("Email confirmed — you are signed in.");
+        nav("nearby");
+      })
+      .catch(err => toast(err.message ||
+        "That code did not work. Check it, or ask for a new one."));
+  }
+
+  if (a === "signup-resend") {
+    if (!SIGNIN.email) return toast("Start again with your email address.");
+    return API.resendSignUp(SIGNIN.email)
+      .then(() => toast("New code sent. It can take a minute."))
       .catch(err => toast(err.message));
   }
 
@@ -11475,7 +11605,7 @@ document.getElementById("shell").addEventListener("click", e => {
     // tech published a listing with zero services and became unbookable
     // without a word on screen. See menu.sql.
     if (!API.signedIn()) {
-      toast("Saved on this phone. Sign in to publish it.");
+      toast("Saved on this device. Sign in to publish it.");
       return nav("listing");
     }
     publishListing(b);
