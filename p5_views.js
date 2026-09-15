@@ -357,7 +357,11 @@ const TABS = {
     { k: "diary", t: "Diary", i: I.cal },
     { k: "__scan", t: "Scan" },
     { k: "earnings", t: "Earnings", i: I.chart },
-    { k: "listing", t: "Listing", i: I.shop },
+    // Was "Listing". A tech edits her listing rarely and reaches everything
+    // else — settings, the leaderboard, verification — through a tab that did
+    // not exist for her at all. More is the customer's fifth tab and it is now
+    // hers; My listing is the first row inside it.
+    { k: "more", t: "More", i: I.more },
   ],
 };
 let ROUTE = { v: "home", a: null };

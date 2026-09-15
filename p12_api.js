@@ -609,8 +609,80 @@ const API = (() => {
 
     const myTech = () => {
       const s = load();
-      return s.techs.find((t) => t.id === (s.user && s.user.tech_id)) || null;
+      const t = s.techs.find((x) => x.id === (s.user && s.user.tech_id)) || null;
+      if (t) seedTechLife(t);
+      return t;
     };
+
+    /* ── practice mode, from the nail tech's side ──────────
+       A tech shown the practice app used to get three empty screens: no
+       requests, an empty diary and ₦0. That is the worst possible thing to
+       put in front of somebody while explaining what the app does — it looks
+       broken, and every sentence has to start with "imagine that…".
+
+       So the first time she has a listing, it fills itself with a working
+       week: three appointments already done and paid out, three coming up
+       with the money still held, and the ledger behind both. Dates are
+       relative to today, so it still reads correctly next month.
+
+       Nothing here touches the live path. seed() builds the five demo techs
+       a customer browses; this builds the working life of whichever one of
+       them she is. */
+    function seedTechLife(t) {
+      const s = load();
+      if (s.techSeeded) return;
+      s.techSeeded = true;
+
+      const svc = s.services.filter((x) => x.tech_id === t.id && x.active);
+      const pick = (i) => svc[i % svc.length]
+        || { id: uid(), name: "Refill", minutes: 90, price_kobo: 650000 };
+      const HOUR = 3600000, DAY = 86400000;
+      const at = (days, hour) => {
+        const d = new Date();
+        d.setDate(d.getDate() + days);
+        d.setHours(hour, 0, 0, 0);
+        return d.getTime();
+      };
+      // Different names on every row: one client's name repeated six times is
+      // the tell that makes a demo look like a mock-up.
+      const clients = ["Amaka O.", "Ngozi E.", "Tolu A.",
+                       "Zainab M.", "Ifeoma C.", "Blessing U."];
+
+      const make = (i, startMs, status) => {
+        const sv = pick(i);
+        const b = {
+          id: uid(), customer_id: "demo-c" + i, tech_id: t.id,
+          starts_at_ms: startMs, minutes: sv.minutes,
+          total_kobo: sv.price_kobo, status, note: null, scan_shape: null,
+          pay_deadline_ms: startMs - HOUR,
+          items: [{ id: sv.id, name: sv.name, minutes: sv.minutes,
+                    price_kobo: sv.price_kobo }],
+          demo_client: clients[i % clients.length],
+        };
+        s.bookings.push(b);
+        return b;
+      };
+
+      // Done, scanned, paid out. This is what makes Earnings a number.
+      [8, 5, 2].forEach((d, i) => {
+        const b = make(i, at(-d, 11 + i), "released");
+        s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "available",
+                        delta_kobo: b.total_kobo, kind: "release_in",
+                        at: b.starts_at_ms + b.minutes * 60000 });
+      });
+
+      // Paid but not yet scanned, so the money is HELD. The difference
+      // between held and available is the thing techs misread most, and it
+      // is far easier to point at than to explain.
+      [0, 1, 3].forEach((d, i) => {
+        const b = make(3 + i, at(d, d === 0 ? 16 : 10 + i * 3), "paid");
+        s.ledger.push({ tech_id: t.id, booking_id: b.id, bucket: "held",
+                        delta_kobo: b.total_kobo, kind: "hold_in",
+                        at: Date.now() - (3 - d) * DAY });
+      });
+
+      save();
+    }
 
     const bal = (bucket) => {
       const s = load(), t = myTech();
@@ -645,7 +717,11 @@ const API = (() => {
         pay_deadline: new Date(b.pay_deadline_ms).toISOString(),
         role: asTech ? "tech" : "customer",
         tech: { id: t.id, business_name: t.business_name, area: t.area, address: t.address },
-        customer_name: asTech ? ((s.user && s.user.full_name) || "Client") : null,
+        // demo_client is only ever set by seedTechLife. Without it every row
+        // in a practice diary carries the same name, which is exactly what
+        // makes a demo look like a mock-up rather than a working week.
+        customer_name: asTech
+          ? (b.demo_client || (s.user && s.user.full_name) || "Client") : null,
         items: b.items,
         code: mine && b.status === "paid" ? longCode(b.id) : null,
         short_code: mine && b.status === "paid" ? shortCode(b.id) : null,

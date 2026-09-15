@@ -47,6 +47,8 @@ function vMore() {
 
     <div class="menu" style="margin-bottom:14px">
       ${tech ? `
+        ${row("listing", I.shop(), "My listing",
+              "Your services, prices and where you work")}
         ${row("scanner", I.tick(16), "Scan a client's code")}
         ${row("wallet", I.cal(), "Earnings and withdrawals")}
         ${row("kyc", I.user(), "Verify your identity", kycNote(tech))}`
