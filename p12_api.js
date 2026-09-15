@@ -261,6 +261,23 @@ const API = (() => {
     // the address is not proved yet. With it OFF a session comes straight
     // back. Both are success; only one of them signs her in here.
     if (r && r.access_token) { setSession(stamp(r)); return { signedIn: true }; }
+
+    /* ── the silent one: this address already has an account ──
+       Signing up again with an address that is already registered does NOT
+       return an error. GoTrue deliberately answers 200 with a user-shaped
+       object and sends NO email, because an error here would let anybody
+       type addresses at the endpoint and learn which ones have accounts.
+
+       The tell is `identities: []` — an empty array where a genuinely new
+       user has one entry. It is the documented way to spot this and the only
+       one; every other field looks like a normal signup.
+
+       Without this check the app shows a code screen and waits for a code
+       that was never sent, which reads as "the email is broken" when the
+       real answer is "you already have an account". */
+    if (r && Array.isArray(r.identities) && r.identities.length === 0) {
+      return { signedIn: false, exists: true };
+    }
     return { signedIn: false, confirm: true };
   }
 

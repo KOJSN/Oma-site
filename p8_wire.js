@@ -187,6 +187,15 @@ document.getElementById("shell").addEventListener("click", e => {
     const up = a === "pw-signup";
     return (up ? API.signUp(email, pass) : API.signInPassword(email, pass))
       .then((r) => {
+        // Already registered. Supabase sends nothing in this case, so sending
+        // her to the code screen would be a wait with no end to it. Straight
+        // to sign-in with her address already filled in.
+        if (up && r && r.exists) {
+          SIGNIN.mode = "in";
+          SIGNIN.sent = false;
+          paint();
+          return toast("That address already has an Oma account — sign in.");
+        }
         // Confirm email is on: there is no session yet, and there must not be
         // one — she has not proved she owns this address. The next screen is
         // the six-digit code, and the account is not usable until it is typed.
