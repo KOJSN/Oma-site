@@ -265,6 +265,19 @@ function wireServicePicker() {
   const go = document.getElementById("toTime");
   const update = () => {
     const on = boxes.filter((b) => b.checked);
+    /* The chosen state was styled and never switched on. p1_head has
+       .svccard.on — a pink ring — and .svccard.on .pickbtn — the button
+       filled pink — and nothing in here ever added the class. So choosing a
+       service changed a total at the bottom of the page and the card looked
+       exactly as it had a moment before, which is no feedback at all on a
+       screen whose whole job is "pick these ones". */
+    boxes.forEach((b) => {
+      const card = b.closest(".svccard");
+      if (!card) return;
+      card.classList.toggle("on", b.checked);
+      const btn = card.querySelector(".pickbtn");
+      if (btn) btn.textContent = b.checked ? "Chosen" : "Choose this";
+    });
     PICKED.ids = on.map((b) => b.value);
     const k = on.reduce((a, b) => a + Number(b.dataset.kobo), 0);
     const m = on.reduce((a, b) => a + Number(b.dataset.mins), 0);
