@@ -1237,7 +1237,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "c6b2b309ce";
+const BUILD_ID = "a830cc6e4e";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -7011,49 +7011,67 @@ const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
    she is in the wrong place and leaves. Two doors cost one tap and remove that
    doubt. Nothing here pretends the mechanism differs — the words change, the
    code path does not. */
-let SIGNIN = { email: "", sent: false, mode: null };
+/* sent: false | "confirm" (account made, waiting on the link) | "reset" (reset
+   link sent). reset: true while she is setting a new password after following
+   one. */
+let SIGNIN = { email: "", sent: false, mode: null, reset: false };
 
 function vSignIn() {
   const s = SIGNIN;
   const up = s.mode === "up";
-  const title = !s.mode ? "Your account" : up ? "Create an account" : "Sign in";
+  const title = s.reset ? "Set a new password"
+              : !s.mode ? "Your account"
+              : up ? "Create an account" : "Sign in";
   return `
   ${head(title, "So your bookings follow you, not this phone")}
   <div class="pad stack gap12">
     ${API.isMock() ? `<div class="note">
       <div>No backend is configured, so this is the practice version. Any
-      six-digit code will let you in and no message is sent.</div></div>` : ""}
+      email and password will let you in and nothing is sent.</div></div>` : ""}
 
-    ${!s.mode ? `
+    ${s.reset ? `
+      <div class="note"><div>Pick a password and you are back in. After this,
+        signing in needs no email at all.</div></div>
+      <label class="fld">
+        <span class="lbl">New password</span>
+        <input id="fPass1" type="password" autocomplete="new-password"
+               placeholder="At least 8 characters">
+      </label>
+      <button class="btn" data-a="pass-set">Save it and continue</button>
+
+    ` : s.sent ? `
+      <div class="note"><div>${s.sent === "confirm"
+        ? `Check <b>${esc(s.email)}</b> and click the link to finish creating
+           your account, then come back and sign in.`
+        : `We sent a reset link to <b>${esc(s.email)}</b>. It can take a minute,
+           and it may land in spam.`}</div></div>
+      <button class="btn ghost" data-a="signin-mode" data-v="in">Back to sign in</button>
+
+    ` : !s.mode ? `
       <button class="btn" data-a="signin-mode" data-v="up">Create an account</button>
       <button class="btn ghost" data-a="signin-mode" data-v="in">I already have one</button>
       <div class="tiny sub" style="text-align:center;line-height:1.55;margin-top:4px">
-        Either way it is your email and a six-digit code — no password to
-        forget, and nothing else to fill in.</div>
-    ` : !s.sent ? `
+        Your email and a password. We only email you to confirm the address,
+        and if you ever forget it.</div>
+
+    ` : `
       <label class="fld">
         <span class="lbl">Email address</span>
         <input id="fSignEmail" type="email" inputmode="email" autocomplete="email"
                autocapitalize="none" spellcheck="false"
                placeholder="you@example.com" value="${esc(s.email)}">
       </label>
-      <button class="btn" data-a="otp-send">${
-        up ? "Create my account" : "Send me a code"}</button>
+      <label class="fld">
+        <span class="lbl">Password</span>
+        <input id="fSignPass" type="password"
+               autocomplete="${up ? "new-password" : "current-password"}"
+               placeholder="${up ? "At least 8 characters" : ""}">
+      </label>
+      <button class="btn" data-a="${up ? "pw-signup" : "pw-signin"}">${
+        up ? "Create my account" : "Sign in"}</button>
+      ${up ? "" : `<button class="btn ghost sm" data-a="pw-forgot">I forgot my password</button>`}
       <button class="btn ghost sm" data-a="signin-mode" data-v="${up ? "in" : "up"}">${
         up ? "I already have an account" : "I need to create one"}</button>
-      <div class="tiny sub" style="text-align:center">
-        We only ever use this to know it is you.</div>
-    ` : `
-      <div class="note"><div>We sent a six-digit code to
-        <b>${esc(s.email)}</b>. It can take a minute, and it may land in spam.</div></div>
-      <label class="fld">
-        <span class="lbl">The code</span>
-        <input id="fOtp" type="text" inputmode="numeric" autocomplete="one-time-code"
-               maxlength="6" placeholder="000000" style="letter-spacing:.4em;font-size:22px">
-      </label>
-      <button class="btn" data-a="otp-check">${
-        up ? "Create my account" : "Sign in"}</button>
-      <button class="btn ghost sm" data-a="otp-again">Use a different email</button>
     `}
   </div>`;
 }
@@ -7534,7 +7552,7 @@ function vKyc() {
           only for us. Oma never sees your real number and stores neither.
         </div>
 
-       <label class="fld"><span class="lbl">Your vNIN (16 digits) or NIN (11)</span>
+        <label class="fld"><span class="lbl">Your vNIN (16 digits) or NIN (11)</span>
           <input id="fNin" type="text" inputmode="numeric" maxlength="19"
                  placeholder="0000 0000 0000 0000" style="letter-spacing:.12em"></label>
         <button class="btn" data-a="kyc-send">Check it</button>

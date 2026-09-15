@@ -1,4 +1,4 @@
-/* Oma service worker — build c6b2b309ce
+/* Oma service worker — build a830cc6e4e
    Lives at the root of omanails.com, next to app.html.
 
    This is NOT the pwa/ one. That worker was written for a folder whose shell
@@ -14,7 +14,7 @@
    the next launch is current — nobody is ever more than one launch behind, and
    nobody is ever stuck. */
 
-const CACHE = "oma-c6b2b309ce";
+const CACHE = "oma-a830cc6e4e";
 const SHELL = "/app.html";
 const CORE = [SHELL, "/manifest.webmanifest",
               "/icons/icon-192.png", "/icons/icon-512.png",
