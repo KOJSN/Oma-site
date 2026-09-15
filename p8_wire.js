@@ -169,6 +169,58 @@ document.getElementById("shell").addEventListener("click", e => {
     return paint();
   }
 
+  /* Email and password. The OTP handlers below are left in place: Google
+     still returns through captureRedirect, and if the password flow ever has
+     to be backed out, the old door is still standing. */
+  if (a === "pw-signup" || a === "pw-signin") {
+    const n = document.getElementById("fSignEmail");
+    const p = document.getElementById("fSignPass");
+    // Lower-cased and trimmed: a phone keyboard loves to capitalise the first
+    // letter, and Supabase treats Amaka@ and amaka@ as two different accounts.
+    const email = (n ? n.value : "").trim().toLowerCase();
+    const pass = p ? p.value : "";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      return toast("That does not look like an email address.");
+    }
+    if (pass.length < 8) return toast("A password needs at least 8 characters.");
+    SIGNIN.email = email;
+    const up = a === "pw-signup";
+    return (up ? API.signUp(email, pass) : API.signInPassword(email, pass))
+      .then((r) => {
+        // Confirm email is on: there is no session yet, and there must not be
+        // one — she has not proved she owns this address.
+        if (up && r && r.signedIn === false) { SIGNIN.sent = "confirm"; return paint(); }
+        // She has just proved she owns this address, so it is the one thing
+        // about her identity this device can state without asking the server.
+        DB.me = Object.assign({}, DB.me, { email });
+        dbSave();
+        toast("Signed in.");
+        nav("nearby");
+      })
+      .catch(err => toast(err.message));
+  }
+
+  if (a === "pw-forgot") {
+    const n = document.getElementById("fSignEmail");
+    const email = (n ? n.value : "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      return toast("Type your email address first, then tap this.");
+    }
+    SIGNIN.email = email;
+    return API.resetPassword(email)
+      .then(() => { SIGNIN.sent = "reset"; paint(); })
+      .catch(err => toast(err.message));
+  }
+
+  if (a === "pass-set") {
+    const p = document.getElementById("fPass1");
+    const pass = p ? p.value : "";
+    if (pass.length < 8) return toast("A password needs at least 8 characters.");
+    return API.setPassword(pass)
+      .then(() => { SIGNIN.reset = false; toast("Password saved."); nav("nearby"); })
+      .catch(err => toast(err.message));
+  }
+
   if (a === "otp-send") {
     const n = document.getElementById("fSignEmail");
     // Lower-cased and trimmed: a phone keyboard loves to capitalise the first
@@ -190,6 +242,7 @@ document.getElementById("shell").addEventListener("click", e => {
     if (typed) SIGNIN.email = typed.value;
     SIGNIN.mode = el.dataset.v || null;
     SIGNIN.sent = false;
+    SIGNIN.reset = false;
     return paint();
   }
   if (a === "otp-again") { SIGNIN.sent = false; return paint(); }
@@ -1064,7 +1117,17 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
   // Google sends the session back in the URL fragment. Take it before anything
   // else looks at the hash, and before the address bar can be screenshotted
   // with an access token still in it.
-  if (API.captureRedirect()) {
+  const back = API.captureRedirect();
+  if (back) {
+    // A password reset comes back the same way a Google sign-in does, and
+    // dropping her on Home would sign her in exactly once — she would be
+    // locked out again the next time, with no password ever set.
+    if (back === "recovery") {
+      SIGNIN.reset = true;
+      ROUTE = { v: "signin", a: null };
+      paint();
+      return;
+    }
     ROUTE = { v: "nearby", a: null };
     paint();
     toast("Signed in.");
