@@ -138,15 +138,26 @@ function vSignIn() {
                autocapitalize="none" spellcheck="false"
                placeholder="you@example.com" value="${esc(s.email)}">
       </label>
-      <label class="fld">
-        <span class="lbl">Password</span>
-        <input id="fSignPass" type="password"
-               autocomplete="${up ? "new-password" : "current-password"}"
-               placeholder="${up ? "At least 8 characters" : ""}">
-      </label>
+      <!-- The password box and its "forgot" link are ONE child of the stack,
+           so the link sits against the bottom-right corner of the box instead
+           of twelve pixels below it looking like a third thing to decide
+           between. It was a full-width ghost button, which gave a rescue hatch
+           the same weight as "Sign in" — three big stacked buttons and no
+           obvious primary one. A link is the right size for a thing you only
+           want when something has gone wrong. -->
+      <div>
+        <label class="fld">
+          <span class="lbl">Password</span>
+          <input id="fSignPass" type="password"
+                 autocomplete="${up ? "new-password" : "current-password"}"
+                 placeholder="${up ? "At least 8 characters" : ""}">
+        </label>
+        ${up ? "" : `<div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="lnk" style="margin-left:0;font-size:12.5px"
+                  data-a="pw-forgot">I forgot my password</button></div>`}
+      </div>
       <button class="btn" data-a="${up ? "pw-signup" : "pw-signin"}">${
         up ? "Create my account" : "Sign in"}</button>
-      ${up ? "" : `<button class="btn ghost sm" data-a="pw-forgot">I forgot my password</button>`}
       <button class="btn ghost sm" data-a="signin-mode" data-v="${up ? "in" : "up"}">${
         up ? "I already have an account" : "I need to create one"}</button>
     `}
