@@ -1041,6 +1041,15 @@ h3{font-size:16px}
    and #view takes what is left.                                            */
 @media (min-width:900px){
   body{background:var(--bg);padding:0}
+
+  /* --navgap is the height of the bottom tab bar, and the two things that
+     read it — the map sheet and the no-Leaflet fallback list — use it to
+     avoid sitting underneath it. Up here the tab bar is a rail down the left
+     side, so there is no bar at the bottom to avoid, and that 74px became a
+     strip of map below the sheet: the sheet floating rather than resting on
+     anything. Reset to the same 12px the sheet already leaves left and
+     right, so it sits on the bottom edge the way it does on a phone. */
+  :root{--navgap:12px}
   #shell{
     max-width:none;width:100%;
     height:100dvh;min-height:100dvh;
@@ -1094,6 +1103,50 @@ h3{font-size:16px}
      paired buttons are untouched. */
   #view .btn{max-width:360px;margin-left:auto;margin-right:auto}
   #view .btn.big{max-width:440px}
+
+  /* The welcome screen. On a phone it is a column resting on the bottom-left
+     of the screen, and that is right — a thumb is down there and the eye
+     travels up the text to the wordmark. On a laptop the identical markup
+     leaves that wordmark marooned in the bottom-left corner of a very wide,
+     very empty page, and it is the first thing Oma shows anybody who opens
+     it on a desktop.
+
+     So above 900px the column is centred, in both directions, and the text
+     with it. !important because the geometry being overridden is inline on
+     the elements — an inline style beats a stylesheet rule whatever its
+     specificity — and the alternative is threading a second set of styles
+     through markup the phone would have to carry and ignore.
+
+     .welmark is the logo tile above the wordmark and carries
+     margin-bottom:auto, which is the thing pushing the rest of the column to
+     the floor. An auto margin eats all the free space, so it defeats
+     justify-content on its own: it has to become a real gap or nothing below
+     it moves. */
+  #view .welcome .welbody{
+    justify-content:center!important;
+    align-items:center!important;
+    text-align:center;
+    max-width:640px;margin-left:auto;margin-right:auto;
+    padding-top:0!important;
+  }
+  #view .welcome .welmark{margin-bottom:30px!important}
+
+  /* The sentence is capped at 300px on a phone, which is the whole column
+     there. Centred on a laptop that same cap folded it into three short lines
+     stacked under a big wordmark — a paragraph the width of a phone sitting
+     in the middle of a fourteen-inch screen, which reads as a box rather than
+     a sentence. Given the room to run to two long lines instead, with the
+     leading opened up to match. */
+  #view .welcome .welsub{
+    max-width:600px!important;
+    font-size:19px!important;line-height:1.6!important;
+    margin-top:18px!important;
+  }
+  /* Same reason: a wordmark and a sentence pressed together read as one
+     block. The gaps down the column do the spreading. */
+  #view .welcome .dots{
+    margin:34px auto 30px!important;
+  }
 
   /* The update bar floated centred over a phone-width column. Sit it in the
      content area instead of half under the rail. */
@@ -1311,7 +1364,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "548913fc20";
+const BUILD_ID = "16ac8b9e94";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -5871,14 +5924,18 @@ function vWelcome() {
   // as the very first thing Oma showed them. Every colour here is a token now
   // — see --wel-* in p1_head.html — so this screen follows the phone like the
   // rest of the app.
-  return `<div style="min-height:100dvh;background:var(--wel-bg);
+  // The class hooks below exist for one reason: on a laptop this column is
+  // pinned to the bottom-left of a very wide, very empty page, and the
+  // wordmark ends up stranded in a corner. The desktop block in p1_head.html
+  // centres it. Nothing here changes on a phone.
+  return `<div class="welcome" style="min-height:100dvh;background:var(--wel-bg);
       color:var(--wel-ink);display:flex;flex-direction:column;padding:0 26px calc(34px + env(safe-area-inset-bottom));position:relative;overflow:hidden">
     <div style="position:absolute;top:-140px;right:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow1),transparent 68%)"></div>
     <div style="position:absolute;bottom:60px;left:-150px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,var(--wel-glow2),transparent 70%)"></div>
-    <div style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-top:calc(60px + env(safe-area-inset-top))">
-      <div style="margin-bottom:auto">${logoMark(78)}</div>
+    <div class="welbody" style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-top:calc(60px + env(safe-area-inset-top))">
+      <div class="welmark" style="margin-bottom:auto">${logoMark(78)}</div>
       <div style="font-size:56px;font-weight:800;letter-spacing:-.05em;line-height:.9;margin-top:36px">oma</div>
-      <div style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;color:var(--wel-sub);max-width:300px">
+      <div class="welsub" style="font-size:17.5px;font-weight:500;line-height:1.45;margin-top:14px;color:var(--wel-sub);max-width:300px">
         Scan your hands, find the nail shape that actually suits them, and book the tech who does it.
       </div>
       <div class="dots" style="margin:26px 0 22px;max-width:60px">
