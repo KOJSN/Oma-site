@@ -51,6 +51,12 @@
   --shadow:0 2px 10px -2px rgba(0,0,0,.5);
 }
 
+/* A person, once the globe has become a map. Fixed size on screen, because
+   the thing under it is now streets and a marker that grows would cover
+   them. The white ring is what keeps a red pin legible on a pale road. */
+.pin{width:13px;height:13px;border-radius:50%;border:2px solid #fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.45);cursor:pointer}
+
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:"Plus Jakarta Sans",system-ui,-apple-system,sans-serif;
@@ -233,15 +239,16 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
       <div class="grid g4" id="tiles"></div>
     </section>
 
-    <!-- The globe. It is decoration and it is labelled as decoration: the
-         caption says how many of the people it is actually drawing, so it
-         never quietly implies it is showing everybody. What it plots are
-         CELLS, not people — see globe.sql. -->
+    <!-- The globe. The caption says how many of the people it is actually
+         drawing, so it never quietly implies it is showing everybody, and it
+         says the dots are good to about 11 km however far you zoom — which is
+         a property of the column, not of this page. See globe.sql. -->
     <section>
       <div class="lbl">Where people joined from</div>
       <div class="card" style="padding:0;overflow:hidden">
         <div id="globe" style="height:440px;display:flex;align-items:center;
              justify-content:center;background:var(--card)"></div>
+        <div id="globeWho" style="display:none;padding:14px 16px;border-top:1px solid var(--line)"></div>
         <div id="globeCap" class="sub"
              style="font-size:12.5px;padding:12px 16px;border-top:1px solid var(--line)"></div>
       </div>
@@ -790,17 +797,23 @@ document.addEventListener("click", (e) => {
 
 /* ══ the globe ════════════════════════════════════════════════════════
    Kamsy, 16 Sep 2026: "a 3d map of the earth then i can zoom in to see our
-   users around the world … for aesthetic."
+   users around the world … for aesthetic." Then: "add all the users and if i
+   tap the dot let is bring out the username and email and let who ever is
+   reported have a red dot", and "let me also be able to see streets".
 
-   What it draws is honest about itself in three ways, none of them optional:
+   So it names people now, and it zooms to streets. Three things keep it
+   honest, none of them optional:
 
-   1. IT PLOTS CELLS, NOT PEOPLE. api_admin_globe groups by an 11 km cell and
-      returns a count. There is no query anywhere that hands this page one
-      person's dot, so the globe cannot be used to look somebody up — not by
-      accident and not on purpose.
+   1. ELEVEN KILOMETRES, HOWEVER FAR YOU ZOOM. api_admin_globe hands this
+      page one row per person with a name and an address on it — an operator
+      has to be able to see who is in her own marketplace, and the
+      delete-a-user search on this same page already shows exactly that. What
+      keeps it safe is not the query but the COLUMN: signup_lat is
+      numeric(4,1), rounded by the server, written once. Zooming to a street
+      does not sharpen the dot, and the caption and the tap panel both say so.
 
    2. THE CAPTION SAYS HOW MANY IT IS MISSING. Most accounts will have no
-      cell: anybody who never granted location, and everybody who signed up
+      location: anybody who never granted it, and everybody who signed up
       before this existed. A globe with forty dots beside a "900 users" tile
       invites exactly the wrong reading, so the number is on the picture.
 
@@ -808,23 +821,85 @@ document.addEventListener("click", (e) => {
       is about a megabyte; the dashboard is a thing to glance at on a phone in
       a taxi, and it must not wait on a megabyte of WebGL for numbers that are
       already in hand. The script is fetched after the first draw, and if the
-      CDN is unreachable the card says so and nothing else on the page notices.
-
-   The texture is NASA's night lights, which is the one that makes a dot in
-   Lagos read as a dot in Lagos rather than a dot in a green shape. */
+      CDN is unreachable the card says so and nothing else on the page
+      notices. The map tiles are later still — nothing is fetched from CARTO
+      until somebody actually zooms in. */
 /* Kamsy, 16 Sep 2026: "let tech accounts be purple and customers pink."
    The violet is not from Oma's palette, because Oma's palette is entirely
    pinks — a second pink would be a shade nobody can name at eight pixels.
    This one is far enough round the wheel to be told apart at a glance and
    still cool against the pink rather than fighting it. */
 const TECH_PINK   = "#f0518d";
-// The dot, and the offset that keeps a pair of them apart. Tied together on
-// purpose: change one and the other has to follow or they merge again.
-const DOT   = 0.5;
-const NUDGE = DOT * 1.1;
+// Reported beats everything. A person who is both a nail tech and the subject
+// of an open report is drawn red, because the question "who has been reported"
+// is the one somebody scans this globe for, and a purple dot hiding a report
+// is the failure mode worth designing against.
+const TECH_RED    = "#e0352f";
 const TECH_PURPLE = "#8b5cf6";
+const colourOf = (d) => d.reported ? TECH_RED : d.tech ? TECH_PURPLE : TECH_PINK;
 
-let GLOBE = null, globeLib = null;
+/* ══ two globes, and why ══════════════════════════════════════════════
+   Kamsy, 16 Sep 2026: "let me also be able to see streets too in countries
+   yh like so detailed."
+
+   One picture painted on the sphere cannot do that, and no bigger picture
+   can either. earth-oma.png is 8192 pixels round the equator — about five
+   kilometres a pixel — so zooming into it finds no streets, only larger
+   squares. Streets have to be fetched for the patch you are looking at.
+   That is what a slippy map does, and three-globe can put slippy tiles on
+   a sphere, so below MAP_FROM this stops being a drawn earth and becomes a
+   real map.
+
+   FAR — above MAP_FROM: the black-and-white earth she chose. No network,
+   no third party, and it reads as Oma's world rather than as a map widget.
+   People are 3D dots that scale with the sphere.
+
+   NEAR — below MAP_FROM: live tiles, down to about zoom 14: the road
+   network, named streets, the lot. People become fixed-size pins. Both
+   halves of that are forced. A 3D dot is a cylinder that globe.gl will not
+   draw shorter than six kilometres, so at street range the camera ends up
+   INSIDE it and the dot vanishes; and a dot that keeps growing as you zoom
+   would bury the very streets she zoomed in to see.
+
+   WHAT DOES NOT CHANGE IS WHAT IS KNOWN. signup_lat is rounded to 0.1° by
+   the column type itself — about eleven kilometres — so a pin sitting on a
+   particular road is not evidence that anybody is on that road. The panel
+   says so when you tap, and the streets under it are context, not
+   precision. Zooming cannot reveal what was never collected.
+
+   The tiles are CARTO's Positron, built from OpenStreetMap. Both licences
+   require attribution and the caption carries it; it is not decoration and
+   it does not come out. */
+const MAP_FROM = 0.6;    // altitude, in globe radii, where the map takes over
+const HOME_ALT = 1.85;   // the opening view
+const DOT      = 0.5;    // dot radius in degrees, at the opening view
+const CELL     = 0.05;   // and the floor: half of the 0.1° the data actually has
+const TILE_URL = (x, y, l) =>
+  "https://" + "abcd"[Math.abs(x + y) % 4] + ".basemaps.cartocdn.com/light_all/"
+  + l + "/" + x + "/" + y + "@2x.png";
+
+let GLOBE = null, globeLib = null, GLOBE_MAP = false, GLOBE_ROWS = [];
+let dotR = DOT, dotAlt = 0.02, spreadAt = 0;
+
+/* Ask for one tile before betting the picture on the tile server. If CARTO is
+   blocked — a network that filters it, an outage, a licence change years from
+   now — three-globe hides the drawn sphere and draws nothing over it, and the
+   card goes black with no explanation. So the first time somebody zooms in,
+   one 256-pixel tile is fetched on its own; the map only takes over if it
+   arrives, and if it does not the globe stays the drawn earth and the caption
+   says why. Asked once per page load, not once per zoom. */
+let tilesOk = null;
+function tilesAvailable() {
+  if (tilesOk !== null) return Promise.resolve(tilesOk);
+  return new Promise((res) => {
+    const done = (v) => { if (tilesOk === null) { tilesOk = v; res(v); } };
+    const im = new Image();
+    im.onload = () => done(true);
+    im.onerror = () => done(false);
+    im.src = TILE_URL(0, 0, 0);
+    setTimeout(() => done(false), 8000);   // a tile that slow is a tile that failed
+  });
+}
 
 function loadGlobeLib() {
   if (window.Globe) return Promise.resolve();
@@ -839,13 +914,44 @@ function loadGlobeLib() {
   return globeLib;
 }
 
+/* Several people share one rounded coordinate and would be one dot. Each is
+   pushed onto a small ring around the shared point so every one of them is
+   separately tappable — the ring is sized against whatever is being drawn,
+   never against the world, and the coordinate shown when you tap is the real
+   one. The first person stays put so the true point is always occupied. */
+function spread(rows, ring) {
+  const at = {};
+  rows.forEach((p) => {
+    const k = p.lat + "," + p.lng;
+    const i = (at[k] = (at[k] || 0) + 1) - 1;
+    // Six to a ring, then a wider one. A radius of a whole dot DIAMETER, not
+    // half of one, or six neighbours sit on each other.
+    const r = i === 0 ? 0 : ring * (1 + Math.floor((i - 1) / 6) * 0.85);
+    const a = i === 0 ? 0 : ((i - 1) % 6) * (Math.PI / 3);
+    p.dLat = p.lat + r * Math.sin(a);
+    p.dLng = p.lng + r * Math.cos(a);
+  });
+  return rows;
+}
+
+function pinFor(d) {
+  const e = document.createElement("div");
+  e.className = "pin";
+  e.style.background = colourOf(d);
+  e.title = d.name + (d.reported ? " · reported" : "");
+  e.addEventListener("click", () => showPerson(d));
+  return e;
+}
+
+/* One dot per person. The earlier version drew grouped cells with counts and
+   no names; see globe.sql for why that changed. */
 async function drawGlobe(g) {
   const slot = document.getElementById("globe");
   const cap = document.getElementById("globeCap");
+  const who = document.getElementById("globeWho");
   if (!slot || !cap) return;
+  if (who) { who.style.display = "none"; who.innerHTML = ""; }
 
-  // globe.sql has not been run. Say which file, because "nothing here" is not
-  // a thing anybody can act on.
   if (!g) {
     slot.innerHTML = '<div style="color:#8a8296;font-size:13px;padding:24px;text-align:center">'
       + 'Run <b>globe.sql</b> in the SQL editor to switch this on.</div>';
@@ -853,27 +959,54 @@ async function drawGlobe(g) {
     return;
   }
 
-  const cells = (g.cells || []).filter(c => c && c.lat != null && c.lng != null);
-  const placed = Number(g.placed || 0), people = Number(g.people || 0);
+  // An older globe.sql is still installed: it returns `cells`, not `people`.
+  // Say which file rather than drawing nothing and looking broken.
+  if (!g.people && g.cells) {
+    slot.innerHTML = '<div style="color:#8a8296;font-size:13px;padding:24px;text-align:center">'
+      + 'Re-run <b>globe.sql</b> — this is the older version, which grouped people '
+      + 'instead of naming them.</div>';
+    cap.textContent = "";
+    return;
+  }
 
-  /* The legend is part of the caption rather than a floating key, because a
-     key in a corner of a spinning globe is a thing that ends up behind a
-     dot. Two swatches, the same two colours the dots are drawn in. */
-    const key = (colour, word, n) =>
-      '<span style="display:inline-flex;align-items:center;gap:6px;margin-right:14px">'
-      + '<i style="width:9px;height:9px;border-radius:50%;background:' + colour
-      + ';display:inline-block"></i>' + n + " " + word + (n === 1 ? "" : "s") + "</span>";
+  const people = (g.people || []).filter(p => p && p.lat != null && p.lng != null);
+  const total = Number(g.total || 0);
+  const reported = Number(g.reported || 0);
 
-  cap.innerHTML = placed
-    ? key(TECH_PINK, "customer", Number(g.customers || 0))
-      + key(TECH_PURPLE, "nail tech", Number(g.techs || 0))
-      + '<span class="sub">' + placed + " of " + people + " "
-      + (people === 1 ? "person" : "people")
-      + " · grouped into areas of about 11 km. Nobody is plotted individually.</span>"
-    : "Nobody has a joining place yet. It is recorded the first time somebody "
-      + "opens Oma signed in, and only if they have already allowed location.";
+  const key = (colour, word, n) =>
+    '<span style="display:inline-flex;align-items:center;gap:6px;margin-right:14px">'
+    + '<i style="width:9px;height:9px;border-radius:50%;background:' + colour
+    + ';display:inline-block"></i>' + n + " " + word + (n === 1 ? "" : "s") + "</span>";
 
-  if (!cells.length) {
+  const techs = people.filter(p => p.tech && !p.reported).length;
+  const custs = people.filter(p => !p.tech && !p.reported).length;
+  const missing = Math.max(0, total - people.length);
+
+  // OpenStreetMap's and CARTO's licences both want naming, and the sentence
+  // about eleven kilometres is here for the same reason: a page that draws a
+  // pin on a named street has to say what the pin does not know.
+  const credit =
+    '<div class="sub" style="font-size:11.5px;margin-top:6px">'
+    + 'Zoom in past a country for streets · every dot is accurate to about 11 km, '
+    + 'however far you zoom · map '
+    + '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">'
+    + '&copy; OpenStreetMap</a> contributors, '
+    + '<a href="https://carto.com/attributions" target="_blank" rel="noopener">&copy; CARTO</a>'
+    + "</div>";
+
+  cap.innerHTML = people.length
+    ? key(TECH_PINK, "customer", custs)
+      + key(TECH_PURPLE, "nail tech", techs)
+      + (reported ? key(TECH_RED, "reported", reported) : "")
+      + '<span class="sub">tap a dot for who it is'
+      // The people who are NOT drawn matter as much as the ones who are, or a
+      // sparse globe reads as a sparse marketplace.
+      + (missing ? " · " + missing + " not shown (no location yet)" : "")
+      + "</span>" + credit
+    : "Nobody has a location yet. It is recorded the first time somebody opens "
+      + "Oma signed in, and only if they have already allowed location.";
+
+  if (!people.length) {
     slot.innerHTML = '<div style="color:#8a8296;font-size:13px;padding:24px;text-align:center">'
       + 'No dots yet.</div>';
     return;
@@ -886,28 +1019,11 @@ async function drawGlobe(g) {
     return;
   }
 
-  const most = Math.max.apply(null, cells.map(c => Number(c.n) || 1));
-  /* Square root, so twenty people are not twenty times the height of one. The
-     eye reads area, and a linear scale turns one busy city into a spike that
-     hides every other dot behind it.
-
-     AND A SIDEWAYS NUDGE, which is the only reason the two colours are ever
-     both visible. A cell holding nail techs AND customers arrives as two rows
-     at the IDENTICAL coordinate, and two dots drawn at one point are one dot
-     — the first attempt nudged them by less than a dot's own width and drew
-     three dots where there were five.
-
-     So the nudge is sized against the DOT, not against the cell: half a
-     radius each way, so the two circles sit against each other and touch.
-     That is wider than the eleven-kilometre cell, and it is a drawing device
-     rather than a claim about where anybody is — at world zoom the pair is a
-     single two-tone speck, and the tooltip carries the real coordinate. */
-  const pts = cells.map(c => ({
-    lat: Number(c.lat),
-    lng: Number(c.lng) + (c.tech ? NUDGE : -NUDGE),
-    n: Number(c.n) || 1,
-    tech: !!c.tech,
-    alt: 0.012 + 0.16 * Math.sqrt((Number(c.n) || 1) / most),
+  GLOBE_ROWS = people.map(p => ({
+    id: p.id, name: p.name, email: p.email,
+    tech: !!p.tech, reported: !!p.reported, joined: p.joined,
+    lat: Number(p.lat), lng: Number(p.lng),
+    dLat: Number(p.lat), dLng: Number(p.lng),
   }));
 
   if (!GLOBE) {
@@ -915,65 +1031,160 @@ async function drawGlobe(g) {
     GLOBE = Globe()(slot)
       .backgroundColor("rgba(0,0,0,0)")
       .globeImageUrl("/earth-oma.png")
+      .globeTileEngineMaxLevel(17)
       .atmosphereColor("#b9b6c2")
       .atmosphereAltitude(0.18)
-      .pointColor(d => (d.tech ? TECH_PURPLE : TECH_PINK))
-      .pointRadius(DOT)
-      .pointAltitude("alt")
-      .pointLabel(d => "<div style=\"background:#17131e;color:#f7f4f9;border-radius:10px;"
-        + "padding:7px 11px;font:600 12px system-ui\">" + d.n
-        + " " + (d.tech ? "nail tech" : "customer") + (d.n === 1 ? "" : "s")
-        + "<br><span style=\"color:#a79db3\">"
-        + d.lat.toFixed(1) + ", " + d.lng.toFixed(1) + "</span></div>");
+      // far: dots drawn on the sphere
+      .pointLat("dLat").pointLng("dLng")
+      .pointColor(colourOf)
+      .pointRadius(() => dotR)
+      .pointAltitude(() => dotAlt)
+      .pointLabel(d => '<div style="background:#17131e;color:#f7f4f9;border-radius:10px;'
+        + 'padding:7px 11px;font:600 12px system-ui">' + esc(d.name)
+        + (d.reported ? " · reported" : "") + "</div>")
+      .onPointClick(showPerson)
+      // near: pins floating over the map
+      .htmlLat("dLat").htmlLng("dLng").htmlAltitude(0)
+      .htmlTransitionDuration(0)
+      .htmlElement(pinFor)
+      .onZoom(onGlobeZoom);
 
-    /* FLAT, NOT LIT — the whole reason this reads as a drawing.
-
-       globe.gl ships a directional light, and that is what makes a globe look
-       like a rendered sphere: a hotspot at the top left and a shadow falling
-       away to the right. A drawing does not have a sun on it.
-
-       Turning the lights off is not enough on its own — an unlit surface just
-       goes black, and turning the ambient light up instead washes the colour
-       out towards grey rather than reproducing it. So the texture is moved to
-       the material's EMISSIVE channel: emissive light is not shaded by
-       anything, so every pixel comes out exactly the colour it was painted,
-       evenly, all the way round the sphere. The diffuse colour goes to black
-       so nothing is added on top of it.
-
-       Done in onGlobeReady because the texture is fetched asynchronously and
-       material.map is null until it lands — doing this at construction time
-       silently leaves a black ball. */
-    GLOBE.onGlobeReady(() => {
-      const m = GLOBE.globeMaterial();
-      if (!m || !m.map) return;
-      if (m.emissive) m.emissive.setRGB(1, 1, 1);
-      if (m.color) m.color.setRGB(0, 0, 0);
-      m.emissiveMap = m.map;
-      m.emissiveIntensity = 1;
-      m.needsUpdate = true;
-      /* The DIRECTIONAL light goes; the ambient one stays. Killing both was
-         the obvious move and it turned every dot black — globe.gl draws
-         points with a material that still needs light, and with the globe
-         itself now emissive there is nothing left for an ambient light to
-         flatten. So: no sun on the drawing, but the dots keep their colour. */
-      (GLOBE.lights() || []).forEach((l) => {
-        if (l.isDirectionalLight) l.intensity = 0;
-        else if (l.isAmbientLight) l.intensity = 5.4;
-      });
-    });
+    GLOBE.onGlobeReady(relightGlobe);
 
     GLOBE.controls().autoRotate = true;
     GLOBE.controls().autoRotateSpeed = 0.35;
-    // Nigeria, because that is where every dot is and spinning the Pacific at
-    // somebody for four seconds is not an opening move.
-    GLOBE.pointOfView({ lat: 9, lng: 8, altitude: 1.85 }, 0);
+    GLOBE.pointOfView({ lat: 9, lng: 8, altitude: HOME_ALT }, 0);
 
     const fit = () => { if (GLOBE) GLOBE.width(slot.clientWidth).height(slot.clientHeight); };
     fit();
     window.addEventListener("resize", fit);
   }
-  GLOBE.pointsData(pts);
+
+  spreadAt = 0;                       // force a re-lay for the new rows
+  onGlobeZoom(GLOBE.pointOfView());
 }
+
+/* Everything that depends on how close the camera is: which earth, how big a
+   dot, how far apart people standing in the same town are drawn. */
+function onGlobeZoom(pov) {
+  if (!GLOBE || !pov) return;
+  const alt = pov.altitude;
+  const close = alt < MAP_FROM;
+
+  if (close && tilesOk === null) {
+    tilesAvailable().then((ok) => {
+      if (!ok) {
+        const cap = document.getElementById("globeCap");
+        if (cap) cap.insertAdjacentHTML("beforeend",
+          '<div class="sub" style="font-size:11.5px;margin-top:4px">The street map '
+          + "could not be reached, so this stays the drawn earth. Nothing else on "
+          + "this page is affected.</div>");
+      }
+      if (GLOBE) onGlobeZoom(GLOBE.pointOfView());
+    });
+  }
+  const map = close && tilesOk === true;
+
+  if (map !== GLOBE_MAP) {
+    GLOBE_MAP = map;
+    GLOBE.globeTileEngineUrl(map ? TILE_URL : null);
+    relightGlobe();
+    // The two modes lay people out at different scales, so a mode change is
+    // always a re-lay — without this, coming back out of the map leaves the
+    // pins up and never restores the dots.
+    spreadAt = 0;
+    // A map spinning under your nose at street level is unusable. It picks up
+    // again on the way back out, unless a panel is open.
+    GLOBE.controls().autoRotate = !map && !panelOpen();
+  }
+
+  if (map) {
+    // Pins are a fixed size on screen, so their ring has to be a fixed size on
+    // screen too: degrees per pixel scale with altitude, so the ring does.
+    const ring = Math.min(1.5, 2.2 * alt);
+    if (!spreadAt || ring / spreadAt > 1.2 || spreadAt / ring > 1.2) {
+      spreadAt = ring;
+      GLOBE.pointsData([]).htmlElementsData(spread(GLOBE_ROWS, ring));
+    }
+    return;
+  }
+
+  // A dot holds its size on screen as you zoom — until it reaches CELL, which
+  // is half of the 0.1° the coordinate actually resolves. Past that it grows,
+  // and it should: it is showing you the area the answer covers.
+  const r = Math.max(CELL, Math.min(DOT, DOT * (alt / HOME_ALT)));
+  const a = Math.min(0.02, alt * 0.011);
+  if (!spreadAt || r / dotR > 1.2 || dotR / r > 1.2 || a / dotAlt > 1.2 || dotAlt / a > 1.2) {
+    dotR = r; dotAlt = a; spreadAt = r;
+    GLOBE.htmlElementsData([]).pointsData(spread(GLOBE_ROWS, r * 2.3));
+  }
+}
+
+/* The texture is moved to the material's EMISSIVE channel and the directional
+   light killed, which is what makes the earth read as drawn rather than as a
+   lit ball. The ambient light has to stay up regardless: globe.gl's dots and
+   its map tiles are both lit materials, and at 5.4 they come out the colour
+   they were given. There is no material map while tiles are drawing, which is
+   what the guard is for. */
+function relightGlobe() {
+  if (!GLOBE) return;
+  const m = GLOBE.globeMaterial();
+  if (m && m.map) {
+    if (m.emissive) m.emissive.setRGB(1, 1, 1);
+    if (m.color) m.color.setRGB(0, 0, 0);
+    m.emissiveMap = m.map;
+    m.emissiveIntensity = 1;
+    m.needsUpdate = true;
+  }
+  (GLOBE.lights() || []).forEach((l) => {
+    if (l.isDirectionalLight) l.intensity = 0;
+    else if (l.isAmbientLight) l.intensity = 5.4;
+  });
+}
+
+function panelOpen() {
+  const who = document.getElementById("globeWho");
+  return !!(who && who.style.display === "block");
+}
+
+/* Who that dot is. The spinning stops on a tap — reading an email address off
+   a rotating globe is a small cruelty — and starts again when the panel is
+   closed. */
+function showPerson(d) {
+  const who = document.getElementById("globeWho");
+  if (!who || !d) return;
+  if (GLOBE) GLOBE.controls().autoRotate = false;
+  const dot = d.reported ? TECH_RED : d.tech ? TECH_PURPLE : TECH_PINK;
+  who.style.display = "block";
+  who.innerHTML =
+    '<div style="display:flex;align-items:flex-start;gap:11px">'
+    + '<i style="width:11px;height:11px;border-radius:50%;background:' + dot
+    + ';display:block;margin-top:5px;flex:none"></i>'
+    + '<div style="flex:1;min-width:0">'
+    +   '<div style="font-weight:700">' + esc(d.name)
+    +     ' <span class="sub" style="font-weight:600;font-size:12.5px">· '
+    +     (d.tech ? "nail tech" : "customer") + "</span></div>"
+    +   '<div class="sub" style="font-size:12.5px">' + esc(d.email || "") + "</div>"
+    +   (d.reported
+        ? '<div style="color:' + TECH_RED + ';font-size:12.5px;font-weight:700;margin-top:4px">'
+          + "Has an open or actioned report against them</div>"
+        : "")
+    +   '<div class="sub" style="font-size:12px;margin-top:4px">Joined '
+    +     esc(ago(d.joined)) + " · " + d.lat.toFixed(1) + ", " + d.lng.toFixed(1)
+    +     " (to about 11 km)</div>"
+    + "</div>"
+    + '<button class="btn plain sm" data-globe-close="1">Close</button>'
+    + "</div>";
+}
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("[data-globe-close]")) return;
+  const who = document.getElementById("globeWho");
+  if (who) { who.style.display = "none"; who.innerHTML = ""; }
+  // …but not while the map is up: a street view spinning under your nose is
+  // not a view of anything.
+  if (GLOBE) GLOBE.controls().autoRotate = !GLOBE_MAP;
+});
 
 /* ══ loading ══════════════════════════════════════════════════════════ */
 let timer = null;
