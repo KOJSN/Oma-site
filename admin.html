@@ -233,6 +233,20 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
       <div class="grid g4" id="tiles"></div>
     </section>
 
+    <!-- The globe. It is decoration and it is labelled as decoration: the
+         caption says how many of the people it is actually drawing, so it
+         never quietly implies it is showing everybody. What it plots are
+         CELLS, not people — see globe.sql. -->
+    <section>
+      <div class="lbl">Where people joined from</div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="globe" style="height:440px;display:flex;align-items:center;
+             justify-content:center;background:var(--card)"></div>
+        <div id="globeCap" class="sub"
+             style="font-size:12.5px;padding:12px 16px;border-top:1px solid var(--line)"></div>
+      </div>
+    </section>
+
     <section>
       <div class="lbl">The last 30 days</div>
       <div class="grid g2">
@@ -288,20 +302,6 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
           <button class="btn" id="findGo" type="submit">Find</button>
         </form>
         <div id="found" style="margin-top:14px"></div>
-      </div>
-    </section>
-
-    <!-- The globe. It is decoration and it is labelled as decoration: the
-         caption says how many of the people it is actually drawing, so it
-         never quietly implies it is showing everybody. What it plots are
-         CELLS, not people — see globe.sql. -->
-    <section>
-      <div class="lbl">Where people joined from</div>
-      <div class="card" style="padding:0;overflow:hidden">
-        <div id="globe" style="height:440px;display:flex;align-items:center;
-             justify-content:center;background:var(--card)"></div>
-        <div id="globeCap" class="sub"
-             style="font-size:12.5px;padding:12px 16px;border-top:1px solid var(--line)"></div>
       </div>
     </section>
 
