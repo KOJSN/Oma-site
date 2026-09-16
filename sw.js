@@ -65,6 +65,27 @@ self.addEventListener("fetch", (e) => {
      There is no redirect anywhere in index.html; the request never reached
      it. This origin serves two documents and only /app.html is the app. */
   const isShell = url.pathname === SHELL;
+
+  /* THE ADMIN PAGE IS NEVER CACHED, and finding out why cost an evening.
+     Everything below is stale-while-revalidate: a hit is served from the
+     cache and the fresh copy is fetched behind it, for NEXT time. For the
+     app that is exactly right — it opens instantly and nobody is ever more
+     than one launch behind.
+
+     For a dashboard it is wrong twice over. Kamsy uploads a new admin.html,
+     opens it, and is served the copy from before the upload while the new
+     one quietly lands in the cache — so the honest answer to "did my change
+     deploy" is "yes, and you will see it the time after next", which reads
+     exactly like nothing happened. And separately: a dashboard showing
+     yesterday's page is a dashboard nobody can trust on the one morning it
+     matters.
+
+     So this one document goes straight to the network, every time. It is a
+     page she opens on purpose, on a connection, a handful of times a day;
+     there is nothing to gain by having it offline and a great deal to lose
+     by having it stale. */
+  if (url.pathname === "/admin.html" || url.pathname === "/admin") return;
+
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const key = isShell ? SHELL : req;
