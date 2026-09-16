@@ -356,8 +356,14 @@ a{color:var(--pink);text-decoration:none}
   display:inline-flex;align-items:center;justify-content:center;
   margin-left:auto}
 
-/* the fallback: no Leaflet, so the map area becomes an ordinary scrolling list */
+/* the fallback: no Leaflet, so the map area becomes an ordinary scrolling list
+   It is inset:0 like the map it replaces — but a MAP is meant to run under the
+   floating greeting, and a LIST is not. Without the top padding the scan card
+   started underneath the greeting card and its first line was covered, so the
+   sentence explaining what a hand scan is was the one thing you could not
+   read. The greeting stays on top; everything else now begins below it. */
 .maplist{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-top:calc(78px + env(safe-area-inset-top));
   padding-bottom:var(--navgap)}
 
 /* ═══ type ═══════════════════════════════════════════ */

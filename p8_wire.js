@@ -699,6 +699,14 @@ document.getElementById("shell").addEventListener("click", e => {
     MSCOPE.all = el.dataset.v === "all";
     return paint();
   }
+  /* From an empty map to wherever Oma actually has people. The same two
+     values the state picker sets, set by a button that says where it goes —
+     see emptyNear() in p14_live.js for why this exists. */
+  if (a === "map-elsewhere") {
+    MSCOPE.state = el.dataset.v || MSCOPE.state;
+    MSCOPE.all = true;
+    return paint();
+  }
   if (a === "push-toggle") return togglePush();
   if (a === "push-why") return toast(el.dataset.v || "Notifications are not available here.");
   if (a === "find-clear") { FQ = ""; paint(); const el = document.getElementById("qFind"); if (el) el.focus(); return; }
@@ -812,18 +820,9 @@ document.getElementById("shell").addEventListener("input", e => {
 });
 
 /* ══ actions ═════════════════════════════════════════ */
-/* Choosing a state on the map. A <select> does not click, so it cannot go
-   through the delegated handler with everything else. Her choice is kept on
-   the device, because "all of Lagos" should still mean Lagos tomorrow. */
-document.addEventListener("change", (e) => {
-  const n = e.target;
-  if (!n || n.id !== "mState") return;
-  MSCOPE.state = n.value;
-  MSCOPE.all = true;
-  DB.me = Object.assign({}, DB.me, { state: n.value });
-  dbSave();
-  paint();
-});
+/* The <select> that chose a state is gone with the scope pill — see
+   p14_live.js. Nothing listens for a change any more: "See other states" goes
+   to the busiest one, and the heading goes back. */
 
 /* ── putting a listing where customers can see it ─────────────────────
    The order matters and each step depends on the one before it:
