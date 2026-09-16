@@ -53,9 +53,18 @@
 
 /* A person, once the globe has become a map. Fixed size on screen, because
    the thing under it is now streets and a marker that grows would cover
-   them. The white ring is what keeps a red pin legible on a pale road. */
+   them. The white ring is what keeps a red pin legible on a pale road.
+
+   pointer-events:auto is not a nicety. globe.gl hangs its HTML layer off a
+   container it sets to pointer-events:none — so the drag-to-spin gesture
+   passes through to the canvas underneath instead of being eaten by an
+   invisible sheet. Every pin inherits that, and a pin that inherits it
+   cannot be tapped: the click lands on the globe behind it and the panel
+   never opens. Turning it back on for the pin itself, and only the pin,
+   gives the tap somewhere to land while leaving the rest of the layer
+   transparent to the mouse. */
 .pin{width:13px;height:13px;border-radius:50%;border:2px solid #fff;
-  box-shadow:0 1px 4px rgba(0,0,0,.45);cursor:pointer}
+  box-shadow:0 1px 4px rgba(0,0,0,.45);cursor:pointer;pointer-events:auto}
 
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
@@ -867,16 +876,26 @@ const colourOf = (d) => d.reported ? TECH_RED : d.tech ? TECH_PURPLE : TECH_PINK
    says so when you tap, and the streets under it are context, not
    precision. Zooming cannot reveal what was never collected.
 
-   The tiles are CARTO's Positron, built from OpenStreetMap. Both licences
-   require attribution and the caption carries it; it is not decoration and
-   it does not come out. */
+   The tiles were CARTO's Positron, which was the right picture — pale, quiet,
+   the streets legible without the map shouting over the dots. CARTO now
+   answers an unkeyed request with a tile that has API KEY REQUIRED printed
+   diagonally across it, so the map arrived, drew, and said so a hundred times
+   over. A watermark is not an error: nothing failed, nothing threw, the
+   tilesAvailable() check below was perfectly satisfied, and the only thing
+   that told us was looking at it.
+
+   So the tiles are OpenStreetMap's own now, which need no key and never will.
+   The cost is the palette: OSM standard is a full-colour map, greener and
+   busier than Positron, so the streets no longer sit as quietly under the
+   pins as they did. That is a real loss and it is the price of not having an
+   account to lose. Attribution is required and the caption carries it; it is
+   not decoration and it does not come out. */
 const MAP_FROM = 0.6;    // altitude, in globe radii, where the map takes over
 const HOME_ALT = 1.85;   // the opening view
 const DOT      = 0.5;    // dot radius in degrees, at the opening view
 const CELL     = 0.05;   // and the floor: half of the 0.1° the data actually has
 const TILE_URL = (x, y, l) =>
-  "https://" + "abcd"[Math.abs(x + y) % 4] + ".basemaps.cartocdn.com/light_all/"
-  + l + "/" + x + "/" + y + "@2x.png";
+  "https://tile.openstreetmap.org/" + l + "/" + x + "/" + y + ".png";
 
 let GLOBE = null, globeLib = null, GLOBE_MAP = false, GLOBE_ROWS = [];
 let dotR = DOT, dotAlt = 0.02, spreadAt = 0;
@@ -982,16 +1001,15 @@ async function drawGlobe(g) {
   const custs = people.filter(p => !p.tech && !p.reported).length;
   const missing = Math.max(0, total - people.length);
 
-  // OpenStreetMap's and CARTO's licences both want naming, and the sentence
-  // about eleven kilometres is here for the same reason: a page that draws a
-  // pin on a named street has to say what the pin does not know.
+  // OpenStreetMap's licence wants naming, and the sentence about eleven
+  // kilometres is here for the same reason: a page that draws a pin on a
+  // named street has to say what the pin does not know.
   const credit =
     '<div class="sub" style="font-size:11.5px;margin-top:6px">'
     + 'Zoom in past a country for streets · every dot is accurate to about 11 km, '
     + 'however far you zoom · map '
     + '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">'
-    + '&copy; OpenStreetMap</a> contributors, '
-    + '<a href="https://carto.com/attributions" target="_blank" rel="noopener">&copy; CARTO</a>'
+    + '&copy; OpenStreetMap</a> contributors'
     + "</div>";
 
   cap.innerHTML = people.length
