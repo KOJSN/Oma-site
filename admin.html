@@ -276,6 +276,21 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
       <div class="card scroll" id="techs"></div>
     </section>
 
+    <!-- The one destructive thing on this page, and it is last on purpose:
+         far below the numbers, so nobody arrives at it by scrolling idly. -->
+    <section>
+      <div class="lbl">Delete a user</div>
+      <div class="card">
+        <form id="findForm" style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="findQ" placeholder="Email address or name"
+                 autocomplete="off" spellcheck="false"
+                 style="flex:1;min-width:220px">
+          <button class="btn" id="findGo" type="submit">Find</button>
+        </form>
+        <div id="found" style="margin-top:14px"></div>
+      </div>
+    </section>
+
     <!-- The globe. It is decoration and it is labelled as decoration: the
          caption says how many of the people it is actually drawing, so it
          never quietly implies it is showing everybody. What it plots are
@@ -612,6 +627,167 @@ function drawTrouble(t) {
     : `<div class="tr ok">Nothing stuck<b>✓</b></div>`;
 }
 
+/* ══ deleting somebody ════════════════════════════════════════════════
+   Kamsy, 16 Sep 2026: "i want to be able to delete a user forever in the
+   admin page."
+
+   THE SHAPE OF THIS SCREEN IS THE SAFETY FEATURE. Deleting is not a button
+   on a row — a button on a row is one mis-tap from ending somebody's
+   account, and the rows are small and a phone is a phone. It takes three
+   deliberate acts: search for a person, open their panel, and TYPE THEIR
+   EMAIL ADDRESS back.
+
+   And the typing is not theatre the page performs and then discards: the
+   address is sent to the database, and api_admin_delete_user compares it
+   to the account before it does anything. So the guard holds even for a
+   request that never came from this page at all.
+
+   A row that cannot be deleted says why instead of offering a button that
+   fails. The reasons are always money or a dispute — see the SQL. */
+let FOUND = [], OPEN = null;
+
+async function findUsers(q) {
+  const slot = document.getElementById("found");
+  slot.innerHTML = '<div class="sub" style="font-size:13px">Looking…</div>';
+  let r;
+  try { r = await rpc("api_admin_find_user", { p_token: token(), p_q: q }); }
+  catch (e) {
+    slot.innerHTML = '<div class="sub" style="font-size:13px">'
+      + esc(/find_user/.test(e.message) || /does not exist/.test(e.message)
+            ? "Run admin-delete-user.sql in the SQL editor to switch this on."
+            : e.message) + "</div>";
+    return;
+  }
+  FOUND = (r && r.rows) || [];
+  OPEN = null;
+  drawFound((r && r.note) || null);
+}
+
+/* The list of reasons somebody cannot be deleted, in words. Each one is a
+   real amount of somebody's money or a decision a human has not made yet. */
+function blockerWords(b) {
+  if (!b) return [];
+  const out = [];
+  const n = (k) => Number(b[k] || 0);
+  if (n("bookings_in_escrow")) out.push(n("bookings_in_escrow") + " booking(s) paid for and not finished");
+  if (n("jobs_in_escrow")) out.push(n("jobs_in_escrow") + " job(s) paid for and not finished");
+  if (n("disputes")) out.push(n("disputes") + " open dispute(s)");
+  if (n("wallet_kobo")) out.push(naira(n("wallet_kobo")) + " still in her wallet");
+  if (n("payouts_pending")) out.push(n("payouts_pending") + " payout(s) in flight");
+  return out;
+}
+
+function drawFound(note) {
+  const slot = document.getElementById("found");
+  if (note) { slot.innerHTML = '<div class="sub" style="font-size:13px">' + esc(note) + "</div>"; return; }
+  if (!FOUND.length) {
+    slot.innerHTML = '<div class="sub" style="font-size:13px">Nobody matches that.</div>';
+    return;
+  }
+  slot.innerHTML = FOUND.map((u, i) => {
+    const stops = blockerWords(u.blockers);
+    const gone = !!u.deleted_at;
+    return '<div style="padding:12px 0;border-top:1px solid var(--line)">'
+      + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+      +   '<div style="flex:1;min-width:200px">'
+      +     '<div style="font-weight:700">' + esc(u.name || "(no name)")
+      +       (u.is_tech ? ' <span class="sub" style="font-weight:600;font-size:12px">· nail tech'
+                           + (u.listed ? ", listed" : "") + "</span>" : "")
+      +     "</div>"
+      +     '<div class="sub" style="font-size:12.5px">' + esc(u.email || "") + "</div>"
+      +   "</div>"
+      +   (gone
+          ? '<span class="sub" style="font-size:12.5px">Deleted ' + esc(ago(u.deleted_at)) + "</span>"
+          : stops.length
+            ? '<span class="sub" style="font-size:12.5px;max-width:280px;text-align:right">Cannot be deleted — '
+              + esc(stops.join("; ")) + "</span>"
+            : '<button class="btn plain" data-del="' + i + '">Delete…</button>')
+      + "</div>"
+      + (OPEN === i ? deletePanel(u) : "")
+      + "</div>";
+  }).join("");
+}
+
+function deletePanel(u) {
+  return '<div style="margin-top:12px;padding:14px;border-radius:14px;'
+    + 'background:var(--bg);border:1px solid var(--line)">'
+    + '<div style="font-weight:700;margin-bottom:6px">This cannot be undone.</div>'
+    + '<div class="sub" style="font-size:12.5px;line-height:1.55;margin-bottom:12px">'
+    + 'Signing in becomes impossible and every personal detail is overwritten. '
+    + 'Bookings, payments and Oma\'s own records stay — they belong to the other '
+    + 'person in them too — but they will no longer have a name on them.'
+    + '</div>'
+    + '<label class="sub" style="font-size:12.5px;display:block;margin-bottom:6px">'
+    + 'Type <b>' + esc(u.email) + '</b> to confirm</label>'
+    + '<input id="delConfirm" autocomplete="off" spellcheck="false" '
+    + 'placeholder="' + esc(u.email) + '" style="width:100%;margin-bottom:10px">'
+    + '<input id="delReason" autocomplete="off" '
+    + 'placeholder="Why (kept in the admin log)" style="width:100%;margin-bottom:12px">'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn" id="delGo" data-go="' + esc(u.id) + '" '
+    + 'style="background:var(--bad);box-shadow:none">Delete this account</button>'
+    + '<button class="btn plain" data-del="x">Cancel</button>'
+    + '</div><div id="delMsg" class="sub" style="font-size:12.5px;margin-top:10px"></div></div>';
+}
+
+async function doDelete(id) {
+  const c = document.getElementById("delConfirm");
+  const r = document.getElementById("delReason");
+  const m = document.getElementById("delMsg");
+  const btn = document.getElementById("delGo");
+  if (!c || !m) return;
+  btn.disabled = true;
+  m.textContent = "Working…";
+  let out;
+  try {
+    out = await rpc("api_admin_delete_user", {
+      p_token: token(), p_user: id,
+      p_confirm: c.value, p_reason: r ? r.value : null,
+    });
+  } catch (e) { btn.disabled = false; m.textContent = e.message; return; }
+
+  if (!out || out.ok !== true) {
+    btn.disabled = false;
+    // The database refuses for exactly two kinds of reason, and both are
+    // worth saying in full rather than as "could not delete".
+    const stops = blockerWords(out && out.blockers);
+    m.textContent = stops.length ? "Cannot be deleted — " + stops.join("; ")
+                  : (out && out.reason) ? out.reason
+                  : (out && out.already) ? "That account was already deleted."
+                  : "That did not work.";
+    return;
+  }
+  m.textContent = "Deleted.";
+  // Re-run the search rather than patching the row, so what is on screen
+  // is what the database says and not what this page hoped happened.
+  const q = document.getElementById("findQ");
+  setTimeout(() => findUsers(q ? q.value : ""), 600);
+}
+
+document.getElementById("findForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const q = document.getElementById("findQ").value.trim();
+  if (q.length < 3) {
+    document.getElementById("found").innerHTML =
+      '<div class="sub" style="font-size:13px">Type at least three characters.</div>';
+    return;
+  }
+  findUsers(q);
+});
+
+document.addEventListener("click", (e) => {
+  const open = e.target.closest("[data-del]");
+  if (open) {
+    OPEN = open.dataset.del === "x" ? null : Number(open.dataset.del);
+    drawFound();
+    const box = document.getElementById("delConfirm");
+    if (box) box.focus();
+    return;
+  }
+  const go = e.target.closest("[data-go]");
+  if (go) doDelete(go.dataset.go);
+});
+
 /* ══ the globe ════════════════════════════════════════════════════════
    Kamsy, 16 Sep 2026: "a 3d map of the earth then i can zoom in to see our
    users around the world … for aesthetic."
@@ -636,6 +812,18 @@ function drawTrouble(t) {
 
    The texture is NASA's night lights, which is the one that makes a dot in
    Lagos read as a dot in Lagos rather than a dot in a green shape. */
+/* Kamsy, 16 Sep 2026: "let tech accounts be purple and customers pink."
+   The violet is not from Oma's palette, because Oma's palette is entirely
+   pinks — a second pink would be a shade nobody can name at eight pixels.
+   This one is far enough round the wheel to be told apart at a glance and
+   still cool against the pink rather than fighting it. */
+const TECH_PINK   = "#f0518d";
+// The dot, and the offset that keeps a pair of them apart. Tied together on
+// purpose: change one and the other has to follow or they merge again.
+const DOT   = 0.5;
+const NUDGE = DOT * 1.1;
+const TECH_PURPLE = "#8b5cf6";
+
 let GLOBE = null, globeLib = null;
 
 function loadGlobeLib() {
@@ -668,10 +856,20 @@ async function drawGlobe(g) {
   const cells = (g.cells || []).filter(c => c && c.lat != null && c.lng != null);
   const placed = Number(g.placed || 0), people = Number(g.people || 0);
 
-  cap.textContent = placed
-    ? placed + " of " + people + " " + (people === 1 ? "person" : "people")
-      + " · grouped into " + cells.length + " area" + (cells.length === 1 ? "" : "s")
-      + " of about 11 km. Nobody is plotted individually."
+  /* The legend is part of the caption rather than a floating key, because a
+     key in a corner of a spinning globe is a thing that ends up behind a
+     dot. Two swatches, the same two colours the dots are drawn in. */
+    const key = (colour, word, n) =>
+      '<span style="display:inline-flex;align-items:center;gap:6px;margin-right:14px">'
+      + '<i style="width:9px;height:9px;border-radius:50%;background:' + colour
+      + ';display:inline-block"></i>' + n + " " + word + (n === 1 ? "" : "s") + "</span>";
+
+  cap.innerHTML = placed
+    ? key(TECH_PINK, "customer", Number(g.customers || 0))
+      + key(TECH_PURPLE, "nail tech", Number(g.techs || 0))
+      + '<span class="sub">' + placed + " of " + people + " "
+      + (people === 1 ? "person" : "people")
+      + " · grouped into areas of about 11 km. Nobody is plotted individually.</span>"
     : "Nobody has a joining place yet. It is recorded the first time somebody "
       + "opens Oma signed in, and only if they have already allowed location.";
 
@@ -689,11 +887,26 @@ async function drawGlobe(g) {
   }
 
   const most = Math.max.apply(null, cells.map(c => Number(c.n) || 1));
-  // Square root, so twenty people are not twenty times the height of one. The
-  // eye reads area, and a linear scale turns one busy city into a spike that
-  // hides every other dot behind it.
+  /* Square root, so twenty people are not twenty times the height of one. The
+     eye reads area, and a linear scale turns one busy city into a spike that
+     hides every other dot behind it.
+
+     AND A SIDEWAYS NUDGE, which is the only reason the two colours are ever
+     both visible. A cell holding nail techs AND customers arrives as two rows
+     at the IDENTICAL coordinate, and two dots drawn at one point are one dot
+     — the first attempt nudged them by less than a dot's own width and drew
+     three dots where there were five.
+
+     So the nudge is sized against the DOT, not against the cell: half a
+     radius each way, so the two circles sit against each other and touch.
+     That is wider than the eleven-kilometre cell, and it is a drawing device
+     rather than a claim about where anybody is — at world zoom the pair is a
+     single two-tone speck, and the tooltip carries the real coordinate. */
   const pts = cells.map(c => ({
-    lat: Number(c.lat), lng: Number(c.lng), n: Number(c.n) || 1,
+    lat: Number(c.lat),
+    lng: Number(c.lng) + (c.tech ? NUDGE : -NUDGE),
+    n: Number(c.n) || 1,
+    tech: !!c.tech,
     alt: 0.012 + 0.16 * Math.sqrt((Number(c.n) || 1) / most),
   }));
 
@@ -704,12 +917,13 @@ async function drawGlobe(g) {
       .globeImageUrl("/earth-oma.png")
       .atmosphereColor("#b9b6c2")
       .atmosphereAltitude(0.18)
-      .pointColor(() => "#f0518d")
-      .pointRadius(0.75)
+      .pointColor(d => (d.tech ? TECH_PURPLE : TECH_PINK))
+      .pointRadius(DOT)
       .pointAltitude("alt")
       .pointLabel(d => "<div style=\"background:#17131e;color:#f7f4f9;border-radius:10px;"
         + "padding:7px 11px;font:600 12px system-ui\">" + d.n
-        + (d.n === 1 ? " person" : " people") + "<br><span style=\"color:#a79db3\">"
+        + " " + (d.tech ? "nail tech" : "customer") + (d.n === 1 ? "" : "s")
+        + "<br><span style=\"color:#a79db3\">"
         + d.lat.toFixed(1) + ", " + d.lng.toFixed(1) + "</span></div>");
 
     /* FLAT, NOT LIT — the whole reason this reads as a drawing.
