@@ -1370,7 +1370,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "2801753138";
+const BUILD_ID = "b2e1686125";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -11774,6 +11774,9 @@ document.getElementById("shell").addEventListener("click", e => {
         // nothing after it.
         DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
         dbSave();
+        // She typed her name on the signup screen, before any of this
+        // existed to save it against. This is the first moment it does.
+        pushProfile();
         toast("Signed in.");
         nav("nearby");
       })
@@ -12027,6 +12030,36 @@ document.getElementById("shell").addEventListener("click", e => {
     return;
   }
 
+/* ══ the name that was only ever on the phone ═════════════════════════
+   Kamsy, 16 Sep 2026: "their names don't even show."
+
+   app_user.full_name was empty for every person who has ever signed up,
+   and the reason was not one bug but two sitting on top of each other.
+
+   The signup screen — `saveMe`, below — wrote DB.me to localStorage and
+   navigated away. No server call at all. And the profile screen, which
+   DOES call API.saveProfile, was calling api_save_profile, which did not
+   exist in the database: the request 404'd, the catch fired, and the
+   person saw "Saved here, but not on the server", which nobody reads as
+   "your name is gone". people.sql creates that function; this sends it
+   something to store.
+
+   Called in three places, because a name is typed before there is
+   anywhere to put it: at signup, at sign-in (the first moment a session
+   exists to save it against), and at boot, which is what carries the
+   names already sitting on ten phones up to the server the next time
+   those people open Oma.
+
+   Best effort, always. The local copy is saved before this runs, so a
+   failed round trip costs nothing and must never raise a dialog. */
+function pushProfile() {
+  if (!API.signedIn()) return;
+  const me = DB.me || {};
+  if (!me.name && !me.area) return;
+  return API.saveProfile(me.name || "", me.area || "", null, null)
+    .catch(() => { /* already saved on this device; it will try again at boot */ });
+}
+
   if (a === "saveMe") {
     if (!fields.fName) return toast("Your name, at least — techs need something to call you.");
     DB.me = Object.assign({}, DB.me, {
@@ -12034,6 +12067,7 @@ document.getElementById("shell").addEventListener("click", e => {
     });
     delete DB.me.ll;      // a customer has no pin; see myPos()
     dbSave();
+    pushProfile();        // …and on the server, which this never did
     return el.dataset.back ? (toast("Saved."), back()) : nav("home");
   }
 
@@ -12724,6 +12758,9 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
   if (typeof liveResume === "function") liveResume();
 
   noteWhereTheyJoined();
+  // The ten names already sitting in localStorage on ten phones, carried up
+  // the first time each of those people opens Oma again. See people.sql.
+  pushProfile();
 })();
 
 /* ══ where somebody joined from ══════════════════════
