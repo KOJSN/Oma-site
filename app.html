@@ -1364,7 +1364,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "1a659e85ba";
+const BUILD_ID = "e0f9e1a4b5";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -4049,6 +4049,17 @@ const API = (() => {
     signUp, confirmSignUp, resendSignUp,
     signInPassword, resetPassword, confirmReset, setPassword,
 
+    /* Where somebody was when they first signed in, rounded to 0.1 degrees
+       (~11 km) by the SERVER before it is stored, written once and never
+       again. It exists for one thing: the globe on the admin page. See
+       globe.sql, which explains why it is coarse and why that costs the
+       picture nothing.
+
+       Best effort in every sense — it is called only when the browser has
+       ALREADY been granted location for something else, it never raises, and
+       nothing in the app behaves differently whether it worked or not. */
+    setSignupPlace: (lat, lng)              => live() ? rpc("api_set_signup_place", { p_lat: lat, p_lng: lng }) : MOCK.setSignupPlace(lat, lng),
+
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
     nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.nearby(lat, lng, km),
@@ -4515,6 +4526,7 @@ const API = (() => {
         return { mock: true };
       },
       resendSignUp: async () => ({ sent: true, mock: true }),
+      setSignupPlace: async () => ({ mock: true }),
       signInPassword: async (email) => {
         const s = load();
         s.user = s.user || {};
@@ -12541,7 +12553,49 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
      is a travelling tech before broadcasting anything, so a salon can never be
      started by a stale flag on a phone. See p20_live.js. */
   if (typeof liveResume === "function") liveResume();
+
+  noteWhereTheyJoined();
 })();
+
+/* ══ where somebody joined from ══════════════════════
+   One dot on the admin globe, and nothing else in Oma reads it. The server
+   rounds it to 0.1 degrees — about eleven kilometres — and refuses to
+   overwrite it afterwards; globe.sql is where that is enforced and argued.
+
+   THE PART THAT MATTERS IS WHAT THIS DOES NOT DO: it never causes a
+   permission prompt. It asks the Permissions API first and gives up unless
+   the answer is already "granted" — that is, unless she has previously said
+   yes to location for the map or a search, which is a thing she did for a
+   reason she chose. A decoration on a dashboard is not a reason to put a
+   browser dialog in front of somebody, and a prompt that appears the instant
+   you sign in is the kind that gets answered "block" forever, which would
+   cost Oma the location it actually needs for distances.
+
+   Everything here is best effort. No await, no toast, no error — if any part
+   of it fails the app is unchanged, because nothing in the app depends on it.
+   The local flag only saves a round trip; the server is the real guard. */
+function noteWhereTheyJoined() {
+  try {
+    if (!API.signedIn() || !API.live()) return;
+    if (localStorage.getItem("oma-joined-from")) return;
+    if (!navigator.geolocation || !navigator.permissions) return;
+
+    navigator.permissions.query({ name: "geolocation" }).then((st) => {
+      if (st.state !== "granted") return;          // never prompt. see above.
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          API.setSignupPlace(pos.coords.latitude, pos.coords.longitude)
+            .then(() => { try { localStorage.setItem("oma-joined-from", "1"); } catch (e) {} })
+            .catch(() => { /* try again next launch; nothing is waiting on it */ });
+        },
+        () => { /* she moved indoors, or the fix timed out. Not a problem. */ },
+        // A cached fix from the last half hour is fine — this is a dot on a
+        // globe, not a distance, so there is no reason to wake the GPS for it.
+        { timeout: 8000, maximumAge: 1800000, enableHighAccuracy: false }
+      );
+    }).catch(() => { /* Permissions API missing. Then no dot, and no prompt. */ });
+  } catch (e) { /* storage blocked, private window, anything at all */ }
+}
 
 </script>
 </body>
