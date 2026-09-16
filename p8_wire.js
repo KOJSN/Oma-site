@@ -193,8 +193,15 @@ document.getElementById("shell").addEventListener("click", e => {
         if (up && r && r.exists) {
           SIGNIN.mode = "in";
           SIGNIN.sent = false;
+          SIGNIN.known = true;          // the note stays on the sign-in screen
           paint();
-          return toast("That address already has an Oma account — sign in.");
+          // The toast for the moment of the change, the note for afterwards.
+          // The toast alone left somebody looking at a screen that said "Sign
+          // in" when she had asked to create an account, with the reason gone.
+          toast("You already have an account with that address.");
+          const pw = document.getElementById("fSignPass");
+          if (pw) pw.focus();
+          return;
         }
         // Confirm email is on: there is no session yet, and there must not be
         // one — she has not proved she owns this address. The next screen is
@@ -318,6 +325,7 @@ document.getElementById("shell").addEventListener("click", e => {
     SIGNIN.mode = el.dataset.v || null;
     SIGNIN.sent = false;
     SIGNIN.reset = false;
+    SIGNIN.known = false;   // she has chosen a door herself; the note is spent
     return paint();
   }
   if (a === "otp-again") { SIGNIN.sent = false; return paint(); }
@@ -538,6 +546,52 @@ document.getElementById("shell").addEventListener("click", e => {
       dbSave(); toast("Shop location pinned."); paint();
     });
   }
+  /* ── the profile rows ────────────────────────────────
+     One row at a time turns into its own input; nothing else on the page
+     moves, and there is no separate screen per field to keep in step. */
+  if (a === "profile-edit") {
+    PROFEDIT = el.dataset.v || null;
+    paint();
+    const box = document.getElementById("fProf");
+    if (box) { box.focus(); box.select(); }
+    return;
+  }
+  if (a === "profile-cancel") { PROFEDIT = null; return paint(); }
+
+  if (a === "profile-save") {
+    const box = document.getElementById("fProf");
+    const v = ((box && box.value) || "").trim();
+    const key = el.dataset.v;
+    if (key === "name" && !v) {
+      return toast("Your name, at least — techs need something to call you.");
+    }
+    DB.me = Object.assign({}, DB.me, key === "name" ? { name: v } : { area: v });
+    delete DB.me.ll;          // a customer has no pin; see myPos()
+    dbSave();
+    PROFEDIT = null;
+    paint();
+
+    /* AND ON THE SERVER, which nothing in the app was doing. saveProfile has
+       existed in p12_api.js since the backend landed and had no caller: every
+       name typed into Oma was written to this device and nowhere else.
+
+       That is not cosmetic. The identity check compares the name Prembly
+       returns against app_user.full_name — the row on the SERVER — so a
+       profile that only ever existed locally meant the check was reading a
+       blank or a stale name and refusing people whose ID was fine. Best
+       effort: the local copy is already saved, so a failed round trip is
+       worth a line in the console and not a screen she has to dismiss. */
+    if (API.signedIn()) {
+      const me = DB.me || {};
+      API.saveProfile(me.name || "", me.area || "", null, null)
+        .then(() => toast("Saved."))
+        .catch(err => toast(err.message || "Saved here, but not on the server."));
+    } else {
+      toast("Saved on this device. Sign in to keep it.");
+    }
+    return;
+  }
+
   if (a === "saveMe") {
     if (!fields.fName) return toast("Your name, at least — techs need something to call you.");
     DB.me = Object.assign({}, DB.me, {

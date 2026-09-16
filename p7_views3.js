@@ -282,18 +282,120 @@ function vScan(id) {
 }
 
 /* ══ your details, and settings ══════════════════════ */
+/* ══ profile ═════════════════════════════════════════
+   Kamsy, 16 Sep 2026: "let the profile be like this", with a rider app's
+   profile screen. The shape she is pointing at: a face at the top, then one
+   fact per row — a quiet label above the value, a chevron if it can be
+   changed — and the one thing that is NOT yet true carrying its own button
+   rather than being a row you have to know to tap.
+
+   It replaces two stacked text boxes and a Save button, which read as a form
+   to be filled in rather than a page about her. A form is what you meet once;
+   this is a page somebody comes back to.
+
+   THE FIELDS ARE EDITED IN PLACE. The reference has a chevron into a screen
+   per field, and four screens for three facts is four screens to keep
+   consistent. Tapping a row here turns that row into its own input with Save
+   and Cancel, and nothing else on the page moves.
+
+   NO PHONE NUMBER ROW. The reference has one; Oma stopped collecting one on
+   3 Sep — sign-in is by email and the contact route is the in-app
+   conversation. A row for a number that is never asked for is a promise to
+   store something.
+
+   NO CAMERA BADGE ON THE AVATAR. The reference has one, and Oma has nowhere
+   to put a profile photo: there is no column for it, no bucket path, and no
+   policy. A button that opens a picker and then quietly loses the picture is
+   worse than initials. Initials, until that is built properly.            */
+let PROFEDIT = null;     // "name" | "area" while that row is being typed into
+
 function vEditMe() {
   const m = DB.me || {};
+  const tech = DB.role === "tech";
+  const signedIn = API.signedIn();
+  // Asked once, here, so the Identity row can say what is true rather than
+  // sending her into a screen to find out. loadIdentity repaints when it lands.
+  if (signedIn) loadIdentity();
+  const id = typeof IDENT !== "undefined" ? IDENT : null;
+  const verified = !!(id && id.verified);
+  const name = (m.name || "").trim();
+  const email = (m.email || "").trim();
+
+  const line = (inner, last) => `<div style="padding:15px 2px;border-bottom:${
+    last ? "0" : "1px solid var(--line)"}">${inner}</div>`;
+
+  const label = (s) => `<span class="tiny sub" style="display:block;font-weight:600">${s}</span>`;
+  const value = (s, empty) => `<span style="display:block;font-size:16.5px;font-weight:700;
+    margin-top:2px;overflow:hidden;text-overflow:ellipsis">${
+      s ? esc(s) : `<span class="faint" style="font-weight:600">${esc(empty || "")}</span>`}</span>`;
+
+  /* A row she can change. Two states, same row, same place on the page. */
+  const field = (key, lab, val, placeholder, hint) => {
+    if (PROFEDIT === key) return line(`
+      ${label(lab)}
+      <span class="inp" style="margin-top:8px"><input id="fProf"
+        value="${esc(val)}" placeholder="${esc(placeholder)}"></span>
+      ${hint ? `<div class="tiny faint" style="margin-top:8px;line-height:1.5">${hint}</div>` : ""}
+      <div class="btnrow" style="margin-top:12px">
+        <button class="btn sm" data-a="profile-save" data-v="${key}">Save</button>
+        <button class="btn ghost sm" data-a="profile-cancel">Cancel</button>
+      </div>`);
+    return line(`
+      <button data-a="profile-edit" data-v="${key}" style="display:flex;align-items:center;
+        gap:12px;width:100%;background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit">
+        <span style="flex:1;min-width:0">${label(lab)}${value(val, placeholder)}</span>
+        ${I.chev()}</button>`);
+  };
+
   return `
-  ${head("Your details")}
+  ${head("Profile")}
   <div class="pad">
-    <label class="field"><span class="lab">Your name</span>
-      <span class="inp"><input id="fName" value="${esc(m.name || "")}" placeholder="Your name"></span></label>
-    <label class="field"><span class="lab">Your area</span>
-      <span class="inp"><input id="fArea" value="${esc(m.area || "")}" placeholder="Lekki, Lagos"></span></label>
-    <div class="tiny faint" style="margin:-8px 0 16px">A label for your bookings.
-      How far away a tech is comes from your device each time you search.</div>
-    <button class="btn" data-a="saveMe" data-back="1">Save</button>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:11px;
+                padding:6px 0 18px">
+      <div class="avatar" style="width:88px;height:88px;border-radius:50%;font-size:30px">${
+        esc(name ? initials(name) : "?")}</div>
+      <div class="tiny faint" style="text-align:center;max-width:280px;line-height:1.5">
+        A nail tech only sees your name once you have booked her.</div>
+    </div>
+
+    <div class="card" style="display:block;padding:2px 16px">
+      ${field("name", "Name", name, "Add your name",
+              "This has to match the name on your ID for the identity check to pass.")}
+
+      <!-- Not editable here, and deliberately. The email is what the account
+           IS — changing it is an auth flow with its own confirmation code,
+           not a text box on a profile page. -->
+      ${line(`<div style="display:flex;align-items:center;gap:12px">
+        <span style="flex:1;min-width:0">
+          ${label("Email address")}
+          ${value(signedIn ? email : "", signedIn ? "Signed in" : "Not signed in")}
+          <span class="tiny" style="display:block;margin-top:3px;font-weight:700;color:${
+            signedIn ? "var(--good)" : "var(--faint)"}">${
+            signedIn ? "Verified" : "Sign in to keep your bookings"}</span>
+        </span>
+        ${signedIn ? "" : `<button class="btn sm" style="width:auto;flex:none;padding:0 20px"
+          data-a="go" data-v="signin">Sign in</button>`}
+      </div>`)}
+
+      ${field("area", "Area", (m.area || "").trim(), "Lekki, Lagos",
+              "A label for your bookings. How far away a tech is comes from your device each time you search, not from this.")}
+
+      <!-- The row the whole screen is arranged around. It is the one fact
+           that may not be true yet, so it is the one row carrying a button. -->
+      ${line(`<div style="display:flex;align-items:center;gap:12px">
+        <span style="flex:1;min-width:0">
+          ${label("Identity")}
+          ${value(!signedIn ? "Sign in first"
+                : verified ? "Verified"
+                : id ? "Not verified" : "Checking…")}
+          ${verified ? "" : `<span class="tiny faint" style="display:block;margin-top:3px">${
+            signedIn ? kycNote(tech) : "Needed before Oma can check it"}</span>`}
+        </span>
+        ${signedIn && id && !verified
+          ? `<button class="btn sm" style="width:auto;flex:none;padding:0 22px"
+              data-a="go" data-v="kyc">Verify</button>` : ""}
+      </div>`, true)}
+    </div>
   </div>`;
 }
 function vSettings() {

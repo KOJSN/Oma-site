@@ -74,7 +74,11 @@ const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
    the confirmation email) | "reset" (waiting on the six-digit code from the
    password-reset email). reset: true once that code has verified and she is
    choosing the new password. Both codes, no links anywhere. */
-let SIGNIN = { email: "", sent: false, mode: null, reset: false };
+/* known: she tried to create an account with an address that already has one.
+   A toast said so and then vanished after three seconds, which is the wrong
+   lifetime for the one fact that explains why the screen just changed under
+   her. It stays on the screen until she goes somewhere else. */
+let SIGNIN = { email: "", sent: false, mode: null, reset: false, known: false };
 
 function vSignIn() {
   const s = SIGNIN;
@@ -147,6 +151,11 @@ function vSignIn() {
         and if you ever forget it.</div>
 
     ` : `
+      ${s.known && !up ? `<div class="note warn">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--warn)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.1"/></svg>
+        <div><b>${esc(s.email)} already has an Oma account.</b> Sign in below
+          instead — or if you cannot remember the password, use the link under
+          the box and we will send you a code.</div></div>` : ""}
       <label class="fld">
         <span class="lbl">Email address</span>
         <input id="fSignEmail" type="email" inputmode="email" autocomplete="email"
