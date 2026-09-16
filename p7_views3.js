@@ -16,6 +16,54 @@ function kycNote(tech) {
               : "Needed for appointments at your address";
 }
 
+/* The "Track my location" row. Three shapes, because there are three
+   different truths to tell — see the long note at the foot of p20_live.js
+   for why a tech, a salon and a customer cannot share one switch. */
+function trackRow() {
+  const label = (note) =>
+    `Track my location<span class="tiny sub" style="display:block;font-weight:600;margin-top:1px">${note}</span>`;
+
+  if (DB.role === "tech") {
+    if (API.signedIn()) loadPresence();
+    const p = PRESENCE || {};
+    // A shop does not move. Send her to the listing, where the address is.
+    if (p.has_salon) return `
+      <button data-a="go" data-v="listing">
+        <span class="ic">${I.pin()}</span>
+        <span style="flex:1;min-width:0">${label(
+          "Your shop has an address, so it does not move")}</span>
+        ${I.chev()}</button>`;
+    const on = LIVE.on && !!LIVE.liveAt && !LIVE.err;
+    const note = LIVE.err ? esc(LIVE.err)
+      : on ? "Customers can see you &middot; updated "
+             + esc(agoWords(LIVE.liveAt) || "just now")
+      : "Off &mdash; nobody can find you, and Oma keeps no trail";
+    return `
+      <button data-a="track-toggle">
+        <span class="ic">${I.pin(on)}</span>
+        <span style="flex:1;min-width:0">${label(note)}</span>
+        <span class="switch${LIVE.on ? " on" : ""}" role="switch"
+              aria-checked="${LIVE.on ? "true" : "false"}"><i></i></span></button>`;
+  }
+
+  // A customer is never on the map. This grants a browser permission and
+  // nothing else, and the note has to say so or the row overpromises.
+  loadGeoPerm();
+  const g = GEOPERM;
+  const note = g === "granted"
+      ? "On &mdash; distances are live. Oma stores nothing."
+    : g === "denied"
+      ? "Blocked in your browser. Turn it back on in site settings."
+    : "Tap to let Oma use your location for distances";
+  return `
+    <button data-a="track-toggle">
+      <span class="ic">${I.pin(g === "granted")}</span>
+      <span style="flex:1;min-width:0">${label(note)}</span>
+      ${g === "granted"
+        ? `<span class="switch on" role="img" aria-label="Allowed"><i></i></span>`
+        : I.chev()}</button>`;
+}
+
 function vMore() {
   const me = DB.me || {};
   const tech = DB.role === "tech";
@@ -49,10 +97,12 @@ function vMore() {
       ${tech ? `
         ${row("listing", I.shop(), "My listing",
               "Your services, prices and where you work")}
+        ${trackRow()}
         ${row("scanner", I.tick(16), "Scan a client's code")}
         ${row("wallet", I.cal(), "Earnings and withdrawals")}
         ${row("kyc", I.user(), "Verify your identity", kycNote(tech))}`
       : `${row("nearby", I.shop(), "Nail techs near me")}
+        ${trackRow()}
         ${API.signedIn()
           ? row("kyc", I.user(), "Verify your identity", kycNote(tech)) : ""}`}
     </div>

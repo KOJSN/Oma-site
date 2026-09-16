@@ -679,6 +679,8 @@ document.getElementById("shell").addEventListener("click", e => {
     return paint();
   }
   if (a === "work-toggle") return toggleWorking();
+  // The same switch, reached from More instead of the listing screen.
+  if (a === "track-toggle") return trackToggle();
   if (a === "photo-del") return deleteMyPhoto(el.dataset.id);
   if (a === "photo-report") {
     // The flag sits inside the <label> that IS the service card, so without

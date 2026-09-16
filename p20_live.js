@@ -295,3 +295,80 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible" || !LIVE.on) return;
   whereAmI().then((p) => { if (!p.guessed) liveSend(p.lat, p.lng, p.acc, LIVE.src); });
 });
+
+/* ══ "Track my location" — the More screen ════════════════════════════
+   Kamsy, 16 Sep 2026: "add a track location button in the more screen for
+   both customers and techs."
+
+   One row, in one place, doing two different things — because a customer
+   and a tech are placed by Oma in two different ways, and a single switch
+   that pretended otherwise would be a lie on one of the two screens.
+
+   A TECH IS ON THE MAP. Her row is the working switch: the same LIVE
+   heartbeat, the same 45-minute window, surfaced where she was told to
+   look for it instead of only on her listing. Off takes her off the map
+   at once.
+
+   A CUSTOMER IS NEVER ON THE MAP and is never stored — that rule is from
+   3 Sep and has not moved. What her row turns on is her *browser's*
+   permission, so the distances she is shown are real ones. There is
+   nothing inside Oma to switch off, only something to grant or refuse in
+   the browser, so the row reports the permission, asks for it, and says
+   plainly that nothing is kept. A switch here would imply Oma holds
+   something it could release, and it holds nothing.
+
+   A SALON GETS NEITHER. It has an address; it does not move. Offering a
+   shop a tracking switch invites her to turn on something the server will
+   refuse anyway (live.sql rejects a heartbeat for a salon), and a control
+   that cannot work is worse than no control.                            */
+let PRESENCE = null;    // { has_salon, live_at, visible } — asked once
+let GEOPERM  = null;    // "granted" | "denied" | "prompt" | "unknown"
+
+async function loadPresence() {
+  if (PRESENCE || !API.signedIn()) return PRESENCE;
+  try { PRESENCE = (await API.myPresence())[0] || {}; }
+  catch (e) { PRESENCE = { error: (e && e.message) || "Could not reach Oma" }; }
+  if (ROUTE.v === "more") paint();
+  return PRESENCE;
+}
+function forgetPresence() { PRESENCE = null; }
+
+/* The Permissions API is not everywhere — Safari came to it late and some
+   private modes withhold it. When it is missing the honest answer is
+   "unknown", and the row invites a tap rather than announcing "off" about
+   a permission that may well already be granted. */
+async function loadGeoPerm() {
+  if (GEOPERM) return GEOPERM;
+  try {
+    if (!navigator.permissions || !navigator.permissions.query) GEOPERM = "unknown";
+    else {
+      const s = await navigator.permissions.query({ name: "geolocation" });
+      GEOPERM = s.state;
+      // She may change it in browser settings while Oma is open. Without
+      // this the row keeps showing the answer it got at first paint.
+      s.onchange = () => { GEOPERM = s.state; if (ROUTE.v === "more") paint(); };
+    }
+  } catch (e) { GEOPERM = "unknown"; }
+  if (ROUTE.v === "more") paint();
+  return GEOPERM;
+}
+
+/* Asking for a position IS the prompt — a page cannot raise the browser's
+   permission dialog any other way. So ask, then re-read the permission
+   rather than assuming the answer, because she may have dismissed it. */
+async function askGeo() {
+  const p = await whereAmI();
+  GEOPERM = null;
+  await loadGeoPerm();
+  if (p.guessed && p.why === "denied" && GEOPERM !== "granted") GEOPERM = "denied";
+  if (ROUTE.v === "more") paint();
+}
+
+async function trackToggle() {
+  if (DB.role !== "tech") return askGeo();
+  const p = (await loadPresence()) || {};
+  if (p.has_salon) return;                  // a shop does not move
+  await toggleWorking();
+  PRESENCE = null; loadPresence();
+  paint();
+}
