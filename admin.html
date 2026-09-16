@@ -1123,7 +1123,14 @@ function drawPeople(g) {
     + "<th>On the globe</th><th>Joined</th></tr></thead><tbody>"
     + rows.map((p) =>
         '<tr' + (p.deleted ? ' style="opacity:.45"' : "") + ">"
-        + "<td><b>" + esc(p.name) + "</b>"
+        // A name the person actually gave is bold. Anything worked out from
+        // their email or business name is greyed and says so on hover, so a
+        // guess is never presented as a fact she can act on.
+        + "<td>" + (p.named
+                    ? "<b>" + esc(p.name) + "</b>"
+                    : '<span class="sub" title="No name on the account \u2014 this is '
+                      + 'taken from their email or business name">' + esc(p.name)
+                      + "</span>")
         + (p.reported ? ' <span class="chip no">reported</span>' : "")
         + (p.deleted ? ' <span class="sub">· deleted</span>' : "") + "</td>"
         + "<td>" + esc(p.email || "—") + "</td>"
@@ -1139,10 +1146,19 @@ function drawPeople(g) {
 
   const total = Number(g.total || rows.length);
   const located = Number(g.located || 0);
+  const named = Number(g.named || 0);
   cap.textContent = total + " signed up · " + located + " on the globe · "
     + Math.max(0, total - located)
     + " with no location, which is normal: Oma records where somebody is only "
-    + "if they open it signed in having already allowed location, and it never asks.";
+    + "if they open it signed in having already allowed location, and it never asks."
+    // The number that says whether the name fix has taken. It was zero for
+    // everybody until people.sql created the function the app had been
+    // calling into the void — see the header of that file.
+    + (named < total
+        ? "  ·  " + named + " of " + total + " have given a name; the greyed "
+          + "ones are worked out from an email or a business name, and fill in "
+          + "as people open the updated app."
+        : "");
 }
 
 /* Everything that depends on how close the camera is: which earth, how big a
