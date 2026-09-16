@@ -240,6 +240,34 @@ document.getElementById("shell").addEventListener("click", e => {
         "That code did not work. Check it, or ask for a new one."));
   }
 
+  /* The code from the reset email. Verifying it mints a session — that is how
+     Supabase lets somebody who has forgotten a password set a new one — so the
+     very next screen is the password box and nothing else. */
+  if (a === "reset-confirm") {
+    const n = document.getElementById("fResetCode");
+    const code = (n ? n.value : "").replace(/\D/g, "");
+    if (code.length !== 6) return toast("The code is six digits.");
+    return API.confirmReset(SIGNIN.email, code)
+      .then(() => {
+        DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
+        dbSave();
+        SIGNIN.sent = false;
+        SIGNIN.reset = true;          // the "Set a new password" screen
+        paint();
+        const box = document.getElementById("fPass1");
+        if (box) box.focus();
+      })
+      .catch(err => toast(err.message ||
+        "That code did not work. Check it, or ask for a new one."));
+  }
+
+  if (a === "reset-resend") {
+    if (!SIGNIN.email) return toast("Start again with your email address.");
+    return API.resetPassword(SIGNIN.email)
+      .then(() => toast("New code sent. It can take a minute."))
+      .catch(err => toast(err.message));
+  }
+
   if (a === "signup-resend") {
     if (!SIGNIN.email) return toast("Start again with your email address.");
     return API.resendSignUp(SIGNIN.email)

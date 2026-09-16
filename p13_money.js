@@ -71,8 +71,9 @@ const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
    doubt. Nothing here pretends the mechanism differs — the words change, the
    code path does not. */
 /* sent: false | "confirm" (account made, waiting on the six-digit code from
-   the confirmation email) | "reset" (reset link sent). reset: true while she
-   is setting a new password after following one. */
+   the confirmation email) | "reset" (waiting on the six-digit code from the
+   password-reset email). reset: true once that code has verified and she is
+   choosing the new password. Both codes, no links anywhere. */
 let SIGNIN = { email: "", sent: false, mode: null, reset: false };
 
 function vSignIn() {
@@ -119,10 +120,24 @@ function vSignIn() {
       <button class="btn ghost sm" data-a="signup-resend">Send me a new code</button>
       <button class="btn ghost sm" data-a="signin-mode" data-v="up">Use a different email</button>
 
-    ` : s.sent ? `
-      <div class="note"><div>We sent a reset link to <b>${esc(s.email)}</b>. It
-        can take a minute, and it may land in spam.</div></div>
-      <button class="btn ghost" data-a="signin-mode" data-v="in">Back to sign in</button>
+    ` : s.sent === "reset" ? `
+      <!-- A reset used to be a link. It opened in whatever browser the mail
+           app preferred, signed her in there, and left this window saying
+           "we sent you a link" with nothing to do. Same six digits as the
+           signup code, typed in the window she is already looking at. -->
+      <div class="note"><div>We sent a six-digit code to <b>${esc(s.email)}</b>.
+        Type it in and you can pick a new password. It can take a minute, and
+        it may land in spam.${API.isMock()
+          ? " In the practice version any six digits will do." : ""}</div></div>
+      <label class="fld">
+        <span class="lbl">The code from your email</span>
+        <input id="fResetCode" inputmode="numeric" autocomplete="one-time-code"
+               maxlength="7" placeholder="123456"
+               style="letter-spacing:.34em;font-size:20px;font-weight:800;text-align:center">
+      </label>
+      <button class="btn" data-a="reset-confirm">Continue</button>
+      <button class="btn ghost sm" data-a="reset-resend">Send me a new code</button>
+      <button class="btn ghost sm" data-a="signin-mode" data-v="in">Back to sign in</button>
 
     ` : !s.mode ? `
       <button class="btn" data-a="signin-mode" data-v="up">Create an account</button>

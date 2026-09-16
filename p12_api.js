@@ -344,14 +344,52 @@ const API = (() => {
     return s;
   }
 
-  /* redirect_to is a QUERY parameter on this endpoint, not a body field. Put
-     it in the body and it is accepted, ignored, and the link in her email
-     lands on Supabase's own page instead of Oma. */
+  /* ── forgetting a password, also with a code ────────────
+     Kamsy, 16 Sep 2026: "even the 'forgot password' feature should also be a
+     code." Same reasoning as signing up, and it lands harder here: a reset
+     link opens in whatever browser the mail app prefers, signs her in THERE,
+     and the window she was actually typing in is left on "we sent you a
+     link" forever. She then has a signed-in browser she did not choose and a
+     password she still has not changed.
+
+     /auth/v1/recover is still the right endpoint — it refuses to invent an
+     account for an address that has none, which /auth/v1/otp would happily
+     do — but redirect_to is gone, because nothing is being redirected. What
+     comes back is a six-digit code, verified below as type "recovery".
+
+     WHAT HAS TO BE TRUE IN SUPABASE:
+       Authentication → Emails → "Reset Password" must contain {{ .Token }}.
+     It is a DIFFERENT template from "Confirm signup" — changing one does not
+     change the other, and editing the wrong one is the likeliest way for
+     this to keep sending links after the code was asked for. */
   async function resetPassword(email) {
     if (!live()) return MOCK.resetPassword(email);
-    const back = encodeURIComponent(location.origin + location.pathname);
-    await call(`/auth/v1/recover?redirect_to=${back}`, { email }, { auth: false });
+    await call("/auth/v1/recover", { email }, { auth: false });
     return { sent: true };
+  }
+
+  /* The code from that email. A recovery code is minted under type
+     "recovery"; "email" is tried after it for the same reason as signup —
+     projects differ, and a wrong type reads exactly like a wrong code.
+
+     What this returns is a real session, which is the point: she is signed in
+     for the moment it takes setPassword() below to run, and nothing else in
+     the app is reachable in between because the screen after this is the
+     password box. */
+  async function confirmReset(email, token) {
+    if (!live()) return MOCK.confirmReset(email, token);
+    let s;
+    try {
+      s = stamp(await call("/auth/v1/verify",
+                           { type: "recovery", email, token }, { auth: false }));
+    } catch (first) {
+      try {
+        s = stamp(await call("/auth/v1/verify",
+                             { type: "email", email, token }, { auth: false }));
+      } catch (second) { throw first; }
+    }
+    setSession(s);
+    return s;
   }
 
   /* She comes back from the reset link already signed in — captureRedirect()
@@ -409,7 +447,7 @@ const API = (() => {
     practice, setPractice, hasBuiltIn,
     sendOtp, verifyOtp,
     signUp, confirmSignUp, resendSignUp,
-    signInPassword, resetPassword, setPassword,
+    signInPassword, resetPassword, confirmReset, setPassword,
 
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
@@ -886,6 +924,15 @@ const API = (() => {
         return { mock: true };
       },
       resetPassword: async () => ({ sent: true, mock: true }),
+      confirmReset: async (email, token) => {
+        if (String(token).replace(/\D/g, "").length !== 6) fail("that code is six digits");
+        const s = load();
+        s.user = s.user || {};
+        Object.assign(s.user, { id: s.user.id || "me", email, full_name: s.user.full_name || "" });
+        save();
+        setSession({ access_token: "mock", refresh_token: "mock", user: { id: s.user.id } });
+        return { mock: true };
+      },
       setPassword: async () => ({ ok: true, mock: true }),
       verifyOtp: async (email, token) => {
         if (String(token).replace(/\D/g, "").length !== 6) fail("that code is six digits");
