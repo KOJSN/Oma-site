@@ -263,6 +263,20 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
       </div>
     </section>
 
+    <!-- Everyone. The globe above can only draw somebody Oma holds a
+         coordinate for, and it holds one for very few — location is
+         recorded only when a signed-in person opens Oma having ALREADY
+         granted it, and Oma never prompts. So the globe was the only
+         place an individual customer appeared, and it was showing two
+         people out of ten. This is the list the count in "People" was
+         standing in for. It says per row who is not on the map, so the
+         gap is explained where it is noticed. See people.sql. -->
+    <section>
+      <div class="lbl">Everyone who has signed up</div>
+      <div class="card scroll" id="folk"></div>
+      <div id="folkCap" class="sub" style="font-size:12.5px;margin-top:8px"></div>
+    </section>
+
     <section>
       <div class="lbl">The last 30 days</div>
       <div class="grid g2">
@@ -1082,6 +1096,55 @@ async function drawGlobe(g) {
   onGlobeZoom(GLOBE.pointOfView());
 }
 
+/* The list the globe cannot be. Deleted accounts stay, greyed: they are
+   part of how many people signed up, and hiding them would make the count
+   above disagree with the rows below for no reason anybody could see. */
+function drawPeople(g) {
+  const slot = document.getElementById("folk");
+  const cap = document.getElementById("folkCap");
+  if (!slot || !cap) return;
+
+  if (!g) {
+    slot.innerHTML = '<div class="empty">Run <b>people.sql</b> in the SQL '
+      + 'editor to switch this on.</div>';
+    cap.textContent = "";
+    return;
+  }
+
+  const rows = g.people || [];
+  if (!rows.length) {
+    slot.innerHTML = '<div class="empty">Nobody has signed up yet.</div>';
+    cap.textContent = "";
+    return;
+  }
+
+  slot.innerHTML =
+    '<table><thead><tr><th>Name</th><th>Email</th><th>Kind</th><th>Area</th>'
+    + "<th>On the globe</th><th>Joined</th></tr></thead><tbody>"
+    + rows.map((p) =>
+        '<tr' + (p.deleted ? ' style="opacity:.45"' : "") + ">"
+        + "<td><b>" + esc(p.name) + "</b>"
+        + (p.reported ? ' <span class="chip no">reported</span>' : "")
+        + (p.deleted ? ' <span class="sub">· deleted</span>' : "") + "</td>"
+        + "<td>" + esc(p.email || "—") + "</td>"
+        + "<td>" + (p.tech ? "nail tech" : "customer")
+        + (p.tech && p.listed ? " · listed" : "") + "</td>"
+        + "<td>" + esc(p.area || "—") + "</td>"
+        // The whole reason this column exists: it answers "why is she not a
+        // dot" on the row where the question occurs.
+        + "<td>" + (p.located ? "yes"
+                   : '<span class="sub">no location</span>') + "</td>"
+        + "<td>" + esc(ago(p.joined)) + "</td></tr>").join("")
+    + "</tbody></table>";
+
+  const total = Number(g.total || rows.length);
+  const located = Number(g.located || 0);
+  cap.textContent = total + " signed up · " + located + " on the globe · "
+    + Math.max(0, total - located)
+    + " with no location, which is normal: Oma records where somebody is only "
+    + "if they open it signed in having already allowed location, and it never asks.";
+}
+
 /* Everything that depends on how close the camera is: which earth, how big a
    dot, how far apart people standing in the same town are drawn. */
 function onGlobeZoom(pov) {
@@ -1211,7 +1274,7 @@ async function load() {
   const t = token();
   if (!t) return lockOut("");
   try {
-    const [o, tr, series, recent, mail, pix, globe] = await Promise.all([
+    const [o, tr, series, recent, mail, pix, globe, folk] = await Promise.all([
       rpc("api_admin_overview", { p_token: t }),
       rpc("api_admin_trouble", { p_token: t }),
       rpc("api_admin_series", { p_token: t, p_days: 30 }),
@@ -1225,10 +1288,14 @@ async function load() {
       // globe.sql may not be loaded yet. A missing globe must not take the
       // whole dashboard down with it — same rule as the inbox and the gallery.
       rpc("api_admin_globe", { p_token: t }).catch(() => null),
+      // people.sql may not be loaded yet. A missing list must not take the
+      // whole dashboard down with it.
+      rpc("api_admin_people", { p_token: t, p_limit: 200 }).catch(() => null),
     ]);
 
     drawTrouble(tr);
     drawGlobe(globe);
+    drawPeople(folk);
 
     document.getElementById("tiles").innerHTML = [
       tile("Nail techs listed", num(o.people.listed),
