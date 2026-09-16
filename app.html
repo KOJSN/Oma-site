@@ -356,8 +356,14 @@ a{color:var(--pink);text-decoration:none}
   display:inline-flex;align-items:center;justify-content:center;
   margin-left:auto}
 
-/* the fallback: no Leaflet, so the map area becomes an ordinary scrolling list */
+/* the fallback: no Leaflet, so the map area becomes an ordinary scrolling list
+   It is inset:0 like the map it replaces — but a MAP is meant to run under the
+   floating greeting, and a LIST is not. Without the top padding the scan card
+   started underneath the greeting card and its first line was covered, so the
+   sentence explaining what a hand scan is was the one thing you could not
+   read. The greeting stays on top; everything else now begins below it. */
 .maplist{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-top:calc(78px + env(safe-area-inset-top));
   padding-bottom:var(--navgap)}
 
 /* ═══ type ═══════════════════════════════════════════ */
@@ -1364,7 +1370,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "e0f9e1a4b5";
+const BUILD_ID = "606740af8b";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -8557,7 +8563,6 @@ function vHomeLive() {
 
     fillHost(`
       <div id="map"></div>
-      ${scopeBar()}
       <div class="mapbtns">
         <button class="mapbtn" data-a="map-me" aria-label="Centre the map on me">${I.pin()}</button>
         <button class="mapbtn pink" data-a="startscan" aria-label="Scan your hands">${I.scan()}</button>
@@ -8596,22 +8601,15 @@ function vHomeLive() {
   </div>`;
 }
 
-/* The two questions the map can answer, as two taps. The state is a native
-   <select> rather than a home-made sheet: it is one line of markup, it is
-   reachable with a screen reader, and on a phone it opens the wheel everybody
-   already knows how to use. */
-function scopeBar() {
-  if (!MSTATES.length) return "";          // nothing listed anywhere yet
-  const opts = MSTATES.map((r) =>
-    `<option value="${esc(r.state)}" ${r.state === MSCOPE.state ? "selected" : ""}
-      >${esc(r.state)} · ${r.techs}</option>`).join("");
-  return `<div class="scope" role="group" aria-label="What the map shows">
-    <button type="button" class="${MSCOPE.all ? "" : "on"}" data-a="map-scope" data-v="near"
-            aria-pressed="${MSCOPE.all ? "false" : "true"}">Near me</button>
-    <select id="mState" class="${MSCOPE.all ? "on" : ""}"
-            aria-label="Show a whole state">${opts}</select>
-  </div>`;
-}
+/* THE SCOPE PILL IS GONE. It floated over the top of the map, which on the
+   home screen means over the top of the scan card — a control almost nobody
+   needed, covering the sentence that explains what a hand scan is. Two
+   permanent buttons for a question that only arises when the map is empty.
+
+   Where it went: "See other states" now lives in the empty state, which is
+   the only moment the question is real, and the heading below carries the way
+   back. Kamsy, 16 Sep 2026: "remove the near me and other states features but
+   leave the 'other states' below". */
 
 /* One pin. The initials rather than a dot, so a map of six techs is readable
    without tapping any of them. */
@@ -8828,10 +8826,16 @@ function sheetMany() {
     ${NEXTUP ? `<div class="lbl">Coming up</div>${bookingRow(NEXTUP)}
                 <div style="height:14px"></div>` : ""}
     <div class="rowbetween" style="margin-bottom:8px">
-      <div class="lbl" style="margin:0">${n
-        ? `${n} nail tech${n > 1 ? "s" : ""} near you`
-        : "Nail techs near you"}</div>
-      ${n > 3 ? `<span class="seeall" data-a="go" data-v="salons">See all</span>` : ""}
+      <div class="lbl" style="margin:0">${MSCOPE.all
+        ? `Nail techs in ${esc(MSCOPE.state || "that state")}`
+        : n ? `${n} nail tech${n > 1 ? "s" : ""} near you`
+            : "Nail techs near you"}</div>
+      <!-- The return journey. Without the pill, somebody who tapped through to
+           a state and FOUND people had no way back — the empty state's "Back
+           to near me" only appears when there is nothing there. -->
+      ${MSCOPE.all
+        ? `<span class="seeall" data-a="map-scope" data-v="near">Near me</span>`
+        : n > 3 ? `<span class="seeall" data-a="go" data-v="salons">See all</span>` : ""}
     </div>
     ${HOMEPOS && HOMEPOS.guessed ? `<div class="note warn" style="margin-bottom:10px"><div>
       <b>These are not distances from you.</b> Oma could not tell where you are,
@@ -8849,10 +8853,56 @@ function sheetMany() {
         <button class="lnk" data-a="ask-loc">Refresh</button>
       </div>` : ""}
     ${n ? NEAR.slice(0, 3).map(techRowLive).join("")
-        : `<div class="empty" style="padding:18px 12px"><div class="ic">${I.pin()}</div>
-             <b>No nail techs near you yet</b>
-             Oma shows techs who have listed themselves and passed their ID check.</div>`}
+        : emptyNear(true)}
 `;
+}
+
+/* ── the way out of an empty map ──────────────────────
+   "No nail techs near you yet" and then nothing was a dead end, and it is the
+   commonest screen Oma has: a marketplace is empty everywhere until it is full
+   somewhere. A woman in Kano with nobody listed near her got a dashed box and
+   no next move, when Oma had techs in Lagos the whole time.
+
+   So the empty state carries the answer to "well, where ARE they?" — one tap
+   to the busiest state, using the scope the map already has rather than a new
+   idea. MSTATES is already loaded for the state picker; this reads the same
+   list and needs no extra request.
+
+   It is a LINK, not a button. A filled pink slab inside a dashed empty box is
+   two competing shapes arguing in a space the size of a postcard, and it made
+   the absence of nail techs look like the main event on the screen. The map is
+   the screen; this is a footnote on it. And it says "other states" rather than
+   naming one, because the point being made is that Oma has people elsewhere —
+   which state is a detail she can change in the pill once she is there.
+
+   It also settles the App Store problem. App Review runs in California: a
+   reviewer who taps Allow on the location prompt gets Cupertino coordinates
+   and an empty map, which reads as a broken app and is a Guideline 2.1
+   rejection. Oma's fallback to Lagos Island only fires when location FAILS,
+   so it never helps the reviewer who says yes. This does, and it does it by
+   being the finished version of the screen rather than a thing bolted on for
+   Apple. */
+function busiestState() {
+  if (!MSTATES || !MSTATES.length) return null;
+  return MSTATES.reduce((a, b) => (Number(b.techs) || 0) > (Number(a.techs) || 0) ? b : a);
+}
+
+function emptyNear(pad) {
+  const b = busiestState();
+  // Already looking at a whole state, or nothing is listed anywhere yet. In
+  // both cases there is nowhere better to send her, and a button that goes
+  // somewhere equally empty is worse than no button.
+  const out = !MSCOPE.all && b && (Number(b.techs) || 0) > 0;
+  return `<div class="empty"${pad ? ` style="padding:18px 12px"` : ""}>
+    <div class="ic">${I.pin()}</div>
+    <b>${MSCOPE.all ? `No nail techs in ${esc(MSCOPE.state || "that state")} yet`
+                    : "No nail techs near you yet"}</b>
+    Oma shows techs who have listed themselves and passed their ID check.
+    ${out ? `<div style="margin-top:10px"><button class="lnk" style="margin-left:0"
+      data-a="map-elsewhere" data-v="${esc(b.state)}">See other states</button></div>` : ""}
+    ${MSCOPE.all ? `<div style="margin-top:10px"><button class="lnk" style="margin-left:0"
+      data-a="map-scope" data-v="near">Back to near me</button></div>` : ""}
+  </div>`;
 }
 
 /* ── home without a map ─────────────────────────────────
@@ -8861,26 +8911,18 @@ function sheetMany() {
 function homeAsList() {
   const last = DB.scans[0];
   fillHost(`
-    ${scopeBar()}
     <div class="maplist">
-      <div class="pad mt16">
-        <button class="hero" data-a="startscan">
-          <div style="display:flex;align-items:center;gap:16px">
-            <div style="flex:1">
-              <div class="eyebrow" style="color:rgba(255,255,255,.85)">Hand scan</div>
-              <div style="font-size:19px;font-weight:800;letter-spacing:-.025em;line-height:1.25;margin-top:6px">
-                Find the shape that suits your hands</div>
-              <div style="margin-top:14px;display:inline-flex;align-items:center;gap:7px;background:#fff;
-                  color:#c22a66;font-size:13.5px;font-weight:700;padding:9px 15px;border-radius:99px">
-                ${last ? "Scan again" : "Start scan"}
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
-              </div>
-            </div>
-          </div>
-        </button>
-      </div>
+      <!-- The big pink "Hand scan" card was here and is gone — Kamsy,
+           16 Sep 2026. Scanning is not orphaned by that: the pink button in
+           the middle of the bottom bar does the same thing, from every screen
+           rather than only this one, and it is the largest target in the app.
+           The card was a second front door standing next to the first,
+           spending the whole top of home on a thing you can already reach
+           with your thumb without looking.
 
-      ${last ? `<div class="pad mt12">${scanCard(last)}</div>` : ""}
+           The MAP version of home never had one; this is the fallback screen,
+           and the two now agree about what the top of home is for. -->
+      ${last ? `<div class="pad mt16">${scanCard(last)}</div>` : ""}
 
       ${NEXTUP ? `<div class="pad mt16"><div class="lbl">Coming up</div></div>
                   <div class="pad stack gap12">${bookingRow(NEXTUP)}</div>` : ""}
@@ -8888,15 +8930,14 @@ function homeAsList() {
       <div class="seehead">
         <h3>${MSCOPE.all ? `Nail techs in ${esc(MSCOPE.state || "your state")}`
                          : "Nail techs near you"}</h3>
-        ${NEAR.length > 3 ? `<span class="seeall" data-a="go" data-v="salons">See all</span>` : ""}
+        ${MSCOPE.all
+          ? `<span class="seeall" data-a="map-scope" data-v="near">Near me</span>`
+          : NEAR.length > 3 ? `<span class="seeall" data-a="go" data-v="salons">See all</span>` : ""}
       </div>
       <div class="pad stack gap12">
         ${NEAR.length
           ? NEAR.slice(0, 3).map(techRowLive).join("")
-          : `<div class="empty"><div class="ic">${I.pin()}</div>
-               <b>${MSCOPE.all ? `No nail techs in ${esc(MSCOPE.state || "that state")} yet`
-                                : "No nail techs near you yet"}</b>
-               Oma shows techs who have listed themselves and passed their ID check.</div>`}
+          : emptyNear(false)}
       </div>
       <div style="height:16px"></div>
     </div>`);
@@ -11966,6 +12007,14 @@ document.getElementById("shell").addEventListener("click", e => {
     MSCOPE.all = el.dataset.v === "all";
     return paint();
   }
+  /* From an empty map to wherever Oma actually has people. The same two
+     values the state picker sets, set by a button that says where it goes —
+     see emptyNear() in p14_live.js for why this exists. */
+  if (a === "map-elsewhere") {
+    MSCOPE.state = el.dataset.v || MSCOPE.state;
+    MSCOPE.all = true;
+    return paint();
+  }
   if (a === "push-toggle") return togglePush();
   if (a === "push-why") return toast(el.dataset.v || "Notifications are not available here.");
   if (a === "find-clear") { FQ = ""; paint(); const el = document.getElementById("qFind"); if (el) el.focus(); return; }
@@ -12079,18 +12128,9 @@ document.getElementById("shell").addEventListener("input", e => {
 });
 
 /* ══ actions ═════════════════════════════════════════ */
-/* Choosing a state on the map. A <select> does not click, so it cannot go
-   through the delegated handler with everything else. Her choice is kept on
-   the device, because "all of Lagos" should still mean Lagos tomorrow. */
-document.addEventListener("change", (e) => {
-  const n = e.target;
-  if (!n || n.id !== "mState") return;
-  MSCOPE.state = n.value;
-  MSCOPE.all = true;
-  DB.me = Object.assign({}, DB.me, { state: n.value });
-  dbSave();
-  paint();
-});
+/* The <select> that chose a state is gone with the scope pill — see
+   p14_live.js. Nothing listens for a change any more: "See other states" goes
+   to the busiest one, and the heading goes back. */
 
 /* ── putting a listing where customers can see it ─────────────────────
    The order matters and each step depends on the one before it:
