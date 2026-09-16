@@ -1364,7 +1364,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "e303c01939";
+const BUILD_ID = "54f0289831";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -3944,14 +3944,52 @@ const API = (() => {
     return s;
   }
 
-  /* redirect_to is a QUERY parameter on this endpoint, not a body field. Put
-     it in the body and it is accepted, ignored, and the link in her email
-     lands on Supabase's own page instead of Oma. */
+  /* ── forgetting a password, also with a code ────────────
+     Kamsy, 16 Sep 2026: "even the 'forgot password' feature should also be a
+     code." Same reasoning as signing up, and it lands harder here: a reset
+     link opens in whatever browser the mail app prefers, signs her in THERE,
+     and the window she was actually typing in is left on "we sent you a
+     link" forever. She then has a signed-in browser she did not choose and a
+     password she still has not changed.
+
+     /auth/v1/recover is still the right endpoint — it refuses to invent an
+     account for an address that has none, which /auth/v1/otp would happily
+     do — but redirect_to is gone, because nothing is being redirected. What
+     comes back is a six-digit code, verified below as type "recovery".
+
+     WHAT HAS TO BE TRUE IN SUPABASE:
+       Authentication → Emails → "Reset Password" must contain {{ .Token }}.
+     It is a DIFFERENT template from "Confirm signup" — changing one does not
+     change the other, and editing the wrong one is the likeliest way for
+     this to keep sending links after the code was asked for. */
   async function resetPassword(email) {
     if (!live()) return MOCK.resetPassword(email);
-    const back = encodeURIComponent(location.origin + location.pathname);
-    await call(`/auth/v1/recover?redirect_to=${back}`, { email }, { auth: false });
+    await call("/auth/v1/recover", { email }, { auth: false });
     return { sent: true };
+  }
+
+  /* The code from that email. A recovery code is minted under type
+     "recovery"; "email" is tried after it for the same reason as signup —
+     projects differ, and a wrong type reads exactly like a wrong code.
+
+     What this returns is a real session, which is the point: she is signed in
+     for the moment it takes setPassword() below to run, and nothing else in
+     the app is reachable in between because the screen after this is the
+     password box. */
+  async function confirmReset(email, token) {
+    if (!live()) return MOCK.confirmReset(email, token);
+    let s;
+    try {
+      s = stamp(await call("/auth/v1/verify",
+                           { type: "recovery", email, token }, { auth: false }));
+    } catch (first) {
+      try {
+        s = stamp(await call("/auth/v1/verify",
+                             { type: "email", email, token }, { auth: false }));
+      } catch (second) { throw first; }
+    }
+    setSession(s);
+    return s;
   }
 
   /* She comes back from the reset link already signed in — captureRedirect()
@@ -4009,7 +4047,7 @@ const API = (() => {
     practice, setPractice, hasBuiltIn,
     sendOtp, verifyOtp,
     signUp, confirmSignUp, resendSignUp,
-    signInPassword, resetPassword, setPassword,
+    signInPassword, resetPassword, confirmReset, setPassword,
 
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
@@ -4486,6 +4524,15 @@ const API = (() => {
         return { mock: true };
       },
       resetPassword: async () => ({ sent: true, mock: true }),
+      confirmReset: async (email, token) => {
+        if (String(token).replace(/\D/g, "").length !== 6) fail("that code is six digits");
+        const s = load();
+        s.user = s.user || {};
+        Object.assign(s.user, { id: s.user.id || "me", email, full_name: s.user.full_name || "" });
+        save();
+        setSession({ access_token: "mock", refresh_token: "mock", user: { id: s.user.id } });
+        return { mock: true };
+      },
       setPassword: async () => ({ ok: true, mock: true }),
       verifyOtp: async (email, token) => {
         if (String(token).replace(/\D/g, "").length !== 6) fail("that code is six digits");
@@ -7365,8 +7412,9 @@ const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
    doubt. Nothing here pretends the mechanism differs — the words change, the
    code path does not. */
 /* sent: false | "confirm" (account made, waiting on the six-digit code from
-   the confirmation email) | "reset" (reset link sent). reset: true while she
-   is setting a new password after following one. */
+   the confirmation email) | "reset" (waiting on the six-digit code from the
+   password-reset email). reset: true once that code has verified and she is
+   choosing the new password. Both codes, no links anywhere. */
 let SIGNIN = { email: "", sent: false, mode: null, reset: false };
 
 function vSignIn() {
@@ -7413,10 +7461,24 @@ function vSignIn() {
       <button class="btn ghost sm" data-a="signup-resend">Send me a new code</button>
       <button class="btn ghost sm" data-a="signin-mode" data-v="up">Use a different email</button>
 
-    ` : s.sent ? `
-      <div class="note"><div>We sent a reset link to <b>${esc(s.email)}</b>. It
-        can take a minute, and it may land in spam.</div></div>
-      <button class="btn ghost" data-a="signin-mode" data-v="in">Back to sign in</button>
+    ` : s.sent === "reset" ? `
+      <!-- A reset used to be a link. It opened in whatever browser the mail
+           app preferred, signed her in there, and left this window saying
+           "we sent you a link" with nothing to do. Same six digits as the
+           signup code, typed in the window she is already looking at. -->
+      <div class="note"><div>We sent a six-digit code to <b>${esc(s.email)}</b>.
+        Type it in and you can pick a new password. It can take a minute, and
+        it may land in spam.${API.isMock()
+          ? " In the practice version any six digits will do." : ""}</div></div>
+      <label class="fld">
+        <span class="lbl">The code from your email</span>
+        <input id="fResetCode" inputmode="numeric" autocomplete="one-time-code"
+               maxlength="7" placeholder="123456"
+               style="letter-spacing:.34em;font-size:20px;font-weight:800;text-align:center">
+      </label>
+      <button class="btn" data-a="reset-confirm">Continue</button>
+      <button class="btn ghost sm" data-a="reset-resend">Send me a new code</button>
+      <button class="btn ghost sm" data-a="signin-mode" data-v="in">Back to sign in</button>
 
     ` : !s.mode ? `
       <button class="btn" data-a="signin-mode" data-v="up">Create an account</button>
@@ -11320,6 +11382,34 @@ document.getElementById("shell").addEventListener("click", e => {
       })
       .catch(err => toast(err.message ||
         "That code did not work. Check it, or ask for a new one."));
+  }
+
+  /* The code from the reset email. Verifying it mints a session — that is how
+     Supabase lets somebody who has forgotten a password set a new one — so the
+     very next screen is the password box and nothing else. */
+  if (a === "reset-confirm") {
+    const n = document.getElementById("fResetCode");
+    const code = (n ? n.value : "").replace(/\D/g, "");
+    if (code.length !== 6) return toast("The code is six digits.");
+    return API.confirmReset(SIGNIN.email, code)
+      .then(() => {
+        DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
+        dbSave();
+        SIGNIN.sent = false;
+        SIGNIN.reset = true;          // the "Set a new password" screen
+        paint();
+        const box = document.getElementById("fPass1");
+        if (box) box.focus();
+      })
+      .catch(err => toast(err.message ||
+        "That code did not work. Check it, or ask for a new one."));
+  }
+
+  if (a === "reset-resend") {
+    if (!SIGNIN.email) return toast("Start again with your email address.");
+    return API.resetPassword(SIGNIN.email)
+      .then(() => toast("New code sent. It can take a minute."))
+      .catch(err => toast(err.message));
   }
 
   if (a === "signup-resend") {
