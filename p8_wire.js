@@ -1286,4 +1286,46 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
      is a travelling tech before broadcasting anything, so a salon can never be
      started by a stale flag on a phone. See p20_live.js. */
   if (typeof liveResume === "function") liveResume();
+
+  noteWhereTheyJoined();
 })();
+
+/* ══ where somebody joined from ══════════════════════
+   One dot on the admin globe, and nothing else in Oma reads it. The server
+   rounds it to 0.1 degrees — about eleven kilometres — and refuses to
+   overwrite it afterwards; globe.sql is where that is enforced and argued.
+
+   THE PART THAT MATTERS IS WHAT THIS DOES NOT DO: it never causes a
+   permission prompt. It asks the Permissions API first and gives up unless
+   the answer is already "granted" — that is, unless she has previously said
+   yes to location for the map or a search, which is a thing she did for a
+   reason she chose. A decoration on a dashboard is not a reason to put a
+   browser dialog in front of somebody, and a prompt that appears the instant
+   you sign in is the kind that gets answered "block" forever, which would
+   cost Oma the location it actually needs for distances.
+
+   Everything here is best effort. No await, no toast, no error — if any part
+   of it fails the app is unchanged, because nothing in the app depends on it.
+   The local flag only saves a round trip; the server is the real guard. */
+function noteWhereTheyJoined() {
+  try {
+    if (!API.signedIn() || !API.live()) return;
+    if (localStorage.getItem("oma-joined-from")) return;
+    if (!navigator.geolocation || !navigator.permissions) return;
+
+    navigator.permissions.query({ name: "geolocation" }).then((st) => {
+      if (st.state !== "granted") return;          // never prompt. see above.
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          API.setSignupPlace(pos.coords.latitude, pos.coords.longitude)
+            .then(() => { try { localStorage.setItem("oma-joined-from", "1"); } catch (e) {} })
+            .catch(() => { /* try again next launch; nothing is waiting on it */ });
+        },
+        () => { /* she moved indoors, or the fix timed out. Not a problem. */ },
+        // A cached fix from the last half hour is fine — this is a dot on a
+        // globe, not a distance, so there is no reason to wake the GPS for it.
+        { timeout: 8000, maximumAge: 1800000, enableHighAccuracy: false }
+      );
+    }).catch(() => { /* Permissions API missing. Then no dot, and no prompt. */ });
+  } catch (e) { /* storage blocked, private window, anything at all */ }
+}

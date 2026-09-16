@@ -449,6 +449,17 @@ const API = (() => {
     signUp, confirmSignUp, resendSignUp,
     signInPassword, resetPassword, confirmReset, setPassword,
 
+    /* Where somebody was when they first signed in, rounded to 0.1 degrees
+       (~11 km) by the SERVER before it is stored, written once and never
+       again. It exists for one thing: the globe on the admin page. See
+       globe.sql, which explains why it is coarse and why that costs the
+       picture nothing.
+
+       Best effort in every sense — it is called only when the browser has
+       ALREADY been granted location for something else, it never raises, and
+       nothing in the app behaves differently whether it worked or not. */
+    setSignupPlace: (lat, lng)              => live() ? rpc("api_set_signup_place", { p_lat: lat, p_lng: lng }) : MOCK.setSignupPlace(lat, lng),
+
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
     nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.nearby(lat, lng, km),
@@ -915,6 +926,7 @@ const API = (() => {
         return { mock: true };
       },
       resendSignUp: async () => ({ sent: true, mock: true }),
+      setSignupPlace: async () => ({ mock: true }),
       signInPassword: async (email) => {
         const s = load();
         s.user = s.user || {};

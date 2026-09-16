@@ -276,6 +276,20 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
       <div class="card scroll" id="techs"></div>
     </section>
 
+    <!-- The globe. It is decoration and it is labelled as decoration: the
+         caption says how many of the people it is actually drawing, so it
+         never quietly implies it is showing everybody. What it plots are
+         CELLS, not people — see globe.sql. -->
+    <section>
+      <div class="lbl">Where people joined from</div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="globe" style="height:440px;display:flex;align-items:center;
+             justify-content:center;background:var(--card)"></div>
+        <div id="globeCap" class="sub"
+             style="font-size:12.5px;padding:12px 16px;border-top:1px solid var(--line)"></div>
+      </div>
+    </section>
+
     <section>
       <div class="lbl">Where they are</div>
       <div class="card" id="states"></div>
@@ -598,6 +612,155 @@ function drawTrouble(t) {
     : `<div class="tr ok">Nothing stuck<b>✓</b></div>`;
 }
 
+/* ══ the globe ════════════════════════════════════════════════════════
+   Kamsy, 16 Sep 2026: "a 3d map of the earth then i can zoom in to see our
+   users around the world … for aesthetic."
+
+   What it draws is honest about itself in three ways, none of them optional:
+
+   1. IT PLOTS CELLS, NOT PEOPLE. api_admin_globe groups by an 11 km cell and
+      returns a count. There is no query anywhere that hands this page one
+      person's dot, so the globe cannot be used to look somebody up — not by
+      accident and not on purpose.
+
+   2. THE CAPTION SAYS HOW MANY IT IS MISSING. Most accounts will have no
+      cell: anybody who never granted location, and everybody who signed up
+      before this existed. A globe with forty dots beside a "900 users" tile
+      invites exactly the wrong reading, so the number is on the picture.
+
+   3. IT LOADS ITSELF, LATE, AND FAILS QUIETLY. globe.gl carries three.js and
+      is about a megabyte; the dashboard is a thing to glance at on a phone in
+      a taxi, and it must not wait on a megabyte of WebGL for numbers that are
+      already in hand. The script is fetched after the first draw, and if the
+      CDN is unreachable the card says so and nothing else on the page notices.
+
+   The texture is NASA's night lights, which is the one that makes a dot in
+   Lagos read as a dot in Lagos rather than a dot in a green shape. */
+let GLOBE = null, globeLib = null;
+
+function loadGlobeLib() {
+  if (window.Globe) return Promise.resolve();
+  if (globeLib) return globeLib;
+  globeLib = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/globe.gl@2/dist/globe.gl.min.js";
+    s.onload = res;
+    s.onerror = () => { globeLib = null; rej(new Error("no globe")); };
+    document.head.appendChild(s);
+  });
+  return globeLib;
+}
+
+async function drawGlobe(g) {
+  const slot = document.getElementById("globe");
+  const cap = document.getElementById("globeCap");
+  if (!slot || !cap) return;
+
+  // globe.sql has not been run. Say which file, because "nothing here" is not
+  // a thing anybody can act on.
+  if (!g) {
+    slot.innerHTML = '<div style="color:#8a8296;font-size:13px;padding:24px;text-align:center">'
+      + 'Run <b>globe.sql</b> in the SQL editor to switch this on.</div>';
+    cap.textContent = "";
+    return;
+  }
+
+  const cells = (g.cells || []).filter(c => c && c.lat != null && c.lng != null);
+  const placed = Number(g.placed || 0), people = Number(g.people || 0);
+
+  cap.textContent = placed
+    ? placed + " of " + people + " " + (people === 1 ? "person" : "people")
+      + " · grouped into " + cells.length + " area" + (cells.length === 1 ? "" : "s")
+      + " of about 11 km. Nobody is plotted individually."
+    : "Nobody has a joining place yet. It is recorded the first time somebody "
+      + "opens Oma signed in, and only if they have already allowed location.";
+
+  if (!cells.length) {
+    slot.innerHTML = '<div style="color:#8a8296;font-size:13px;padding:24px;text-align:center">'
+      + 'No dots yet.</div>';
+    return;
+  }
+
+  try { await loadGlobeLib(); }
+  catch (e) {
+    slot.innerHTML = '<div style="color:#8a8296;font-size:13px;padding:24px;text-align:center">'
+      + 'The globe could not be downloaded. Everything else on this page is fine.</div>';
+    return;
+  }
+
+  const most = Math.max.apply(null, cells.map(c => Number(c.n) || 1));
+  // Square root, so twenty people are not twenty times the height of one. The
+  // eye reads area, and a linear scale turns one busy city into a spike that
+  // hides every other dot behind it.
+  const pts = cells.map(c => ({
+    lat: Number(c.lat), lng: Number(c.lng), n: Number(c.n) || 1,
+    alt: 0.012 + 0.16 * Math.sqrt((Number(c.n) || 1) / most),
+  }));
+
+  if (!GLOBE) {
+    slot.innerHTML = "";
+    GLOBE = Globe()(slot)
+      .backgroundColor("rgba(0,0,0,0)")
+      .globeImageUrl("/earth-oma.png")
+      .atmosphereColor("#b9b6c2")
+      .atmosphereAltitude(0.18)
+      .pointColor(() => "#f0518d")
+      .pointRadius(0.75)
+      .pointAltitude("alt")
+      .pointLabel(d => "<div style=\"background:#17131e;color:#f7f4f9;border-radius:10px;"
+        + "padding:7px 11px;font:600 12px system-ui\">" + d.n
+        + (d.n === 1 ? " person" : " people") + "<br><span style=\"color:#a79db3\">"
+        + d.lat.toFixed(1) + ", " + d.lng.toFixed(1) + "</span></div>");
+
+    /* FLAT, NOT LIT — the whole reason this reads as a drawing.
+
+       globe.gl ships a directional light, and that is what makes a globe look
+       like a rendered sphere: a hotspot at the top left and a shadow falling
+       away to the right. A drawing does not have a sun on it.
+
+       Turning the lights off is not enough on its own — an unlit surface just
+       goes black, and turning the ambient light up instead washes the colour
+       out towards grey rather than reproducing it. So the texture is moved to
+       the material's EMISSIVE channel: emissive light is not shaded by
+       anything, so every pixel comes out exactly the colour it was painted,
+       evenly, all the way round the sphere. The diffuse colour goes to black
+       so nothing is added on top of it.
+
+       Done in onGlobeReady because the texture is fetched asynchronously and
+       material.map is null until it lands — doing this at construction time
+       silently leaves a black ball. */
+    GLOBE.onGlobeReady(() => {
+      const m = GLOBE.globeMaterial();
+      if (!m || !m.map) return;
+      if (m.emissive) m.emissive.setRGB(1, 1, 1);
+      if (m.color) m.color.setRGB(0, 0, 0);
+      m.emissiveMap = m.map;
+      m.emissiveIntensity = 1;
+      m.needsUpdate = true;
+      /* The DIRECTIONAL light goes; the ambient one stays. Killing both was
+         the obvious move and it turned every dot black — globe.gl draws
+         points with a material that still needs light, and with the globe
+         itself now emissive there is nothing left for an ambient light to
+         flatten. So: no sun on the drawing, but the dots keep their colour. */
+      (GLOBE.lights() || []).forEach((l) => {
+        if (l.isDirectionalLight) l.intensity = 0;
+        else if (l.isAmbientLight) l.intensity = 5.4;
+      });
+    });
+
+    GLOBE.controls().autoRotate = true;
+    GLOBE.controls().autoRotateSpeed = 0.35;
+    // Nigeria, because that is where every dot is and spinning the Pacific at
+    // somebody for four seconds is not an opening move.
+    GLOBE.pointOfView({ lat: 9, lng: 8, altitude: 1.85 }, 0);
+
+    const fit = () => { if (GLOBE) GLOBE.width(slot.clientWidth).height(slot.clientHeight); };
+    fit();
+    window.addEventListener("resize", fit);
+  }
+  GLOBE.pointsData(pts);
+}
+
 /* ══ loading ══════════════════════════════════════════════════════════ */
 let timer = null;
 
@@ -605,7 +768,7 @@ async function load() {
   const t = token();
   if (!t) return lockOut("");
   try {
-    const [o, tr, series, recent, mail, pix] = await Promise.all([
+    const [o, tr, series, recent, mail, pix, globe] = await Promise.all([
       rpc("api_admin_overview", { p_token: t }),
       rpc("api_admin_trouble", { p_token: t }),
       rpc("api_admin_series", { p_token: t, p_days: 30 }),
@@ -616,9 +779,13 @@ async function load() {
       // photo.sql may not be loaded yet either. A missing gallery must not
       // take the whole dashboard down with it.
       rpc("api_admin_photos", { p_token: t, p_limit: 40 }).catch(() => null),
+      // globe.sql may not be loaded yet. A missing globe must not take the
+      // whole dashboard down with it — same rule as the inbox and the gallery.
+      rpc("api_admin_globe", { p_token: t }).catch(() => null),
     ]);
 
     drawTrouble(tr);
+    drawGlobe(globe);
 
     document.getElementById("tiles").innerHTML = [
       tile("Nail techs listed", num(o.people.listed),
