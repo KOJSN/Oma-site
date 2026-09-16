@@ -1370,7 +1370,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "606740af8b";
+const BUILD_ID = "2801753138";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -6814,6 +6814,54 @@ function kycNote(tech) {
               : "Needed for appointments at your address";
 }
 
+/* The "Track my location" row. Three shapes, because there are three
+   different truths to tell — see the long note at the foot of p20_live.js
+   for why a tech, a salon and a customer cannot share one switch. */
+function trackRow() {
+  const label = (note) =>
+    `Track my location<span class="tiny sub" style="display:block;font-weight:600;margin-top:1px">${note}</span>`;
+
+  if (DB.role === "tech") {
+    if (API.signedIn()) loadPresence();
+    const p = PRESENCE || {};
+    // A shop does not move. Send her to the listing, where the address is.
+    if (p.has_salon) return `
+      <button data-a="go" data-v="listing">
+        <span class="ic">${I.pin()}</span>
+        <span style="flex:1;min-width:0">${label(
+          "Your shop has an address, so it does not move")}</span>
+        ${I.chev()}</button>`;
+    const on = LIVE.on && !!LIVE.liveAt && !LIVE.err;
+    const note = LIVE.err ? esc(LIVE.err)
+      : on ? "Customers can see you &middot; updated "
+             + esc(agoWords(LIVE.liveAt) || "just now")
+      : "Off &mdash; nobody can find you, and Oma keeps no trail";
+    return `
+      <button data-a="track-toggle">
+        <span class="ic">${I.pin(on)}</span>
+        <span style="flex:1;min-width:0">${label(note)}</span>
+        <span class="switch${LIVE.on ? " on" : ""}" role="switch"
+              aria-checked="${LIVE.on ? "true" : "false"}"><i></i></span></button>`;
+  }
+
+  // A customer is never on the map. This grants a browser permission and
+  // nothing else, and the note has to say so or the row overpromises.
+  loadGeoPerm();
+  const g = GEOPERM;
+  const note = g === "granted"
+      ? "On &mdash; distances are live. Oma stores nothing."
+    : g === "denied"
+      ? "Blocked in your browser. Turn it back on in site settings."
+    : "Tap to let Oma use your location for distances";
+  return `
+    <button data-a="track-toggle">
+      <span class="ic">${I.pin(g === "granted")}</span>
+      <span style="flex:1;min-width:0">${label(note)}</span>
+      ${g === "granted"
+        ? `<span class="switch on" role="img" aria-label="Allowed"><i></i></span>`
+        : I.chev()}</button>`;
+}
+
 function vMore() {
   const me = DB.me || {};
   const tech = DB.role === "tech";
@@ -6847,10 +6895,12 @@ function vMore() {
       ${tech ? `
         ${row("listing", I.shop(), "My listing",
               "Your services, prices and where you work")}
+        ${trackRow()}
         ${row("scanner", I.tick(16), "Scan a client's code")}
         ${row("wallet", I.cal(), "Earnings and withdrawals")}
         ${row("kyc", I.user(), "Verify your identity", kycNote(tech))}`
       : `${row("nearby", I.shop(), "Nail techs near me")}
+        ${trackRow()}
         ${API.signedIn()
           ? row("kyc", I.user(), "Verify your identity", kycNote(tech)) : ""}`}
     </div>
@@ -10222,6 +10272,83 @@ document.addEventListener("visibilitychange", () => {
   whereAmI().then((p) => { if (!p.guessed) liveSend(p.lat, p.lng, p.acc, LIVE.src); });
 });
 
+/* ══ "Track my location" — the More screen ════════════════════════════
+   Kamsy, 16 Sep 2026: "add a track location button in the more screen for
+   both customers and techs."
+
+   One row, in one place, doing two different things — because a customer
+   and a tech are placed by Oma in two different ways, and a single switch
+   that pretended otherwise would be a lie on one of the two screens.
+
+   A TECH IS ON THE MAP. Her row is the working switch: the same LIVE
+   heartbeat, the same 45-minute window, surfaced where she was told to
+   look for it instead of only on her listing. Off takes her off the map
+   at once.
+
+   A CUSTOMER IS NEVER ON THE MAP and is never stored — that rule is from
+   3 Sep and has not moved. What her row turns on is her *browser's*
+   permission, so the distances she is shown are real ones. There is
+   nothing inside Oma to switch off, only something to grant or refuse in
+   the browser, so the row reports the permission, asks for it, and says
+   plainly that nothing is kept. A switch here would imply Oma holds
+   something it could release, and it holds nothing.
+
+   A SALON GETS NEITHER. It has an address; it does not move. Offering a
+   shop a tracking switch invites her to turn on something the server will
+   refuse anyway (live.sql rejects a heartbeat for a salon), and a control
+   that cannot work is worse than no control.                            */
+let PRESENCE = null;    // { has_salon, live_at, visible } — asked once
+let GEOPERM  = null;    // "granted" | "denied" | "prompt" | "unknown"
+
+async function loadPresence() {
+  if (PRESENCE || !API.signedIn()) return PRESENCE;
+  try { PRESENCE = (await API.myPresence())[0] || {}; }
+  catch (e) { PRESENCE = { error: (e && e.message) || "Could not reach Oma" }; }
+  if (ROUTE.v === "more") paint();
+  return PRESENCE;
+}
+function forgetPresence() { PRESENCE = null; }
+
+/* The Permissions API is not everywhere — Safari came to it late and some
+   private modes withhold it. When it is missing the honest answer is
+   "unknown", and the row invites a tap rather than announcing "off" about
+   a permission that may well already be granted. */
+async function loadGeoPerm() {
+  if (GEOPERM) return GEOPERM;
+  try {
+    if (!navigator.permissions || !navigator.permissions.query) GEOPERM = "unknown";
+    else {
+      const s = await navigator.permissions.query({ name: "geolocation" });
+      GEOPERM = s.state;
+      // She may change it in browser settings while Oma is open. Without
+      // this the row keeps showing the answer it got at first paint.
+      s.onchange = () => { GEOPERM = s.state; if (ROUTE.v === "more") paint(); };
+    }
+  } catch (e) { GEOPERM = "unknown"; }
+  if (ROUTE.v === "more") paint();
+  return GEOPERM;
+}
+
+/* Asking for a position IS the prompt — a page cannot raise the browser's
+   permission dialog any other way. So ask, then re-read the permission
+   rather than assuming the answer, because she may have dismissed it. */
+async function askGeo() {
+  const p = await whereAmI();
+  GEOPERM = null;
+  await loadGeoPerm();
+  if (p.guessed && p.why === "denied" && GEOPERM !== "granted") GEOPERM = "denied";
+  if (ROUTE.v === "more") paint();
+}
+
+async function trackToggle() {
+  if (DB.role !== "tech") return askGeo();
+  const p = (await loadPresence()) || {};
+  if (p.has_salon) return;                  // a shop does not move
+  await toggleWorking();
+  PRESENCE = null; loadPresence();
+  paint();
+}
+
 /* ══ SHE COMES TO YOU ══════════════════════════════════════════════════
    Home appointments — the price, the address, and the tech's own settings.
 
@@ -11987,6 +12114,8 @@ document.getElementById("shell").addEventListener("click", e => {
     return paint();
   }
   if (a === "work-toggle") return toggleWorking();
+  // The same switch, reached from More instead of the listing screen.
+  if (a === "track-toggle") return trackToggle();
   if (a === "photo-del") return deleteMyPhoto(el.dataset.id);
   if (a === "photo-report") {
     // The flag sits inside the <label> that IS the service card, so without
