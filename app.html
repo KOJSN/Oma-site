@@ -1373,7 +1373,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "d9580119cc";
+const BUILD_ID = "71f03ccf55";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -10603,19 +10603,12 @@ function homeSettings(b) {
         <div>The call-out is charged <b>once a visit</b>, however many services
           she books. <b>Oma takes nothing from either of these</b> — the fee is
           on your service prices only, because the trip is your time and your
-          petrol. Prefer to quote one flat price instead? Put <b>0</b> in both
-          boxes and set a home price on each service below.</div></div>`}`;
+          petrol.</div></div>`}`;
 }
 
-/* One extra row inside a service, when she travels. Empty means "the same as
-   in my salon", which is both the default and the honest way to say it. */
-function svcHomeRow(s, i, cur) {
-  return `<label class="field" style="margin:9px 0 0"><span class="lab">Price at her home</span>
-    <span class="inp" style="min-height:46px"><span class="pre">${esc(cur)}</span>
-      <input data-s="hp" data-i="${i}" inputmode="numeric"
-             value="${esc(s.hp || "")}" placeholder="same as above">
-    </span></label>`;
-}
+/* Removed: the per-service "Price at her home" input. The home price is now
+   the service price + the call-out fee — no separate field to fill in. */
+function svcHomeRow(s, i, cur) { return ""; }
 
 /* Saving. Sent one at a time rather than in a lump, because api_set_home_service
    and api_set_service_home_price are separate for a reason: a bad number in one
@@ -12631,9 +12624,9 @@ async function publishListing(b) {
     minutes: Number(String(sv.m || "").replace(/\D/g, "")) || 60,
     price_kobo: Math.round(Number(String(sv.p || "").replace(/[^\d.]/g, "")) * 100) || 0,
     shapes: sv.sh || [],
-    home_kobo: sv.hp
-      ? Math.round(Number(String(sv.hp).replace(/[^\d.]/g, "")) * 100) || null
-      : null,
+    // Home price is now service price + call-out — no separate per-service
+    // home price. Send null so the backend uses the regular price.
+    home_kobo: null,
   })).filter((x) => x.name);
 
   try {
