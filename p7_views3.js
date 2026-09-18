@@ -700,11 +700,20 @@ function vListing() {
 
     <div class="seehead" style="padding-left:0;padding-right:0"><h3>Services</h3></div>
     <div class="stack gap10">
-      ${(b.services || []).map(s => `<div class="card" style="display:flex;align-items:center;gap:12px;padding:13px">
-        <div style="flex:1"><div style="font-size:14.5px;font-weight:700">${esc(s.n)}</div>
-          <div class="small sub" style="margin-top:2px">${s.m ? mins(+s.m) : ""}${(s.sh || []).length ? " · " + esc((s.sh || []).join(", ")) : ""}</div></div>
-        <div style="font-size:15px;font-weight:800">${esc(b.cur || DB.cur)}${Number(s.p || 0).toLocaleString("en")}</div>
-      </div>`).join("") || `<div class="empty">No services yet — add them from the cog.</div>`}
+      ${(b.services || []).map(s => {
+        const pics = s.id && typeof PHOTOS !== "undefined" ? (PHOTOS[s.id] || []) : [];
+        return `<div class="card" style="padding:0;overflow:hidden">
+          ${pics.length ? `<div style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch">
+            ${pics.map(p => `<img src="${esc(API.photoUrl(p.path))}" alt="" loading="lazy"
+              style="width:100%;flex:none;scroll-snap-align:start;aspect-ratio:4/3;object-fit:cover">`).join("")}
+          </div>` : ""}
+          <div style="display:flex;align-items:center;gap:12px;padding:13px">
+            <div style="flex:1"><div style="font-size:14.5px;font-weight:700">${esc(s.n)}</div>
+              <div class="small sub" style="margin-top:2px">${s.m ? mins(+s.m) : ""}${(s.sh || []).length ? " · " + esc((s.sh || []).join(", ")) : ""}</div></div>
+            <div style="font-size:15px;font-weight:800">${esc(b.cur || DB.cur)}${Number(s.p || 0).toLocaleString("en")}</div>
+          </div>
+        </div>`;
+      }).join("") || `<div class="empty">No services yet — add them from the cog.</div>`}
     </div>
     <button class="btn ghost mt16" data-a="go" data-v="settings">Settings ${I.arrow()}</button>
   </div>

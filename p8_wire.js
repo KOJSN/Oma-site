@@ -42,7 +42,13 @@ function paint() {
     case "requests": html = vRequestsLive(); break;
     case "diary": html = vDiaryLive(); break;
     case "earnings": html = vWallet(); break;
-    case "listing": html = vListing(); break;
+    case "listing": html = vListing(); if (typeof loadMyPhotos === "function" && !vListing._loading) {
+        vListing._loading = true;
+        setTimeout(() => loadMyPhotos().then(() => {
+          vListing._loading = false;
+          if (ROUTE.v === "listing") paint();
+        }).catch(() => { vListing._loading = false; }), 0);
+      } break;
     case "signin": html = vSignIn(); break;
     case "nearby": html = vFind(); break;
     case "techlive": html = vTechLive(ROUTE.a); break;
