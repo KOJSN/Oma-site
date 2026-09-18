@@ -1371,7 +1371,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "172c5c5fcb";
+const BUILD_ID = "981fa28446";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -5186,12 +5186,12 @@ const API = (() => {
         t.listed = on; save(); return await MOCK.me();
       },
       verifyNin: async (vnin) => {
-        const t = myTech();
-        if (!t) fail("set up your tech profile first");
         const n = String(vnin).replace(/\D/g, "");
         if (n.length !== 11) fail("that does not look like a NIN or vNIN — it should be 11 digits");
         // The demo passes anything well-formed. The real one asks NIMC.
-        t.kyc = "verified"; save();
+        // Works for both techs (listing gate) and customers (home service gate).
+        const t = myTech();
+        if (t) { t.kyc = "verified"; save(); }
         return { status: "verified", name_match: true, mock: true };
       },
       scan: async (code) => {
