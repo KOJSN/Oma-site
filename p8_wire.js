@@ -410,6 +410,47 @@ document.getElementById("shell").addEventListener("click", e => {
     el.classList.add("on");
     return;
   }
+  if (a === "home-locate") {
+    /* Fill the address field with the customer's current location.
+       Uses the Nominatim reverse geocoder (free, no key). On desktop browsers
+       geolocation may be blocked — that is fine, this is really for the phone. */
+    const inp = document.getElementById("hAddr");
+    if (!inp) return;
+    if (!navigator.geolocation) return toast("Location is not available on this device.");
+    inp.placeholder = "Getting your location…";
+    navigator.geolocation.getCurrentPosition(
+      async (p) => {
+        const lat = p.coords.latitude, lng = p.coords.longitude;
+        HOME.pos = { lat, lng };
+        try {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+            { headers: { "Accept-Language": "en" } });
+          const j = await r.json();
+          const a = j.address || {};
+          /* Build a short, useful address: house + road + neighbourhood/suburb.
+             Nominatim's display_name is too long ("12 Way, Ikeja, Lagos, Nigeria"). */
+          const parts = [a.house_number, a.road, a.neighbourhood || a.suburb || a.city_district]
+            .filter(Boolean);
+          inp.value = parts.join(" ") || j.display_name || "";
+          HOME.addr = inp.value;
+        } catch {
+          /* Reverse geocode failed — still got the GPS fix, just no text. */
+          inp.value = "";
+          inp.placeholder = "12 Herbert Macaulay Way, Flat 3";
+          toast("Got your position but could not look up the address. Type it in.");
+        }
+        /* Kick off the fare quote now that we have coordinates. */
+        if (!HOME.quote) askHomeQuote();
+      },
+      () => {
+        inp.placeholder = "12 Herbert Macaulay Way, Flat 3";
+        toast("Could not get your location. Type the address instead.");
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+    return;
+  }
   if (a === "home-where") {
     HOME.at = el.dataset.v === "1";
     paintHome();

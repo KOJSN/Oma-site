@@ -143,7 +143,12 @@ function homeInner() {
       <label class="field"><span class="lab">Where should she come to?</span>
         <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
           <input id="hAddr" value="${esc(HOME.addr)}"
-                 placeholder="12 Herbert Macaulay Way, Flat 3"></span></label>
+                 placeholder="12 Herbert Macaulay Way, Flat 3"
+                 style="padding-right:36px">
+          <button type="button" data-a="home-locate" class="inp-icon" title="Use my current location"
+                  style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;padding:4px;cursor:pointer">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+          </button></span></label>
       <div class="note" style="margin-top:-4px">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>
         <div>She sees your <b>area</b> now and your <b>street only once you have
