@@ -525,6 +525,7 @@ h3{font-size:16px}
 .field{display:block;margin-bottom:16px}
 .field>.lab{font-size:12.5px;font-weight:700;color:var(--sub);margin-bottom:7px;display:block}
 .inp{
+  position:relative;
   min-height:54px;border-radius:16px;background:var(--fill);border:1px solid var(--line);
   display:flex;align-items:center;gap:11px;padding:0 15px;width:100%;
   transition:border-color .15s,background .15s;
@@ -1370,7 +1371,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "031c87f58f";
+const BUILD_ID = "172c5c5fcb";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -10494,7 +10495,12 @@ function homeInner() {
       <label class="field"><span class="lab">Where should she come to?</span>
         <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
           <input id="hAddr" value="${esc(HOME.addr)}"
-                 placeholder="12 Herbert Macaulay Way, Flat 3"></span></label>
+                 placeholder="12 Herbert Macaulay Way, Flat 3"
+                 style="padding-right:36px">
+          <button type="button" data-a="home-locate" class="inp-icon" title="Use my current location"
+                  style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;padding:4px;cursor:pointer">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+          </button></span></label>
       <div class="note" style="margin-top:-4px">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>
         <div>She sees your <b>area</b> now and your <b>street only once you have
@@ -11843,6 +11849,47 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "mday") {
     [...document.querySelectorAll("#dayChips .chip")].forEach(c => c.classList.remove("on"));
     el.classList.add("on");
+    return;
+  }
+  if (a === "home-locate") {
+    /* Fill the address field with the customer's current location.
+       Uses the Nominatim reverse geocoder (free, no key). On desktop browsers
+       geolocation may be blocked — that is fine, this is really for the phone. */
+    const inp = document.getElementById("hAddr");
+    if (!inp) return;
+    if (!navigator.geolocation) return toast("Location is not available on this device.");
+    inp.placeholder = "Getting your location…";
+    navigator.geolocation.getCurrentPosition(
+      async (p) => {
+        const lat = p.coords.latitude, lng = p.coords.longitude;
+        HOME.pos = { lat, lng };
+        try {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+            { headers: { "Accept-Language": "en" } });
+          const j = await r.json();
+          const a = j.address || {};
+          /* Build a short, useful address: house + road + neighbourhood/suburb.
+             Nominatim's display_name is too long ("12 Way, Ikeja, Lagos, Nigeria"). */
+          const parts = [a.house_number, a.road, a.neighbourhood || a.suburb || a.city_district]
+            .filter(Boolean);
+          inp.value = parts.join(" ") || j.display_name || "";
+          HOME.addr = inp.value;
+        } catch {
+          /* Reverse geocode failed — still got the GPS fix, just no text. */
+          inp.value = "";
+          inp.placeholder = "12 Herbert Macaulay Way, Flat 3";
+          toast("Got your position but could not look up the address. Type it in.");
+        }
+        /* Kick off the fare quote now that we have coordinates. */
+        if (!HOME.quote) askHomeQuote();
+      },
+      () => {
+        inp.placeholder = "12 Herbert Macaulay Way, Flat 3";
+        toast("Could not get your location. Type the address instead.");
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
     return;
   }
   if (a === "home-where") {
