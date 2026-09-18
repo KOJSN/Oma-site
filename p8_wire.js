@@ -762,6 +762,7 @@ function pushProfile() {
   // The same switch, reached from More instead of the listing screen.
   if (a === "track-toggle") return trackToggle();
   if (a === "photo-del") return deleteMyPhoto(el.dataset.id);
+  if (a === "photo-qdel") return deleteQueuedPhoto(el.dataset.qk, Number(el.dataset.qi));
   if (a === "photo-report") {
     // The flag sits inside the <label> that IS the service card, so without
     // this a tap on it would also tick the service she was trying to report.
@@ -1106,6 +1107,9 @@ async function publishListing(b) {
       if (DB.biz.services[i]) DB.biz.services[i].id = row.id;
     });
     dbSave();
+    // Photos she picked during registration are still in the queue —
+    // now that services have real ids, upload them.
+    if (typeof flushPhotoQueue === "function") await flushPhotoQueue(DB.biz.services);
     if (typeof loadMyPhotos === "function") loadMyPhotos();
   } catch (e) {
     return toast(e.message || "Saved, but your services did not reach Oma.");

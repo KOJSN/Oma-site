@@ -648,7 +648,7 @@ function vSetup(edit) {
       <div style="font-size:14.5px;font-weight:800;letter-spacing:-.02em">Your service menu</div>
       <button class="tag" data-a="addSvc">+ Add service</button>
     </div>
-    ${(b.services || []).some(s => s.id) ? ownWorkBox() : ""}
+    ${(b.services || []).length ? ownWorkBox() : ""}
     <div class="stack gap10" id="svcList">${svcEditor(b.services || [], b.cur || DB.cur)}</div>
 
     <div class="note mt16">

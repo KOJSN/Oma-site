@@ -112,6 +112,16 @@ async function uploadServicePhoto(serviceId, file, ownWork) {
 let PHOTOS = {};          // { serviceId: [{ id, path, w, h }] }
 let PHOTO_BUSY = null;    // the service currently uploading, if any
 
+/* ── queued photos for services that have no id yet ──────────────────
+   During registration a tech types a service name and picks photos
+   BEFORE she hits "Publish". The service has no database id at that
+   point, so we cannot upload. Instead we hold the File objects and a
+   data-URL preview keyed by the service's index in the menu, prefixed
+   with "q_" so the rest of the code can tell a queue key from a real
+   id. Once publishListing() gets ids back from syncServices, it calls
+   flushPhotoQueue() to upload them for real. */
+let PHOTO_QUEUE = {};     // { "q_0": [{ file, preview }], … }
+
 async function loadMyPhotos() {
   if (!API.signedIn()) { PHOTOS = {}; return; }
   try {
@@ -126,29 +136,49 @@ async function loadMyPhotos() {
    has typed a name but not saved — cannot have photographs, and says so
    rather than offering a button that would fail. */
 function svcPhotoRow(s, i) {
-  if (!s.id) {
-    return `<div class="tiny faint" style="margin-top:9px">
-      Save your listing and you can add photos of this one.</div>`;
+  // A service that already has a database id — the normal path.
+  if (s.id) {
+    const list = PHOTOS[s.id] || [];
+    const busy = PHOTO_BUSY === s.id;
+    const room = list.length < PHOTOS_PER_SERVICE;
+    return `<div class="shots" data-shots="${esc(s.id)}">
+      ${list.map((p) => `<div class="shot">
+          <img src="${esc(API.photoUrl(p.path))}" alt="" loading="lazy">
+          <button class="x" data-a="photo-del" data-id="${esc(p.id)}"
+                  aria-label="Remove this photo">×</button>
+        </div>`).join("")}
+      ${busy ? `<div class="shot add"><span class="tiny faint">Adding…</span></div>` : ""}
+      ${room && !busy ? `<label class="shot add">
+          <input type="file" accept="image/*" data-photo="${esc(s.id)}">
+          <span aria-hidden="true">+</span>
+          <span class="tiny faint">Add</span>
+        </label>` : ""}
+    </div>
+    ${list.length || busy ? "" : `<div class="tiny faint" style="margin-top:7px">
+      Up to ${PHOTOS_PER_SERVICE} photos of this service. Optional — a listing
+      works without them.</div>`}`;
   }
-  const list = PHOTOS[s.id] || [];
-  const busy = PHOTO_BUSY === s.id;
-  const room = list.length < PHOTOS_PER_SERVICE;
-  return `<div class="shots" data-shots="${esc(s.id)}">
-    ${list.map((p) => `<div class="shot">
-        <img src="${esc(API.photoUrl(p.path))}" alt="" loading="lazy">
-        <button class="x" data-a="photo-del" data-id="${esc(p.id)}"
+
+  // A service with no id yet — she is still registering. Let her pick
+  // photos now; they are held locally and uploaded after she publishes.
+  const qk = "q_" + i;
+  const queued = PHOTO_QUEUE[qk] || [];
+  const room = queued.length < PHOTOS_PER_SERVICE;
+  return `<div class="shots" data-shots="${esc(qk)}">
+    ${queued.map((q, qi) => `<div class="shot">
+        <img src="${esc(q.preview)}" alt="">
+        <button class="x" data-a="photo-qdel" data-qk="${esc(qk)}" data-qi="${qi}"
                 aria-label="Remove this photo">×</button>
       </div>`).join("")}
-    ${busy ? `<div class="shot add"><span class="tiny faint">Adding…</span></div>` : ""}
-    ${room && !busy ? `<label class="shot add">
-        <input type="file" accept="image/*" data-photo="${esc(s.id)}">
+    ${room ? `<label class="shot add">
+        <input type="file" accept="image/*" data-photo="${esc(qk)}">
         <span aria-hidden="true">+</span>
         <span class="tiny faint">Add</span>
       </label>` : ""}
   </div>
-  ${list.length || busy ? "" : `<div class="tiny faint" style="margin-top:7px">
-    Up to ${PHOTOS_PER_SERVICE} photos of this service. Optional — a listing
-    works without them.</div>`}`;
+  ${queued.length ? "" : `<div class="tiny faint" style="margin-top:7px">
+    Up to ${PHOTOS_PER_SERVICE} photos of this service. Optional — they'll
+    upload when you publish.</div>`}`;
 }
 
 /* Redraw only the strips. paint() would rebuild the editor and lose a
@@ -156,10 +186,14 @@ function svcPhotoRow(s, i) {
 function paintSvcPhotos() {
   document.querySelectorAll("[data-shots]").forEach((el) => {
     const id = el.dataset.shots;
-    const list = PHOTOS[id] || [];
-    const busy = PHOTO_BUSY === id || PHOTO_BUSY === Number(id);
     const box = document.createElement("div");
-    box.innerHTML = svcPhotoRow({ id }, 0);
+    if (String(id).startsWith("q_")) {
+      // Queued (unsaved service) — pass the index so svcPhotoRow picks up the queue
+      const idx = Number(id.replace("q_", ""));
+      box.innerHTML = svcPhotoRow({ id: null }, idx);
+    } else {
+      box.innerHTML = svcPhotoRow({ id }, 0);
+    }
     const next = box.querySelector("[data-shots]");
     if (next) el.replaceWith(next);
   });
@@ -198,6 +232,27 @@ document.addEventListener("change", async (e) => {
     return toast("That photo is very large. Try one under 25 MB.");
   }
 
+  // ── queued (unsaved service) ──────────────────────────────────────
+  if (String(serviceId).startsWith("q_")) {
+    const q = PHOTO_QUEUE[serviceId] || [];
+    if (q.length >= PHOTOS_PER_SERVICE) return toast("That service already has " + PHOTOS_PER_SERVICE + " photos.");
+    try {
+      // Shrink to a preview exactly the way a real upload would, so what she
+      // sees now is what the customer will see later.
+      const canvas = await photoToCanvas(file);
+      const { blob } = await shrinkToBlob(canvas);
+      const preview = await new Promise((res) => {
+        const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob);
+      });
+      PHOTO_QUEUE[serviceId] = [...q, { file, preview }];
+      paintSvcPhotos();
+    } catch (err) {
+      toast(err.message || "That photo could not be prepared.");
+    }
+    return;
+  }
+
+  // ── real (saved service) ──────────────────────────────────────────
   PHOTO_BUSY = serviceId;
   paintSvcPhotos();
   try {
@@ -220,6 +275,42 @@ async function deleteMyPhoto(id) {
     await loadMyPhotos();
     toast("Photo removed.");
   } catch (err) { toast(err.message || "Could not remove that."); }
+}
+
+function deleteQueuedPhoto(qk, qi) {
+  const q = PHOTO_QUEUE[qk];
+  if (!q) return;
+  q.splice(qi, 1);
+  if (!q.length) delete PHOTO_QUEUE[qk];
+  paintSvcPhotos();
+}
+
+/* After publishListing() saves the services and gets real ids back,
+   this uploads every photo that was queued during registration.
+   Called with the services array whose .id fields are now filled in. */
+async function flushPhotoQueue(services) {
+  const keys = Object.keys(PHOTO_QUEUE);
+  if (!keys.length) return;
+  const ow = ownWorkTicked();
+  let count = 0;
+  for (const qk of keys) {
+    const idx = Number(qk.replace("q_", ""));
+    const svc = services[idx];
+    if (!svc || !svc.id) continue;
+    const items = PHOTO_QUEUE[qk] || [];
+    for (const item of items) {
+      try {
+        await uploadServicePhoto(svc.id, item.file, ow);
+        count++;
+      } catch (err) { /* best effort — skip failed ones */ }
+    }
+    delete PHOTO_QUEUE[qk];
+  }
+  PHOTO_QUEUE = {};
+  if (count) {
+    await loadMyPhotos();
+    toast(count === 1 ? "Photo uploaded." : count + " photos uploaded.");
+  }
 }
 
 /* ══ the customer's side ═══════════════════════════════════════════════ */
