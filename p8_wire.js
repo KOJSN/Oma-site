@@ -542,18 +542,23 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "kyc-send") {
     const n = document.getElementById("fNin");
     const v = (n ? n.value : "").replace(/\D/g, "");
-    if (v.length !== 11 && v.length !== 16) {
-      return toast("A vNIN is 16 digits, a NIN is 11.");
+    if (v.length !== 11) {
+      return toast("A NIN or vNIN is 11 digits.");
     }
     toast("Checking…");
     return API.verifyNin(v).then(r => {
       // The cached answer is now stale — she was "not verified" a second
       // ago and the home-service gate would go on saying so.
       forgetIdentity();
-      toast(r.status === "verified" && !r.banned
-        ? "Verified."
-        : (r.reason || "That did not pass."));
-      paint();
+      if (r.status === "verified" && !r.banned) {
+        toast("Verified!");
+        // Leave the verification screen — go where she was headed.
+        const isTech = DB.role === "tech";
+        nav(isTech ? "listing" : "nearby");
+      } else {
+        toast(r.reason || "That did not pass.");
+        paint();
+      }
     }).catch(err => toast(err.message));
   }
 

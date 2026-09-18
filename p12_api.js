@@ -880,8 +880,12 @@ const API = (() => {
       // two are decided separately rather than one excluding the other. In the
       // live database they genuinely are different accounts and only one of
       // these can ever be true.
-      const asTech = !!(s.user && s.user.tech_id && b.tech_id === s.user.tech_id);
+      const isTech = !!(s.user && s.user.tech_id && b.tech_id === s.user.tech_id);
       const mine = !!(s.user && b.customer_id === s.user.id);
+      // In demo mode one person is both sides. When both match, use the
+      // role she is currently browsing as — a customer sees "Show the code",
+      // a tech sees "Open the scanner".
+      const asTech = (isTech && mine) ? (DB.role === "tech") : isTech;
       return {
         id: b.id, starts_at: new Date(b.starts_at_ms).toISOString(), minutes: b.minutes,
         total_kobo: b.total_kobo, status: b.status, note: b.note, scan_shape: b.scan_shape,

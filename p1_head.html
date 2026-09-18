@@ -611,6 +611,7 @@ h3{font-size:16px}
   box-shadow:0 12px 24px -8px rgba(240,81,141,.85);margin-top:-22px;
   border:4px solid var(--card);
 }
+#nav .fab i .fablbl{display:none}
 
 /* ═══ list rows ═══════════════════════════════════════ */
 .thumb{
@@ -1090,11 +1091,12 @@ h3{font-size:16px}
     justify-content:flex-start;padding:0 16px;
     box-shadow:0 10px 20px -10px rgba(240,81,141,.7);
   }
-  /* The scan button carries no text — on a bottom bar it is a wordless FAB
-     and that reads fine. Sitting in a rail between four labelled rows it
-     just looks like a button somebody forgot to finish, so the label is
-     added here rather than in the markup, which the phone still shares. */
-  #nav .fab i::after{content:"Scan";margin-left:13px;font-size:14.5px;font-weight:700}
+  /* The scan button carries no text on a phone — a wordless FAB reads fine
+     there. In the desktop rail it needs a label like the other rows. The
+     label comes from the markup (a <span> the phone hides), not from CSS
+     content, because the word changes with the role: "Shape" for a
+     customer, "Scan" for a tech. */
+  #nav .fab i .fablbl{display:inline;margin-left:13px;font-size:14.5px;font-weight:700}
 
   #view{flex:1;min-height:0;padding-bottom:28px}
 

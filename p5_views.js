@@ -445,7 +445,7 @@ function bottomNav() {
   if (!DB.role || onboarding) { nv.classList.add("hidden"); return; }
   nv.classList.remove("hidden");
   nv.innerHTML = tabs.map(t => t.k === "__scan"
-    ? `<div class="fab"><button data-a="startscan" aria-label="Start a hand scan"><i>${I.scan()}</i></button></div>`
+    ? `<div class="fab"><button data-a="startscan" aria-label="${t.t}"><i>${I.scan()}<span class="fablbl">${t.t}</span></i></button></div>`
     : `<button class="${ROUTE.v === t.k ? "on" : ""}" data-a="tab" data-v="${t.k}">
          ${t.i(ROUTE.v === t.k)}<span>${t.t}</span></button>`).join("");
 }
