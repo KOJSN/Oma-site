@@ -673,13 +673,13 @@ function vKyc() {
 
         <div class="tiny sub">
           <b>Use a virtual NIN, not your real one.</b> Dial <b>*346#</b> or open
-          the NIMC app and generate a 16-digit vNIN. It lasts 72 hours and works
+          the NIMC app and generate an 11-digit vNIN. It lasts 72 hours and works
           only for us. Oma never sees your real number and stores neither.
         </div>
 
-        <label class="fld"><span class="lbl">Your vNIN (16 digits) or NIN (11)</span>
-          <input id="fNin" type="text" inputmode="numeric" maxlength="19"
-                 placeholder="0000 0000 0000 0000" style="letter-spacing:.12em"></label>
+        <label class="fld"><span class="lbl">Your vNIN or NIN (11 digits)</span>
+          <input id="fNin" type="text" inputmode="numeric" maxlength="13"
+                 placeholder="000 0000 0000" style="letter-spacing:.12em"></label>
         <button class="btn" data-a="kyc-send">Check it</button>
 
         <!-- This used to say "three things", and adding the fingerprint quietly

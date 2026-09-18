@@ -1582,7 +1582,7 @@ const API = (() => {
         const t = myTech();
         if (!t) fail("set up your tech profile first");
         const n = String(vnin).replace(/\D/g, "");
-        if (n.length !== 11 && n.length !== 16) fail("that does not look like a NIN (11 digits) or a vNIN (16 digits)");
+        if (n.length !== 11) fail("that does not look like a NIN or vNIN — it should be 11 digits");
         // The demo passes anything well-formed. The real one asks NIMC.
         t.kyc = "verified"; save();
         return { status: "verified", name_match: true, mock: true };
