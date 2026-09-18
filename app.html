@@ -611,6 +611,7 @@ h3{font-size:16px}
   box-shadow:0 12px 24px -8px rgba(240,81,141,.85);margin-top:-22px;
   border:4px solid var(--card);
 }
+#nav .fab i .fablbl{display:none}
 
 /* ═══ list rows ═══════════════════════════════════════ */
 .thumb{
@@ -1090,11 +1091,12 @@ h3{font-size:16px}
     justify-content:flex-start;padding:0 16px;
     box-shadow:0 10px 20px -10px rgba(240,81,141,.7);
   }
-  /* The scan button carries no text — on a bottom bar it is a wordless FAB
-     and that reads fine. Sitting in a rail between four labelled rows it
-     just looks like a button somebody forgot to finish, so the label is
-     added here rather than in the markup, which the phone still shares. */
-  #nav .fab i::after{content:"Scan";margin-left:13px;font-size:14.5px;font-weight:700}
+  /* The scan button carries no text on a phone — a wordless FAB reads fine
+     there. In the desktop rail it needs a label like the other rows. The
+     label comes from the markup (a <span> the phone hides), not from CSS
+     content, because the word changes with the role: "Shape" for a
+     customer, "Scan" for a tech. */
+  #nav .fab i .fablbl{display:inline;margin-left:13px;font-size:14.5px;font-weight:700}
 
   #view{flex:1;min-height:0;padding-bottom:28px}
 
@@ -1371,7 +1373,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "981fa28446";
+const BUILD_ID = "188b27d311";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -4487,8 +4489,12 @@ const API = (() => {
       // two are decided separately rather than one excluding the other. In the
       // live database they genuinely are different accounts and only one of
       // these can ever be true.
-      const asTech = !!(s.user && s.user.tech_id && b.tech_id === s.user.tech_id);
+      const isTech = !!(s.user && s.user.tech_id && b.tech_id === s.user.tech_id);
       const mine = !!(s.user && b.customer_id === s.user.id);
+      // In demo mode one person is both sides. When both match, use the
+      // role she is currently browsing as — a customer sees "Show the code",
+      // a tech sees "Open the scanner".
+      const asTech = (isTech && mine) ? (DB.role === "tech") : isTech;
       return {
         id: b.id, starts_at: new Date(b.starts_at_ms).toISOString(), minutes: b.minutes,
         total_kobo: b.total_kobo, status: b.status, note: b.note, scan_shape: b.scan_shape,
@@ -6064,7 +6070,7 @@ function bottomNav() {
   if (!DB.role || onboarding) { nv.classList.add("hidden"); return; }
   nv.classList.remove("hidden");
   nv.innerHTML = tabs.map(t => t.k === "__scan"
-    ? `<div class="fab"><button data-a="startscan" aria-label="Start a hand scan"><i>${I.scan()}</i></button></div>`
+    ? `<div class="fab"><button data-a="startscan" aria-label="${t.t}"><i>${I.scan()}<span class="fablbl">${t.t}</span></i></button></div>`
     : `<button class="${ROUTE.v === t.k ? "on" : ""}" data-a="tab" data-v="${t.k}">
          ${t.i(ROUTE.v === t.k)}<span>${t.t}</span></button>`).join("");
 }
@@ -11983,18 +11989,23 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "kyc-send") {
     const n = document.getElementById("fNin");
     const v = (n ? n.value : "").replace(/\D/g, "");
-    if (v.length !== 11 && v.length !== 16) {
-      return toast("A vNIN is 16 digits, a NIN is 11.");
+    if (v.length !== 11) {
+      return toast("A NIN or vNIN is 11 digits.");
     }
     toast("Checking…");
     return API.verifyNin(v).then(r => {
       // The cached answer is now stale — she was "not verified" a second
       // ago and the home-service gate would go on saying so.
       forgetIdentity();
-      toast(r.status === "verified" && !r.banned
-        ? "Verified."
-        : (r.reason || "That did not pass."));
-      paint();
+      if (r.status === "verified" && !r.banned) {
+        toast("Verified!");
+        // Leave the verification screen — go where she was headed.
+        const isTech = DB.role === "tech";
+        nav(isTech ? "listing" : "nearby");
+      } else {
+        toast(r.reason || "That did not pass.");
+        paint();
+      }
     }).catch(err => toast(err.message));
   }
 
