@@ -1579,12 +1579,12 @@ const API = (() => {
         t.listed = on; save(); return await MOCK.me();
       },
       verifyNin: async (vnin) => {
-        const t = myTech();
-        if (!t) fail("set up your tech profile first");
         const n = String(vnin).replace(/\D/g, "");
         if (n.length !== 11) fail("that does not look like a NIN or vNIN — it should be 11 digits");
         // The demo passes anything well-formed. The real one asks NIMC.
-        t.kyc = "verified"; save();
+        // Works for both techs (listing gate) and customers (home service gate).
+        const t = myTech();
+        if (t) { t.kyc = "verified"; save(); }
         return { status: "verified", name_match: true, mock: true };
       },
       scan: async (code) => {
