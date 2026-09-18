@@ -1373,7 +1373,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "71f03ccf55";
+const BUILD_ID = "e3ea70c48d";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -7505,11 +7505,20 @@ function vListing() {
 
     <div class="seehead" style="padding-left:0;padding-right:0"><h3>Services</h3></div>
     <div class="stack gap10">
-      ${(b.services || []).map(s => `<div class="card" style="display:flex;align-items:center;gap:12px;padding:13px">
-        <div style="flex:1"><div style="font-size:14.5px;font-weight:700">${esc(s.n)}</div>
-          <div class="small sub" style="margin-top:2px">${s.m ? mins(+s.m) : ""}${(s.sh || []).length ? " · " + esc((s.sh || []).join(", ")) : ""}</div></div>
-        <div style="font-size:15px;font-weight:800">${esc(b.cur || DB.cur)}${Number(s.p || 0).toLocaleString("en")}</div>
-      </div>`).join("") || `<div class="empty">No services yet — add them from the cog.</div>`}
+      ${(b.services || []).map(s => {
+        const pics = s.id && typeof PHOTOS !== "undefined" ? (PHOTOS[s.id] || []) : [];
+        return `<div class="card" style="padding:0;overflow:hidden">
+          ${pics.length ? `<div style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch">
+            ${pics.map(p => `<img src="${esc(API.photoUrl(p.path))}" alt="" loading="lazy"
+              style="width:100%;flex:none;scroll-snap-align:start;aspect-ratio:4/3;object-fit:cover">`).join("")}
+          </div>` : ""}
+          <div style="display:flex;align-items:center;gap:12px;padding:13px">
+            <div style="flex:1"><div style="font-size:14.5px;font-weight:700">${esc(s.n)}</div>
+              <div class="small sub" style="margin-top:2px">${s.m ? mins(+s.m) : ""}${(s.sh || []).length ? " · " + esc((s.sh || []).join(", ")) : ""}</div></div>
+            <div style="font-size:15px;font-weight:800">${esc(b.cur || DB.cur)}${Number(s.p || 0).toLocaleString("en")}</div>
+          </div>
+        </div>`;
+      }).join("") || `<div class="empty">No services yet — add them from the cog.</div>`}
     </div>
     <button class="btn ghost mt16" data-a="go" data-v="settings">Settings ${I.arrow()}</button>
   </div>
@@ -11573,7 +11582,13 @@ function paint() {
     case "requests": html = vRequestsLive(); break;
     case "diary": html = vDiaryLive(); break;
     case "earnings": html = vWallet(); break;
-    case "listing": html = vListing(); break;
+    case "listing": html = vListing(); if (typeof loadMyPhotos === "function" && !vListing._loading) {
+        vListing._loading = true;
+        setTimeout(() => loadMyPhotos().then(() => {
+          vListing._loading = false;
+          if (ROUTE.v === "listing") paint();
+        }).catch(() => { vListing._loading = false; }), 0);
+      } break;
     case "signin": html = vSignIn(); break;
     case "nearby": html = vFind(); break;
     case "techlive": html = vTechLive(ROUTE.a); break;
