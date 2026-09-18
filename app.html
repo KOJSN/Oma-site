@@ -1370,7 +1370,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "b2e1686125";
+const BUILD_ID = "f0c51207e3";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -5966,7 +5966,7 @@ const TABS = {
   customer: [
     { k: "home", t: "Home", i: I.home },
     { k: "salons", t: "Search", i: I.find },
-    { k: "__scan", t: "Scan" },
+    { k: "__scan", t: "Shape" },
     { k: "bookings", t: "Bookings", i: I.cal },
     { k: "more", t: "More", i: I.more },
   ],
@@ -8498,8 +8498,8 @@ function vJob(bookingId) {
           ? `<button class="btn" data-a="go" data-v="ticket" data-id="${esc(b.id)}">
                Show the code</button>` : ""}
         ${asTech && b.status === "paid"
-          ? `<div class="note pink"><div>Do her nails first, then scan her code from
-               the Scan tab. Scanning is what pays you.</div></div>
+          ? `<div class="note pink"><div>Do her nails first, then scan her code
+               when you are done. Scanning is what pays you.</div></div>
              <button class="btn" data-a="go" data-v="scanner">Open the scanner</button>` : ""}
         <!-- No cancel button, deliberately. An unpaid hold expires on its own
              after 30 minutes, and a paid one is escrow's problem: the tech
