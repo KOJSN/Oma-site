@@ -348,7 +348,7 @@ const TABS = {
   customer: [
     { k: "home", t: "Home", i: I.home },
     { k: "salons", t: "Search", i: I.find },
-    { k: "__scan", t: "Scan" },
+    { k: "__scan", t: "Shape" },
     { k: "bookings", t: "Bookings", i: I.cal },
     { k: "more", t: "More", i: I.more },
   ],

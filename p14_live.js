@@ -234,8 +234,8 @@ function vJob(bookingId) {
           ? `<button class="btn" data-a="go" data-v="ticket" data-id="${esc(b.id)}">
                Show the code</button>` : ""}
         ${asTech && b.status === "paid"
-          ? `<div class="note pink"><div>Do her nails first, then scan her code from
-               the Scan tab. Scanning is what pays you.</div></div>
+          ? `<div class="note pink"><div>Do her nails first, then scan her code
+               when you are done. Scanning is what pays you.</div></div>
              <button class="btn" data-a="go" data-v="scanner">Open the scanner</button>` : ""}
         <!-- No cancel button, deliberately. An unpaid hold expires on its own
              after 30 minutes, and a paid one is escrow's problem: the tech
