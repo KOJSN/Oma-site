@@ -245,19 +245,12 @@ function homeSettings(b) {
         <div>The call-out is charged <b>once a visit</b>, however many services
           she books. <b>Oma takes nothing from either of these</b> — the fee is
           on your service prices only, because the trip is your time and your
-          petrol. Prefer to quote one flat price instead? Put <b>0</b> in both
-          boxes and set a home price on each service below.</div></div>`}`;
+          petrol.</div></div>`}`;
 }
 
-/* One extra row inside a service, when she travels. Empty means "the same as
-   in my salon", which is both the default and the honest way to say it. */
-function svcHomeRow(s, i, cur) {
-  return `<label class="field" style="margin:9px 0 0"><span class="lab">Price at her home</span>
-    <span class="inp" style="min-height:46px"><span class="pre">${esc(cur)}</span>
-      <input data-s="hp" data-i="${i}" inputmode="numeric"
-             value="${esc(s.hp || "")}" placeholder="same as above">
-    </span></label>`;
-}
+/* Removed: the per-service "Price at her home" input. The home price is now
+   the service price + the call-out fee — no separate field to fill in. */
+function svcHomeRow(s, i, cur) { return ""; }
 
 /* Saving. Sent one at a time rather than in a lump, because api_set_home_service
    and api_set_service_home_price are separate for a reason: a bad number in one

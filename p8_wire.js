@@ -1093,9 +1093,9 @@ async function publishListing(b) {
     minutes: Number(String(sv.m || "").replace(/\D/g, "")) || 60,
     price_kobo: Math.round(Number(String(sv.p || "").replace(/[^\d.]/g, "")) * 100) || 0,
     shapes: sv.sh || [],
-    home_kobo: sv.hp
-      ? Math.round(Number(String(sv.hp).replace(/[^\d.]/g, "")) * 100) || null
-      : null,
+    // Home price is now service price + call-out — no separate per-service
+    // home price. Send null so the backend uses the regular price.
+    home_kobo: null,
   })).filter((x) => x.name);
 
   try {
