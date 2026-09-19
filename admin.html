@@ -294,6 +294,13 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
                aria-label="Money paid into escrow each day for the last 30 days"></svg>
           <div class="tip"></div>
         </div>
+        <div class="card chart" id="chartOma">
+          <h3>Oma earnings a day</h3>
+          <div class="cs" id="csOma"></div>
+          <svg viewBox="0 0 600 150" preserveAspectRatio="none" role="img"
+               aria-label="Oma's fee earned each day for the last 30 days"></svg>
+          <div class="tip"></div>
+        </div>
       </div>
     </section>
 
@@ -1390,6 +1397,8 @@ async function load() {
              document.getElementById("csBookings"));
     drawBars("chartMoney", series, (r) => Number(r.gross_kobo), shortNaira,
              document.getElementById("csMoney"));
+    drawBars("chartOma", series, (r) => Number(r.oma_kobo), shortNaira,
+             document.getElementById("csOma"));
 
     document.getElementById("people").innerHTML =
       kv("People signed up", num(o.people.users)) +
