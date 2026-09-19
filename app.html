@@ -1380,7 +1380,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "06062a9af1";
+const BUILD_ID = "4883abcd3b";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -4078,6 +4078,13 @@ const API = (() => {
 
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
+    // The Location row's icon (p8_wire.js, "profile-locate"). A dedicated
+    // function and dedicated columns — see location.sql — rather than
+    // reusing api_save_profile's own p_lat/p_lng, whose column this app has
+    // never actually populated (every past call sent null, null) and whose
+    // storage nothing here has read back, so overloading it risked colliding
+    // with something else already built on it.
+    setAreaLocation: (area, lat, lng)       => live() ? rpc("api_set_area_location", { p_area: area, p_lat: lat, p_lng: lng }) : MOCK.setAreaLocation(area, lat, lng),
     nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.nearby(lat, lng, km),
     search:        (q, lat, lng)            => live() ? rpc("api_search", { p_q: q || "", p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng }) : MOCK.search(q, lat, lng),
 
@@ -4595,6 +4602,12 @@ const API = (() => {
         if (area != null) u.area = area;
         if (lat != null) { u.lat = lat; u.lng = lng; }
         save(); return await MOCK.me();
+      },
+      setAreaLocation: async (area, lat, lng) => {
+        const u = meRow();
+        u.area = area || "";
+        u.area_lat = lat; u.area_lng = lng;
+        save(); return null;
       },
       /* live.sql's tech_visible(), in the practice app. A salon is visible
          once she has listed herself; a travelling tech only while her phone
@@ -6941,7 +6954,7 @@ function vMore() {
 
     <div class="menu" style="margin-bottom:14px">
       ${row("editme", I.user(), "Profile",
-            esc([me.name, me.area].filter(Boolean).join(" · ") || "Add your name and area"))}
+            esc([me.name, me.area].filter(Boolean).join(" · ") || "Add your name and location"))}
       ${row("points", I.trophy(), "Leaderboard", "O points, the board and your code")}
       ${row("history", I.scan().replace(/#fff/g, "currentColor"), "Your scans",
             DB.scans.length ? DB.scans.length + " scan" + (DB.scans.length === 1 ? "" : "s") : "No scans yet")}
@@ -7281,8 +7294,28 @@ function vEditMe() {
           data-a="go" data-v="signin">Sign in</button>`}
       </div>`)}
 
-      ${field("area", "Area", (m.area || "").trim(), "Lekki, Lagos",
-              "A label for your bookings. How far away a tech is comes from your device each time you search, not from this.")}
+      <!-- Kamsy, 19 Sep 2026: "instead of area let it be location, no more
+           this area bullshit, I want location... location icon to use
+           current location." Typing a neighbourhood by hand is gone; the
+           only way this row is set is the same location-icon pattern as
+           the home-service address field, so what lands here is a real fix
+           on the map, not a word she typed. -->
+      ${line(`<div style="display:flex;align-items:center;gap:12px">
+        <span style="flex:1;min-width:0">
+          ${label("Location")}
+          ${value((m.area || "").trim(), "Add your location")}
+          <span class="tiny faint" style="display:block;margin-top:3px">How far away a tech is
+            still comes from your device each time you search, not from this.</span>
+        </span>
+        <button type="button" class="btn sm" style="width:auto;flex:none;padding:0 16px;
+                display:flex;align-items:center;gap:6px" data-a="profile-locate"
+                title="Use my current location">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+          ${(m.area || "").trim() ? "Update" : "Use location"}
+        </button>
+      </div>`)}
 
       <!-- The row the whole screen is arranged around. It is the one fact
            that may not be true yet, so it is the one row carrying a button. -->
@@ -12422,6 +12455,48 @@ document.getElementById("shell").addEventListener("click", e => {
     } else {
       toast("Saved on this device. Sign in to keep it.");
     }
+    return;
+  }
+
+  if (a === "profile-locate") {
+    /* Kamsy, 19 Sep 2026: the Location row's icon, not a text box anymore.
+       Same GPS-then-reverse-geocode shape as "home-locate" above, because a
+       second way of doing the same thing is a second thing to keep in sync.
+       Unlike that one, this writes coordinates the server keeps — see
+       api_set_area_location in location.sql — so it can put her on the
+       admin globe, which typing a neighbourhood name never could. */
+    if (!navigator.geolocation) return toast("Location is not available on this device.");
+    toast("Getting your location…");
+    navigator.geolocation.getCurrentPosition(
+      async (p) => {
+        const lat = p.coords.latitude, lng = p.coords.longitude;
+        let area = "";
+        try {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+            { headers: { "Accept-Language": "en" } });
+          const j = await r.json();
+          const a2 = j.address || {};
+          area = [a2.neighbourhood || a2.suburb || a2.city_district, a2.city || a2.town || a2.state]
+            .filter(Boolean).join(", ");
+        } catch { /* still have the coordinates; just no label to show */ }
+
+        DB.me = Object.assign({}, DB.me, { area: area || DB.me.area || "" });
+        delete DB.me.ll;
+        dbSave();
+        paint();
+
+        if (!API.signedIn()) return toast("Saved on this device. Sign in to put it on your account.");
+        try {
+          await API.setAreaLocation(DB.me.area || "", lat, lng);
+          toast(area ? "Location set to " + area : "Location saved.");
+        } catch (e) {
+          toast(e.message || "Saved here, but not on the server.");
+        }
+      },
+      () => toast("Could not get your location. Check that it is allowed for this site."),
+      { enableHighAccuracy: true, timeout: 12000 }
+    );
     return;
   }
 
