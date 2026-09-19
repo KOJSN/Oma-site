@@ -572,7 +572,11 @@ function paidToast(r) {
 /* ── 27 the wallet ────────────────────────────────────── */
 function vWallet() {
   load(async () => {
-    const w = await API.wallet();
+    const [w, bank] = await Promise.all([
+      API.wallet(),
+      API.myBank().catch(() => ({})),
+    ]);
+    const hasBank = !!(bank && bank.account_number);
     fillHost(`
       <div class="pad stack gap12">
         <div class="ticket"><div style="padding:18px" class="stack gap12">
@@ -586,6 +590,17 @@ function vWallet() {
         ${w.held > 0 ? `<div class="note"><div>Money moves out of <b>held</b> the
           moment you scan a client's code. Until then it is hers, not yours —
           that is the promise that makes clients willing to pay first.</div></div>` : ""}
+
+        <div class="menu">
+          <button data-a="go" data-v="bank">
+            <span class="ic">${I.pin ? I.pin(hasBank) : ""}</span>
+            <span style="flex:1;min-width:0">Where the money goes
+              <span class="tiny sub" style="display:block;font-weight:600;margin-top:1px">${
+                hasBank
+                  ? esc(bank.bank_name || "") + " &middot; &bull;&bull;&bull;&bull;" + esc(String(bank.account_number).slice(-4))
+                  : "Not added yet — add your bank details before you withdraw"}</span></span>
+            ${I.chev()}</button>
+        </div>
 
         <button class="btn" data-a="payout" ${w.available <= 0 ? "disabled" : ""}>
           Withdraw ${kobo(w.available)}</button>
@@ -706,6 +721,108 @@ function vKyc() {
   return head("Verify your identity",
               tech ? "Once, with a virtual NIN"
                    : "Once, for home appointments") + host();
+}
+
+/* ── where a withdrawal goes ──────────────────────────────
+   Kamsy, 19 Sep 2026: build the screen a tech uses to tell Oma her bank
+   account, so a "Withdraw" request has somewhere real to land. The account
+   name is confirmed against Paystack's bank-resolve lookup before saving —
+   that works today, with no business verification needed, and it is the one
+   thing standing between a typo and money sent into a stranger's account.
+
+   Codes below are Paystack's own NUBAN codes for the well-established banks
+   — stable for years. A few widely-used fintechs are included too; if a
+   tech's bank is not in the list, "Other (I'll type the code)" lets her put
+   in a bank code herself rather than being stuck. */
+const NG_BANKS = [
+  ["044", "Access Bank"], ["063", "Access Bank (Diamond)"],
+  ["023", "Citibank Nigeria"], ["050", "Ecobank Nigeria"],
+  ["070", "Fidelity Bank"], ["011", "First Bank of Nigeria"],
+  ["214", "First City Monument Bank"], ["058", "Guaranty Trust Bank"],
+  ["030", "Heritage Bank"], ["301", "Jaiz Bank"], ["082", "Keystone Bank"],
+  ["076", "Polaris Bank"], ["101", "Providus Bank"], ["221", "Stanbic IBTC Bank"],
+  ["068", "Standard Chartered Bank"], ["232", "Sterling Bank"],
+  ["032", "Union Bank of Nigeria"], ["033", "United Bank For Africa"],
+  ["215", "Unity Bank"], ["035", "Wema Bank"], ["057", "Zenith Bank"],
+  ["50211", "Kuda Bank"], ["999992", "OPay"], ["100033", "PalmPay"],
+  ["50515", "Moniepoint MFB"],
+];
+// A separate sentinel from "no bank chosen yet" (""), so a fresh screen can
+// tell "nothing picked" apart from "she picked Other and typed her own code".
+const NG_BANK_OTHER = "other";
+
+function vBankDetails() {
+  const tech = DB.role === "tech";
+  if (!tech) return `${head("Bank details", "For nail techs only")}
+    <div class="pad"><div class="empty">This is where a nail tech tells Oma
+      where to pay her — there is nothing to add on a customer account.</div></div>`;
+
+  load(async () => {
+    const bank = await API.myBank().catch(() => ({}));
+    RESOLVED = bank && bank.account_name ? bank.account_name : null;
+    fillHost(bankForm(bank || {}));
+  });
+  return head("Where the money goes", "For your withdrawals") + host();
+}
+
+/* The confirmed name sits outside any input, because a name resolved against
+   a bank is a fact she should not be able to silently overwrite by editing
+   the field again — a fresh account number means a fresh confirmation.
+   BANKPICK carries exactly what was resolved, so Save sends what Paystack
+   actually confirmed rather than re-reading fields that may have changed
+   since. */
+let RESOLVED = null;
+let BANKPICK = null;   // { bankCode, bankName, accountNumber } once verified
+
+/** Reads the two-or-three fields on screen into one clean {code, number}. */
+function readBankFields() {
+  const sel = document.getElementById("fBankCode");
+  const code = sel && sel.value === NG_BANK_OTHER
+    ? (document.getElementById("fBankCodeOther") || {}).value || ""
+    : (sel ? sel.value : "");
+  const acct = (document.getElementById("fAcctNum") || {}).value || "";
+  return { code: code.trim(), number: acct.replace(/\D/g, "") };
+}
+
+function bankForm(bank) {
+  const saved = bank.bank_code || "";
+  const known = NG_BANKS.some(([code]) => code === saved);
+  // Three states, not two: nothing chosen yet, a bank from the list, or a
+  // code that is not in the list (either she saved one before, or she just
+  // picked "Other" in this session) — that last one shows the free-text code
+  // box, the other two don't.
+  const other = saved === NG_BANK_OTHER || (saved && !known);
+  const otherCode = saved === NG_BANK_OTHER ? "" : (other ? saved : "");
+  return `
+    <div class="pad stack gap12">
+      <div class="note"><div>Oma never automates a transfer without your
+        confirmation, and today every withdrawal is still sent by a person
+        at Oma, by hand — this just tells them where to send it. The account
+        name below comes from your bank, not from what you type, so a
+        mistyped digit is caught here rather than after money is sent.</div></div>
+
+      <label class="fld"><span class="lbl">Bank</span>
+        <select id="fBankCode">
+          <option value="" ${!saved ? "selected" : ""} disabled>Choose your bank</option>
+          ${NG_BANKS.map(([code, name]) => `<option value="${esc(code)}"
+            ${code === saved ? "selected" : ""}>${esc(name)}</option>`).join("")}
+          <option value="${NG_BANK_OTHER}" ${other ? "selected" : ""}>Other bank (I'll type the code)</option>
+        </select></label>
+
+      ${other ? `<label class="fld"><span class="lbl">Bank code (from your bank or Paystack)</span>
+        <input id="fBankCodeOther" inputmode="numeric" value="${esc(otherCode)}"></label>` : ""}
+
+      <label class="fld"><span class="lbl">Account number</span>
+        <input id="fAcctNum" type="text" inputmode="numeric" maxlength="10"
+               placeholder="0123456789" value="${esc(bank.account_number || "")}"></label>
+
+      <button class="btn" data-a="bank-verify">Verify account</button>
+
+      ${RESOLVED ? `<div class="note good"><div><b>${esc(RESOLVED)}</b><br>
+        <span class="tiny sub">If that is not you, do not save — check the
+        number and the bank and verify again.</span></div></div>
+        <button class="btn" data-a="bank-save">Save</button>` : ""}
+    </div>`;
 }
 
 /* ── 29 connect a backend ─────────────────────────────────

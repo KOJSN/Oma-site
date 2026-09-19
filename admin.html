@@ -305,6 +305,15 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
       </div>
     </section>
 
+    <!-- Paystack Transfers still need business verification, so every one of
+         these is sent by hand for now — from Kamsy's own bank app, using the
+         account below. "Mark as paid" only records that it happened; it
+         does not move any money itself. -->
+    <section>
+      <div class="lbl">Payouts waiting to be sent</div>
+      <div class="card scroll" id="payouts"></div>
+    </section>
+
     <section>
       <div class="lbl">Photos</div>
       <div class="card" id="photos"></div>
@@ -465,6 +474,51 @@ async function hidePhoto(id, hide) {
   }
 }
 
+/* Every one of these still moves by a real bank transfer YOU send — this
+   list exists so nothing sits forgotten while Paystack Transfers wait on
+   business verification. Sorted oldest-first by api_admin_payouts, so the
+   tech who has waited longest is always the top row. */
+function drawPayouts(list) {
+  const el = document.getElementById("payouts");
+  if (list === null) {
+    el.innerHTML = `<div class="empty">Payouts are not loaded yet —
+      run <b>payout-bank.sql</b> in Supabase.</div>`;
+    return;
+  }
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">Nothing waiting. Every requested withdrawal has been sent.</div>`;
+    return;
+  }
+  el.innerHTML = `<table><thead><tr>
+      <th>Tech</th><th>Amount</th><th>Bank</th><th>Account</th><th>Requested</th><th></th>
+    </tr></thead><tbody>${list.map((p) => `<tr>
+      <td><b>${esc(p.business || "—")}</b></td>
+      <td class="tnum">${naira(p.amount_kobo)}</td>
+      <td>${esc(p.bank_name || "—")}</td>
+      <td>${p.account_number
+        ? `<span style="font-variant-numeric:tabular-nums;letter-spacing:.03em">${esc(p.account_number)}</span> · ${esc(p.account_name || "not confirmed")}`
+        : `<span class="chip no">no bank on file</span>`}</td>
+      <td>${esc(ago(p.requested_at))}</td>
+      <td>${p.account_number
+        ? `<button class="btn sm" data-payout="${p.id}">Mark as paid</button>`
+        : ""}</td>
+    </tr>`).join("")}</tbody></table>`;
+}
+
+async function markPayoutPaid(id) {
+  const t = token();
+  if (!t) return lockOut();
+  const ref = prompt("Your bank's reference for this transfer (optional, but worth keeping):", "");
+  if (ref === null) return;   // she cancelled
+  try {
+    await rpc("api_admin_mark_payout_sent", { p_token: t, p_payout_id: Number(id), p_reference: ref });
+    load();
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    alert(e.message);
+  }
+}
+
 /* ══ formatting ═══════════════════════════════════════════════════════ */
 const naira = (kobo) => "₦" + Math.round((Number(kobo) || 0) / 100).toLocaleString("en-NG");
 const num = (n) => (Number(n) || 0).toLocaleString("en-NG");
@@ -534,6 +588,8 @@ document.getElementById("refresh").addEventListener("click", () => load());
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-pic]");
   if (b) hidePhoto(b.dataset.pic, b.dataset.hide === "1");
+  const p = e.target.closest("[data-payout]");
+  if (p) markPayoutPaid(p.dataset.payout);
 });
 
 function show(expires) {
@@ -1290,7 +1346,7 @@ async function load() {
   const t = token();
   if (!t) return lockOut("");
   try {
-    const [o, tr, series, recent, mail, pix, globe, folk] = await Promise.all([
+    const [o, tr, series, recent, mail, pix, globe, folk, payouts] = await Promise.all([
       rpc("api_admin_overview", { p_token: t }),
       rpc("api_admin_trouble", { p_token: t }),
       rpc("api_admin_series", { p_token: t, p_days: 30 }),
@@ -1307,11 +1363,15 @@ async function load() {
       // people.sql may not be loaded yet. A missing list must not take the
       // whole dashboard down with it.
       rpc("api_admin_people", { p_token: t, p_limit: 200 }).catch(() => null),
+      // payout-bank.sql may not be loaded yet. A missing queue must not take
+      // the whole dashboard down with it.
+      rpc("api_admin_payouts", { p_token: t, p_status: "requested" }).catch(() => null),
     ]);
 
     drawTrouble(tr);
     drawGlobe(globe);
     drawPeople(folk);
+    drawPayouts(payouts);
 
     document.getElementById("tiles").innerHTML = [
       tile("Nail techs listed", num(o.people.listed),

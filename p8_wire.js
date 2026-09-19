@@ -58,6 +58,7 @@ function paint() {
     case "scanner": html = vScanner(); break;
     case "wallet": html = vWallet(); break;
     case "kyc": html = vKyc(); break;
+    case "bank": html = vBankDetails(); break;
     case "backend": html = vBackend(); break;
     case "job": html = vJob(ROUTE.a); break;
     case "chat": html = vChat(ROUTE.a); break;
@@ -538,8 +539,15 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "payout") {
-    return API.wallet().then(w => {
+    return Promise.all([API.wallet(), API.myBank().catch(() => ({}))]).then(([w, bank]) => {
       if (w.available <= 0) return toast("Nothing to withdraw yet.");
+      // No bank on file: there is nowhere to send this yet, and a "requested"
+      // payout with no account attached just sits stuck. Send her to add it
+      // first rather than accepting a request that can never be paid.
+      if (!bank || !bank.account_number) {
+        toast("Add your bank details first.");
+        return nav("bank");
+      }
       return API.requestPayout(w.available)
         .then(() => { toast("Withdrawal requested."); paint(); });
     }).catch(err => toast(err.message));
@@ -565,6 +573,36 @@ document.getElementById("shell").addEventListener("click", e => {
         toast(r.reason || "That did not pass.");
         paint();
       }
+    }).catch(err => toast(err.message));
+  }
+
+  if (a === "bank-verify") {
+    const { code, number } = readBankFields();
+    if (!code) return toast("Choose your bank first.");
+    if (number.length !== 10) return toast("A Nigerian account number is 10 digits.");
+    toast("Checking…");
+    return API.resolveBank(code, number).then(r => {
+      RESOLVED = r.account_name || null;
+      const bankName = (NG_BANKS.find(([c]) => c === code) || [])[1] || "";
+      BANKPICK = { bankCode: code, bankName, accountNumber: number };
+      fillHost(bankForm({ bank_code: code, account_number: number }));
+      if (!RESOLVED) toast("Could not confirm that account.");
+    }).catch(err => {
+      RESOLVED = null; BANKPICK = null;
+      toast(err.message);
+      fillHost(bankForm({ bank_code: code, account_number: number }));
+    });
+  }
+
+  if (a === "bank-save") {
+    if (!BANKPICK) return toast("Verify the account first.");
+    toast("Saving…");
+    return API.setBankDetails({
+      bankName: BANKPICK.bankName, bankCode: BANKPICK.bankCode,
+      accountNumber: BANKPICK.accountNumber, accountName: RESOLVED,
+    }).then(() => {
+      toast("Saved — this is where your withdrawals go.");
+      back();
     }).catch(err => toast(err.message));
   }
 
@@ -1023,6 +1061,14 @@ async function shopRemove(techId) {
    rejected, on a phone that has just had a bad day. */
 document.addEventListener("change", (e) => {
   const inp = e.target;
+  // Switching banks invalidates whatever was resolved against the old one —
+  // and picking "Other" needs to reveal a place to type its code, which a
+  // plain <select> cannot do without a repaint.
+  if (inp && inp.id === "fBankCode" && typeof bankForm === "function") {
+    const acct = document.getElementById("fAcctNum");
+    RESOLVED = null;
+    return fillHost(bankForm({ bank_code: inp.value, account_number: acct ? acct.value : "" }));
+  }
   if (!inp || inp.id !== "fRepVideo") return;
   const file = inp.files && inp.files[0];
   inp.value = "";

@@ -523,6 +523,16 @@ const API = (() => {
     wallet:        ()                       => live() ? rpc("api_wallet")          : MOCK.wallet(),
     requestPayout: (kobo)                   => live() ? rpc("api_request_payout", { p_amount: kobo }) : MOCK.requestPayout(kobo),
 
+    // Where a withdrawal actually goes. resolveBank is a lookup against
+    // Paystack (works today, no business verification needed); setBankDetails
+    // saves what she confirmed. See payout-bank.sql.
+    myBank:        ()                       => live() ? rpc("api_my_bank")         : MOCK.myBank(),
+    resolveBank:   (bankCode, acctNumber)   => live() ? edge("bank-resolve", { bank_code: bankCode, account_number: acctNumber }) : MOCK.resolveBank(bankCode, acctNumber),
+    setBankDetails: (b)                     => live() ? rpc("api_set_bank_details", {
+      p_bank_name: b.bankName, p_bank_code: b.bankCode,
+      p_account_number: b.accountNumber, p_account_name: b.accountName,
+    }) : MOCK.setBankDetails(b),
+
     // Messages. A thread is a booking; see chat.sql for why.
     messages:      (bookingId)              => live() ? rpc("api_messages", { p_booking: bookingId }) : MOCK.messages(bookingId),
     send:          (bookingId, body)        => live() ? rpc("api_send", { p_booking: bookingId, p_body: body }) : MOCK.send(bookingId, body),
@@ -1238,6 +1248,28 @@ const API = (() => {
          it — so it says so rather than pretending. A fake "verified" here
          would hide the one gate this feature exists for. */
       myIdentity: async () => ({ kyc: "none", verified: false, at: null }),
+
+      /* Practice mode cannot call Paystack either, so it fakes a resolve:
+         any 10-digit number "resolves" to her own business name, so the
+         screen can be built and clicked through before a real backend
+         exists. */
+      resolveBank: async (bankCode, acctNumber) => {
+        const t = myTech();
+        if (!/^\d{10}$/.test(String(acctNumber || ""))) throw new Error("a Nigerian account number is 10 digits");
+        if (!bankCode) throw new Error("choose a bank first");
+        return { account_name: (t && t.business_name) ? t.business_name.toUpperCase() : "PRACTICE ACCOUNT" };
+      },
+      myBank: async () => {
+        const t = myTech();
+        return (t && t.bank) || { bank_name: null, bank_code: null, account_number: null, account_name: null };
+      },
+      setBankDetails: async (b) => {
+        const t = myTech();
+        if (!t) throw new Error("set up your tech profile first");
+        t.bank = { bank_name: b.bankName, bank_code: b.bankCode,
+                   account_number: b.accountNumber, account_name: b.accountName };
+        save();
+      },
       reportPerson: async (b, kind, body) => {
         const s = load();
         s.reports = s.reports || {};
