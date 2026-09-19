@@ -462,6 +462,13 @@ const API = (() => {
 
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
+    // The Location row's icon (p8_wire.js, "profile-locate"). A dedicated
+    // function and dedicated columns — see location.sql — rather than
+    // reusing api_save_profile's own p_lat/p_lng, whose column this app has
+    // never actually populated (every past call sent null, null) and whose
+    // storage nothing here has read back, so overloading it risked colliding
+    // with something else already built on it.
+    setAreaLocation: (area, lat, lng)       => live() ? rpc("api_set_area_location", { p_area: area, p_lat: lat, p_lng: lng }) : MOCK.setAreaLocation(area, lat, lng),
     nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.nearby(lat, lng, km),
     search:        (q, lat, lng)            => live() ? rpc("api_search", { p_q: q || "", p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng }) : MOCK.search(q, lat, lng),
 
@@ -979,6 +986,12 @@ const API = (() => {
         if (area != null) u.area = area;
         if (lat != null) { u.lat = lat; u.lng = lng; }
         save(); return await MOCK.me();
+      },
+      setAreaLocation: async (area, lat, lng) => {
+        const u = meRow();
+        u.area = area || "";
+        u.area_lat = lat; u.area_lng = lng;
+        save(); return null;
       },
       /* live.sql's tech_visible(), in the practice app. A salon is visible
          once she has listed herself; a travelling tech only while her phone

@@ -97,7 +97,7 @@ function vMore() {
 
     <div class="menu" style="margin-bottom:14px">
       ${row("editme", I.user(), "Profile",
-            esc([me.name, me.area].filter(Boolean).join(" · ") || "Add your name and area"))}
+            esc([me.name, me.area].filter(Boolean).join(" · ") || "Add your name and location"))}
       ${row("points", I.trophy(), "Leaderboard", "O points, the board and your code")}
       ${row("history", I.scan().replace(/#fff/g, "currentColor"), "Your scans",
             DB.scans.length ? DB.scans.length + " scan" + (DB.scans.length === 1 ? "" : "s") : "No scans yet")}
@@ -437,8 +437,28 @@ function vEditMe() {
           data-a="go" data-v="signin">Sign in</button>`}
       </div>`)}
 
-      ${field("area", "Area", (m.area || "").trim(), "Lekki, Lagos",
-              "A label for your bookings. How far away a tech is comes from your device each time you search, not from this.")}
+      <!-- Kamsy, 19 Sep 2026: "instead of area let it be location, no more
+           this area bullshit, I want location... location icon to use
+           current location." Typing a neighbourhood by hand is gone; the
+           only way this row is set is the same location-icon pattern as
+           the home-service address field, so what lands here is a real fix
+           on the map, not a word she typed. -->
+      ${line(`<div style="display:flex;align-items:center;gap:12px">
+        <span style="flex:1;min-width:0">
+          ${label("Location")}
+          ${value((m.area || "").trim(), "Add your location")}
+          <span class="tiny faint" style="display:block;margin-top:3px">How far away a tech is
+            still comes from your device each time you search, not from this.</span>
+        </span>
+        <button type="button" class="btn sm" style="width:auto;flex:none;padding:0 16px;
+                display:flex;align-items:center;gap:6px" data-a="profile-locate"
+                title="Use my current location">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+          ${(m.area || "").trim() ? "Update" : "Use location"}
+        </button>
+      </div>`)}
 
       <!-- The row the whole screen is arranged around. It is the one fact
            that may not be true yet, so it is the one row carrying a button. -->

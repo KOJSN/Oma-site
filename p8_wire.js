@@ -685,6 +685,48 @@ document.getElementById("shell").addEventListener("click", e => {
     return;
   }
 
+  if (a === "profile-locate") {
+    /* Kamsy, 19 Sep 2026: the Location row's icon, not a text box anymore.
+       Same GPS-then-reverse-geocode shape as "home-locate" above, because a
+       second way of doing the same thing is a second thing to keep in sync.
+       Unlike that one, this writes coordinates the server keeps — see
+       api_set_area_location in location.sql — so it can put her on the
+       admin globe, which typing a neighbourhood name never could. */
+    if (!navigator.geolocation) return toast("Location is not available on this device.");
+    toast("Getting your location…");
+    navigator.geolocation.getCurrentPosition(
+      async (p) => {
+        const lat = p.coords.latitude, lng = p.coords.longitude;
+        let area = "";
+        try {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+            { headers: { "Accept-Language": "en" } });
+          const j = await r.json();
+          const a2 = j.address || {};
+          area = [a2.neighbourhood || a2.suburb || a2.city_district, a2.city || a2.town || a2.state]
+            .filter(Boolean).join(", ");
+        } catch { /* still have the coordinates; just no label to show */ }
+
+        DB.me = Object.assign({}, DB.me, { area: area || DB.me.area || "" });
+        delete DB.me.ll;
+        dbSave();
+        paint();
+
+        if (!API.signedIn()) return toast("Saved on this device. Sign in to put it on your account.");
+        try {
+          await API.setAreaLocation(DB.me.area || "", lat, lng);
+          toast(area ? "Location set to " + area : "Location saved.");
+        } catch (e) {
+          toast(e.message || "Saved here, but not on the server.");
+        }
+      },
+      () => toast("Could not get your location. Check that it is allowed for this site."),
+      { enableHighAccuracy: true, timeout: 12000 }
+    );
+    return;
+  }
+
 /* ══ the name that was only ever on the phone ═════════════════════════
    Kamsy, 16 Sep 2026: "their names don't even show."
 
