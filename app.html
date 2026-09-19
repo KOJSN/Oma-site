@@ -1373,7 +1373,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "e3ea70c48d";
+const BUILD_ID = "59debf749b";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -6851,22 +6851,32 @@ function trackRow() {
               aria-checked="${LIVE.on ? "true" : "false"}"><i></i></span></button>`;
   }
 
-  // A customer is never on the map. This grants a browser permission and
-  // nothing else, and the note has to say so or the row overpromises.
+  // A customer is never on the map, and the browser has no API to revoke a
+  // permission from inside the page — so "off" cannot mean the browser
+  // forgets. It means Oma stops ASKING: whereAmI() checks geoOptedOut() and
+  // returns the Lagos-Island fallback without ever calling the phone, the
+  // same way it already does when the browser has no fix at all. Kamsy,
+  // 19 Sep 2026: "oma always ask when the location is necessary which is
+  // always" -> "nope it should be a toggle" — so this is a real switch, and
+  // flipping it changes what Oma actually does, not just what the row says.
   loadGeoPerm();
   const g = GEOPERM;
-  const note = g === "granted"
-      ? "On &mdash; distances are live. Oma stores nothing."
-    : g === "denied"
+  const on = g === "granted" && !geoOptedOut();
+  const note = g === "denied"
       ? "Blocked in your browser. Turn it back on in site settings."
-    : "Tap to let Oma use your location for distances";
+    : on
+      ? "On &mdash; distances are live. Oma stores nothing."
+    : g === "granted"
+      ? "Off &mdash; Oma won't ask. You'll type your area where it's needed."
+      : "Tap to let Oma use your location for distances";
   return `
     <button data-a="track-toggle">
-      <span class="ic">${I.pin(g === "granted")}</span>
+      <span class="ic">${I.pin(on)}</span>
       <span style="flex:1;min-width:0">${label(note)}</span>
-      ${g === "granted"
-        ? `<span class="switch on" role="img" aria-label="Allowed"><i></i></span>`
-        : I.chev()}</button>`;
+      ${g === "denied" ? I.chev()
+        : `<span class="switch${on ? " on" : ""}" role="switch"
+                 aria-checked="${on ? "true" : "false"}"><i></i></span>`}
+      </button>`;
 }
 
 function vMore() {
@@ -9015,8 +9025,26 @@ function homeAsList() {
    network-derived fix in Lagos can be a kilometre out — which is exactly the
    confusion this is meant to remove. It costs a few seconds, so the timeout is
    generous rather than the eight seconds it was. */
+// A customer's off switch. There is no browser API to revoke a granted
+// geolocation permission from the page, so "off" here means Oma stops
+// asking — whereAmI() short-circuits below instead of ever calling
+// navigator.geolocation. Never applies to a tech: her own live tracking is
+// a different switch (LIVE.on) with its own meaning.
+const GEO_OPT_KEY = "omaGeoOptOut";
+function geoOptedOut() {
+  if (typeof DB !== "undefined" && DB.role === "tech") return false;
+  try { return localStorage.getItem(GEO_OPT_KEY) === "1"; } catch (e) { return false; }
+}
+function setGeoOptOut(v) {
+  try {
+    if (v) localStorage.setItem(GEO_OPT_KEY, "1");
+    else localStorage.removeItem(GEO_OPT_KEY);
+  } catch (e) { /* private mode */ }
+}
+
 function whereAmI() {
   const LAGOS = { lat: 6.4478, lng: 3.4723, guessed: true, why: "unavailable" };
+  if (geoOptedOut()) return Promise.resolve(Object.assign({}, LAGOS, { why: "opted_out" }));
   return new Promise((res) => {
     if (!navigator.geolocation) return res(LAGOS);
     navigator.geolocation.getCurrentPosition(
@@ -10357,7 +10385,20 @@ async function askGeo() {
 }
 
 async function trackToggle() {
-  if (DB.role !== "tech") return askGeo();
+  if (DB.role !== "tech") {
+    await loadGeoPerm();
+    // Already granted: this switch cannot touch the browser's own answer,
+    // so it flips Oma's own opt-out instead — off stops whereAmI() from
+    // ever asking, on lets it ask again without re-prompting a permission
+    // she has already given.
+    if (GEOPERM === "granted") {
+      setGeoOptOut(!geoOptedOut());
+      if (ROUTE.v === "more") paint();
+      return;
+    }
+    // Not granted yet (or denied): the only thing tapping can do is ask.
+    return askGeo();
+  }
   const p = (await loadPresence()) || {};
   if (p.has_salon) return;                  // a shop does not move
   await toggleWorking();
@@ -10457,6 +10498,9 @@ async function askHomeQuote() {
           says: p.why === "denied"
             ? "Oma needs your location to work out the travel. Turn it on for "
               + "this site and try again."
+            : p.why === "opted_out"
+            ? "You've turned off “Track my location” in More. Turn it back "
+              + "on to get a travel price."
             : "Could not get a fix. Outdoors, or with Wi-Fi on, usually does it." };
         return;
       }
