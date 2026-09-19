@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="apple-touch-icon" sizes="180x180" href="oma-icon-180.png">
 <link rel="icon" type="image/png" href="oma-icon-180.png">
+<!-- Kamsy, 19 Sep 2026: the pink-on-black mark for a browser tab in dark
+     mode — this only ever affects the tab/window icon while the app is
+     open in a browser. It cannot touch the icon on a phone's home screen:
+     neither iOS nor Android read prefers-color-scheme for an installed
+     PWA's icon, so that one is fixed at "Add to Home Screen" time
+     regardless of what this line does. -->
+<link rel="icon" type="image/png" sizes="96x96" href="icon-96-dark.png" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-title" content="Oma">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">

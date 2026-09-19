@@ -65,8 +65,13 @@
        /favicon.ico    the file every crawler and every old browser asks for
                        by default, whether or not a page links to it. If the
                        linked PNG is ever missing or moved, this still answers.
-       48 and 192      the sized PNGs Google's own documentation asks for, with
-                       explicit sizes= so nothing has to guess by downloading.
+       48, 96, 192     the sized PNGs Google's own documentation asks for —
+                       square, every one a multiple of 48 — with explicit
+                       sizes= so nothing has to guess by downloading. 48 and 96
+                       sit at the ROOT beside favicon.ico rather than in
+                       /icons/, because everything in the upload folder lands
+                       at the root and a path that depends on remembering to
+                       drop two files into a subfolder is a path that breaks.
        apple-touch     the home-screen icon on iOS, unchanged.
      A few hundred bytes for three more fallbacks is not a trade worth
      thinking about.
@@ -77,9 +82,19 @@
      cycle of days to weeks, and Search Console → URL Inspection → Request
      Indexing on the homepage is what nudges it. -->
 <link rel="icon" href="/favicon.ico" sizes="48x48">
-<link rel="icon" type="image/png" sizes="48x48" href="/icons/icon-48.png">
+<link rel="icon" type="image/png" sizes="48x48" href="/icon-48.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/icon-96.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
+
+<!-- Kamsy, 19 Sep 2026: the pink-on-black mark, for a browser in dark mode.
+     media= is a browser hint, not something Google's crawler is known to
+     honour reliably — worth watching Search Console after this ships in
+     case it ever confuses which icon gets indexed, for the same reason the
+     block above exists. Nothing here replaces those tags; it only adds a
+     preference on top for the browsers that support it. -->
+<link rel="icon" type="image/png" sizes="48x48" href="/icon-48-dark.png" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" sizes="96x96" href="/icon-96-dark.png" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
