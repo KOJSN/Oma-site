@@ -735,8 +735,26 @@ function homeAsList() {
    network-derived fix in Lagos can be a kilometre out — which is exactly the
    confusion this is meant to remove. It costs a few seconds, so the timeout is
    generous rather than the eight seconds it was. */
+// A customer's off switch. There is no browser API to revoke a granted
+// geolocation permission from the page, so "off" here means Oma stops
+// asking — whereAmI() short-circuits below instead of ever calling
+// navigator.geolocation. Never applies to a tech: her own live tracking is
+// a different switch (LIVE.on) with its own meaning.
+const GEO_OPT_KEY = "omaGeoOptOut";
+function geoOptedOut() {
+  if (typeof DB !== "undefined" && DB.role === "tech") return false;
+  try { return localStorage.getItem(GEO_OPT_KEY) === "1"; } catch (e) { return false; }
+}
+function setGeoOptOut(v) {
+  try {
+    if (v) localStorage.setItem(GEO_OPT_KEY, "1");
+    else localStorage.removeItem(GEO_OPT_KEY);
+  } catch (e) { /* private mode */ }
+}
+
 function whereAmI() {
   const LAGOS = { lat: 6.4478, lng: 3.4723, guessed: true, why: "unavailable" };
+  if (geoOptedOut()) return Promise.resolve(Object.assign({}, LAGOS, { why: "opted_out" }));
   return new Promise((res) => {
     if (!navigator.geolocation) return res(LAGOS);
     navigator.geolocation.getCurrentPosition(

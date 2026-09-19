@@ -90,6 +90,9 @@ async function askHomeQuote() {
           says: p.why === "denied"
             ? "Oma needs your location to work out the travel. Turn it on for "
               + "this site and try again."
+            : p.why === "opted_out"
+            ? "You've turned off “Track my location” in More. Turn it back "
+              + "on to get a travel price."
             : "Could not get a fix. Outdoors, or with Wi-Fi on, usually does it." };
         return;
       }

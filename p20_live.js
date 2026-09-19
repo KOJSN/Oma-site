@@ -365,7 +365,20 @@ async function askGeo() {
 }
 
 async function trackToggle() {
-  if (DB.role !== "tech") return askGeo();
+  if (DB.role !== "tech") {
+    await loadGeoPerm();
+    // Already granted: this switch cannot touch the browser's own answer,
+    // so it flips Oma's own opt-out instead — off stops whereAmI() from
+    // ever asking, on lets it ask again without re-prompting a permission
+    // she has already given.
+    if (GEOPERM === "granted") {
+      setGeoOptOut(!geoOptedOut());
+      if (ROUTE.v === "more") paint();
+      return;
+    }
+    // Not granted yet (or denied): the only thing tapping can do is ask.
+    return askGeo();
+  }
   const p = (await loadPresence()) || {};
   if (p.has_salon) return;                  // a shop does not move
   await toggleWorking();

@@ -46,22 +46,32 @@ function trackRow() {
               aria-checked="${LIVE.on ? "true" : "false"}"><i></i></span></button>`;
   }
 
-  // A customer is never on the map. This grants a browser permission and
-  // nothing else, and the note has to say so or the row overpromises.
+  // A customer is never on the map, and the browser has no API to revoke a
+  // permission from inside the page — so "off" cannot mean the browser
+  // forgets. It means Oma stops ASKING: whereAmI() checks geoOptedOut() and
+  // returns the Lagos-Island fallback without ever calling the phone, the
+  // same way it already does when the browser has no fix at all. Kamsy,
+  // 19 Sep 2026: "oma always ask when the location is necessary which is
+  // always" -> "nope it should be a toggle" — so this is a real switch, and
+  // flipping it changes what Oma actually does, not just what the row says.
   loadGeoPerm();
   const g = GEOPERM;
-  const note = g === "granted"
-      ? "On &mdash; distances are live. Oma stores nothing."
-    : g === "denied"
+  const on = g === "granted" && !geoOptedOut();
+  const note = g === "denied"
       ? "Blocked in your browser. Turn it back on in site settings."
-    : "Tap to let Oma use your location for distances";
+    : on
+      ? "On &mdash; distances are live. Oma stores nothing."
+    : g === "granted"
+      ? "Off &mdash; Oma won't ask. You'll type your area where it's needed."
+      : "Tap to let Oma use your location for distances";
   return `
     <button data-a="track-toggle">
-      <span class="ic">${I.pin(g === "granted")}</span>
+      <span class="ic">${I.pin(on)}</span>
       <span style="flex:1;min-width:0">${label(note)}</span>
-      ${g === "granted"
-        ? `<span class="switch on" role="img" aria-label="Allowed"><i></i></span>`
-        : I.chev()}</button>`;
+      ${g === "denied" ? I.chev()
+        : `<span class="switch${on ? " on" : ""}" role="switch"
+                 aria-checked="${on ? "true" : "false"}"><i></i></span>`}
+      </button>`;
 }
 
 function vMore() {
