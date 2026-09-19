@@ -305,12 +305,14 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
       </div>
     </section>
 
-    <!-- Paystack Transfers still need business verification, so every one of
-         these is sent by hand for now — from Kamsy's own bank app, using the
-         account below. "Mark as paid" only records that it happened; it
-         does not move any money itself. -->
+    <!-- payout-worker sends these automatically once a minute. This is the
+         "requested" queue, so a row that lingers here for more than a
+         minute or two means the worker is not running — not a normal
+         waiting state. "Mark as paid" is a manual override for a payout
+         truly stuck (no resolvable bank account, say), not the everyday
+         path. -->
     <section>
-      <div class="lbl">Payouts waiting to be sent</div>
+      <div class="lbl">Payouts still waiting on the worker</div>
       <div class="card scroll" id="payouts"></div>
     </section>
 
@@ -474,10 +476,11 @@ async function hidePhoto(id, hide) {
   }
 }
 
-/* Every one of these still moves by a real bank transfer YOU send — this
-   list exists so nothing sits forgotten while Paystack Transfers wait on
-   business verification. Sorted oldest-first by api_admin_payouts, so the
-   tech who has waited longest is always the top row. */
+/* payout-worker claims and sends these on its own, once a minute — a row
+   normally lives here for only a few seconds. This list is for noticing
+   when that ISN'T happening (the worker is down, or a payout is stuck),
+   not for sending anything yourself. Sorted oldest-first by
+   api_admin_payouts, so a genuinely stuck one is always the top row. */
 function drawPayouts(list) {
   const el = document.getElementById("payouts");
   if (list === null) {
@@ -486,7 +489,7 @@ function drawPayouts(list) {
     return;
   }
   if (!list.length) {
-    el.innerHTML = `<div class="empty">Nothing waiting. Every requested withdrawal has been sent.</div>`;
+    el.innerHTML = `<div class="empty">Nothing waiting — the worker is keeping up.</div>`;
     return;
   }
   el.innerHTML = `<table><thead><tr>
