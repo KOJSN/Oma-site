@@ -233,10 +233,16 @@ p{margin:0}
 .bar .wrap{display:flex;align-items:center;gap:14px;height:66px}
 .mark{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;
   letter-spacing:-.04em;flex:none}
-.mark i{width:30px;height:30px;border-radius:9px;background:var(--grad);flex:none;
-  display:block;position:relative}
-.mark i::after{content:"";position:absolute;inset:8px 10px;border-radius:50%;
-  border:2.5px solid rgba(11,9,16,.92);transform:rotate(-15deg)}
+.mark .lg{width:30px;height:30px;border-radius:9px;flex:none;display:block}
+.mark .lg-dark{display:none}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .mark .lg-light{display:none}
+  :root:not([data-theme="light"]) .mark .lg-dark{display:block}
+}
+:root[data-theme="dark"] .mark .lg-light{display:none}
+:root[data-theme="dark"] .mark .lg-dark{display:block}
+:root[data-theme="light"] .mark .lg-light{display:block}
+:root[data-theme="light"] .mark .lg-dark{display:none}
 .navlinks{display:flex;gap:24px;margin-left:auto;font-size:14.5px;font-weight:600;
   color:var(--sub)}
 .navlinks a:hover{color:var(--ink)}
@@ -431,7 +437,11 @@ footer a:hover{color:var(--pink)}
 
 <header class="bar" id="bar">
   <div class="wrap">
-    <a class="mark" href="/" aria-label="Oma, home"><i aria-hidden="true"></i>Oma</a>
+    <a class="mark" href="/" aria-label="Oma, home">
+      <img class="lg lg-light" src="/icon-96.png" width="30" height="30" alt="">
+      <img class="lg lg-dark" src="/icon-96-dark.png" width="30" height="30" alt="">
+      Oma
+    </a>
     <button class="iconbtn" id="theme" type="button"></button>
     <button class="burger" id="burger" aria-label="Menu" aria-expanded="false">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -707,7 +717,11 @@ footer a:hover{color:var(--pink)}
 
 <footer>
   <div class="wrap">
-    <a class="mark" href="/" style="font-size:17px"><i aria-hidden="true"></i>Oma</a>
+    <a class="mark" href="/" style="font-size:17px">
+    <img class="lg lg-light" src="/icon-96.png" style="width:24px;height:24px" alt="">
+    <img class="lg lg-dark" src="/icon-96-dark.png" style="width:24px;height:24px" alt="">
+    Oma
+  </a>
     <span style="margin-left:auto">© <span id="yr">2026</span> Oma</span>
     <a href="/app.html">Open the app</a>
     <a href="/privacy.html">Privacy</a>
