@@ -742,7 +742,7 @@ function drawTrouble(t) {
    fails. The reasons are always money or a dispute — see the SQL. */
 let FOUND = [], OPEN = null;
 
-async function findUsers(q) {
+async function findUsers(q, openMatch) {
   const slot = document.getElementById("found");
   slot.innerHTML = '<div class="sub" style="font-size:13px">Looking…</div>';
   let r;
@@ -755,8 +755,20 @@ async function findUsers(q) {
     return;
   }
   FOUND = (r && r.rows) || [];
-  OPEN = null;
+  // A tap on "Delete…" in the People list hands this the exact email, so
+  // rather than making her tap "Delete…" a second time here, open the one
+  // row it matches straight away. A manual search still lands closed.
+  OPEN = (openMatch && FOUND.length === 1) ? 0 : null;
   drawFound((r && r.note) || null);
+}
+
+/* The "Delete…" button on a row in the People list above. Same search, same
+   panel, same database guard — this just saves the second lookup. */
+function quickDelete(email) {
+  const q = document.getElementById("findQ");
+  if (q) q.value = email;
+  document.getElementById("findForm").scrollIntoView({ behavior: "smooth", block: "start" });
+  findUsers(email, true);
 }
 
 /* The list of reasons somebody cannot be deleted, in words. Each one is a
@@ -872,6 +884,8 @@ document.getElementById("findForm").addEventListener("submit", (e) => {
 });
 
 document.addEventListener("click", (e) => {
+  const quick = e.target.closest("[data-quickdel]");
+  if (quick) { quickDelete(quick.dataset.quickdel); return; }
   const open = e.target.closest("[data-del]");
   if (open) {
     OPEN = open.dataset.del === "x" ? null : Number(open.dataset.del);
@@ -1162,9 +1176,15 @@ async function drawGlobe(g) {
   onGlobeZoom(GLOBE.pointOfView());
 }
 
-/* The list the globe cannot be. Deleted accounts stay, greyed: they are
-   part of how many people signed up, and hiding them would make the count
-   above disagree with the rows below for no reason anybody could see. */
+/* Kamsy, 19 Sep 2026: "when someones device is deleted let it not show here
+   and let me tap users and delete them from here." Deleted accounts are now
+   dropped from the list entirely rather than shown greyed, and the counts
+   below are worked out from the still-live rows so nothing here can
+   disagree with what is on screen. Deleting still goes through the same
+   safety the search panel above already has (a re-typed email address, kept
+   by the database) — a "Delete..." tap here just fills that search box with
+   this person's email and opens their panel, rather than putting a
+   one-tap kill switch on a small row on a phone. */
 function drawPeople(g) {
   const slot = document.getElementById("folk");
   const cap = document.getElementById("folkCap");
@@ -1177,7 +1197,7 @@ function drawPeople(g) {
     return;
   }
 
-  const rows = g.people || [];
+  const rows = (g.people || []).filter((p) => !p.deleted);
   if (!rows.length) {
     slot.innerHTML = '<div class="empty">Nobody has signed up yet.</div>';
     cap.textContent = "";
@@ -1186,9 +1206,9 @@ function drawPeople(g) {
 
   slot.innerHTML =
     '<table><thead><tr><th>Name</th><th>Email</th><th>Kind</th><th>Area</th>'
-    + "<th>On the globe</th><th>Joined</th></tr></thead><tbody>"
+    + "<th>On the globe</th><th>Joined</th><th></th></tr></thead><tbody>"
     + rows.map((p) =>
-        '<tr' + (p.deleted ? ' style="opacity:.45"' : "") + ">"
+        "<tr>"
         // A name the person actually gave is bold. Anything worked out from
         // their email or business name is greyed and says so on hover, so a
         // guess is never presented as a fact she can act on.
@@ -1197,8 +1217,7 @@ function drawPeople(g) {
                     : '<span class="sub" title="No name on the account \u2014 this is '
                       + 'taken from their email or business name">' + esc(p.name)
                       + "</span>")
-        + (p.reported ? ' <span class="chip no">reported</span>' : "")
-        + (p.deleted ? ' <span class="sub">· deleted</span>' : "") + "</td>"
+        + (p.reported ? ' <span class="chip no">reported</span>' : "") + "</td>"
         + "<td>" + esc(p.email || "—") + "</td>"
         + "<td>" + (p.tech ? "nail tech" : "customer")
         + (p.tech && p.listed ? " · listed" : "") + "</td>"
@@ -1207,10 +1226,14 @@ function drawPeople(g) {
         // dot" on the row where the question occurs.
         + "<td>" + (p.located ? "yes"
                    : '<span class="sub">no location</span>') + "</td>"
-        + "<td>" + esc(ago(p.joined)) + "</td></tr>").join("")
+        + "<td>" + esc(ago(p.joined)) + "</td>"
+        + "<td>" + (p.email
+                    ? '<button class="btn plain" data-quickdel="' + esc(p.email) + '">Delete…</button>'
+                    : '<span class="sub" title="No email on this account to confirm a delete with">—</span>')
+        + "</td></tr>").join("")
     + "</tbody></table>";
 
-  const total = Number(g.total || rows.length);
+  const total = Number(g.live || rows.length);
   const located = Number(g.located || 0);
   const named = Number(g.named || 0);
   cap.textContent = total + " signed up · " + located + " on the globe · "
