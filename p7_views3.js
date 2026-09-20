@@ -419,8 +419,24 @@ function vEditMe() {
     </div>
 
     <div class="card" style="display:block;padding:2px 16px">
+      <!-- Kamsy, 20 Sep 2026: "let there be a nickname for display... but
+           their nicknames can be changed by them so if they log in or out
+           their original NIN names never changed." This box has always been
+           the freely-editable one — app_user.full_name, which api_save_profile
+           has always let her rewrite any time (nothing new needed there) —
+           it is what "nickname" already means here. What changed is
+           real_name.sql freezing a private, admin-only snapshot of whatever
+           this said the moment her verification passed. Editing this box
+           after that never touches it, no matter how many times she signs
+           out and back in — so the warning that it must match her ID is
+           only true before verification, and would be a flatly wrong thing
+           to keep telling a verified person. -->
       ${field("name", "Name", name, "Add your name",
-              "This has to match the name on your ID for the identity check to pass.")}
+              verified
+                ? "Shown to nail techs and other customers. Oma still has the " +
+                  "name your identity check passed against, on file — changing " +
+                  "this is just what people see, and never touches that."
+                : "This has to match the name on your ID for the identity check to pass.")}
 
       <!-- Not editable here, and deliberately. The email is what the account
            IS — changing it is an auth flow with its own confirmation code,
