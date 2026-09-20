@@ -1380,7 +1380,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "bedb25ad99";
+const BUILD_ID = "ae725a86de";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -8833,28 +8833,37 @@ function vJob(bookingId) {
              over; making a pest pay first and wait for it back is the
              deterrent. -->
 
-        <!-- Both sides, through the same door, and it stays open after the
-             appointment is over — most people do not report while it is
-             still happening. Quiet, because a loud one invites use as a
-             threat during an argument about a price.
-
+        <!-- Both sides, through the same door.
              Kamsy, 20 Sep 2026: "as long as the appointment has occurred the
              customer can never report anything." Once a booking is
              'released' the appointment has happened AND been paid for —
              that status only exists because the tech scanned the customer's
              own code, which is proof the two of them really met. There is
              nothing left to report at that point that this button could act
-             on, so it disappears exactly there. Before release — including
-             a no-show, which is reported here as "Did not turn up" — the
-             door stays open, because a no-show is exactly the kind of
-             problem this button exists for. Also gone before payment, for
-             the same "nothing has happened yet" reason as the chat button
-             above. -->
-        ${["awaiting_payment", "released"].includes(b.status) ? "" : `
+             on, so it disappears exactly there. Also gone before payment,
+             for the same "nothing has happened yet" reason as the chat
+             button above.
+
+             Kamsy, 20 Sep 2026 (later the same day): "customers can't be
+             able to report till after a service is finished." So it is not
+             enough that the booking is merely 'paid' — the door only opens
+             once the appointment's own time has actually run out, service
+             end = starts_at + minutes. Before that, whatever "went wrong"
+             hasn't happened yet, or is still happening, and this is quiet
+             specifically so a loud one cannot be used as a threat mid
+             appointment. A no-show is still reportable here as "Did not
+             turn up" — a no-show is only knowable once the booked time is
+             over anyway, so this same rule already covers it. -->
+        ${(() => {
+          if (["awaiting_payment", "released"].includes(b.status)) return "";
+          const finishesAt = at + Math.max(0, b.minutes || 0) * 60000;
+          if (Date.now() < finishesAt) return "";
+          return `
         <div style="margin-top:22px;text-align:center">
           <button class="tag" data-a="go" data-v="report" data-id="${esc(b.id)}"
                   style="color:var(--bad)">Report a problem with this appointment</button>
-        </div>`}
+        </div>`;
+        })()}
       </div>`);
     fillWhere(bookingId);
   });
