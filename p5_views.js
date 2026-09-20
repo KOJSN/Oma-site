@@ -615,16 +615,19 @@ function vSetup(edit) {
       <div id="workplaceBox">${workplaceRow(b)}</div></div>` : ""}
     <div style="display:flex;gap:10px">
       <label class="field" style="flex:1;min-width:0"><span class="lab">Area</span>
-        <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
-          <!-- Kamsy, 20 Sep 2026: "for nail techs give them the option of
-               current location then they can pin it." A travelling tech has
-               no fixed shop to pin, but she still starts from somewhere —
-               this is a starting point for search/distance, not a promise
-               that she never moves. The live on/off switch below (trackRow,
-               p7_views3.js) is still what says whether she is working right
-               now; this only sets where she is pinned when that is off. -->
-          ${b.ll ? `<span class="tiny sub" style="white-space:nowrap;margin-right:6px">Current location</span>` : ""}
-          <span class="act" data-a="gps" data-t="biz">Pin me</span>
+        <span class="inp">
+          <!-- Kamsy, 20 Sep 2026: two separate buttons, not one label.
+               "Current location" (left) is the calibration step — stand in
+               the shop, tap it, and it looks up the address for you so you
+               are not guessing what to type. "Pin me" (right) is the actual
+               pin: it takes its own fresh GPS fix and saves it, independent
+               of whatever the text box says. A travelling tech gets this
+               too — she starts from somewhere, even if the live on/off
+               switch below (trackRow, p7_views3.js) is what says whether
+               she is working right now. -->
+          <span class="act" data-a="biz-locate" aria-label="Use current location" title="Use current location">${I.pin()}</span>
+          <input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
+          <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>
         </span></label>
       <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
         <span class="inp"><select id="bState">

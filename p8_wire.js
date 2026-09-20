@@ -708,6 +708,37 @@ document.getElementById("shell").addEventListener("click", e => {
       dbSave(); toast("Location pinned."); paint();
     });
   }
+  // "Current location" — the calibration step. Stand where the shop actually
+  // is, tap this, and the address box fills itself in from the phone's GPS
+  // instead of her typing a guess. It does NOT pin anything by itself — "Pin
+  // me" (data-a="gps", above) is the separate, deliberate act that saves a
+  // coordinate. Same reverse-geocode as home-locate, aimed at #bArea.
+  if (a === "biz-locate") {
+    const inp = document.getElementById("bArea");
+    if (!inp) return;
+    if (!navigator.geolocation) return toast("Location is not available on this device.");
+    inp.placeholder = "Getting your location…";
+    navigator.geolocation.getCurrentPosition(
+      async (p) => {
+        const lat = p.coords.latitude, lng = p.coords.longitude;
+        try {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+            { headers: { "Accept-Language": "en" } });
+          const j = await r.json();
+          const a2 = j.address || {};
+          const parts = [a2.neighbourhood || a2.suburb || a2.city_district, a2.city || a2.town].filter(Boolean);
+          inp.value = parts.join(", ") || j.display_name || "";
+          toast(inp.value ? "Found it — check it looks right, then Pin me." : "Got your position, but no address came back.");
+        } catch {
+          toast("Got your position but could not look up the address. Type it in.");
+        }
+      },
+      () => toast("Could not get your location. Type the area instead."),
+      { timeout: 10000, maximumAge: 60000 }
+    );
+    return;
+  }
   /* ── the profile rows ────────────────────────────────
      One row at a time turns into its own input; nothing else on the page
      moves, and there is no separate screen per field to keep in step. */
