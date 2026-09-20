@@ -109,6 +109,14 @@ document.getElementById("shell").addEventListener("click", e => {
     // and her own bookings never appear, because they were never on the device.
     API.signOut();
     DB.me = DB.me || {};
+    // Kamsy, 19 Sep 2026: "when someone who is nin verified logs out and logs
+    // in let it always show verified no matter what." IDENT was only ever
+    // cleared after a fresh verify attempt — never on sign-out or sign-in —
+    // so the next person on this device (or the same person signing back in)
+    // could be shown whatever the last person's identity check said. Cleared
+    // here and on every sign-in below, so the very next check is always
+    // asked fresh of the server, never answered from a stale cache.
+    forgetIdentity();
     toast("Signed out.");
     return nav(DB.role === "tech" ? "requests" : "home");
   }
@@ -172,6 +180,7 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "cfg-clear") {
     API.configure("", "");
     API.signOut();
+    forgetIdentity();
     toast("Back on the practice version.");
     return paint();
   }
@@ -224,6 +233,7 @@ document.getElementById("shell").addEventListener("click", e => {
         // about her identity this device can state without asking the server.
         DB.me = Object.assign({}, DB.me, { email });
         dbSave();
+        forgetIdentity(); // fresh identity check for whoever just signed in
         toast("Signed in.");
         nav("nearby");
       })
@@ -245,6 +255,7 @@ document.getElementById("shell").addEventListener("click", e => {
         // about her identity this device can state without asking the server.
         DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
         dbSave();
+        forgetIdentity(); // fresh identity check for whoever just signed in
         SIGNIN.sent = false;
         SIGNIN.mode = null;
         toast("Email confirmed — you are signed in.");
@@ -265,6 +276,7 @@ document.getElementById("shell").addEventListener("click", e => {
       .then(() => {
         DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
         dbSave();
+        forgetIdentity(); // fresh identity check for whoever just signed in
         SIGNIN.sent = false;
         SIGNIN.reset = true;          // the "Set a new password" screen
         paint();
@@ -346,6 +358,7 @@ document.getElementById("shell").addEventListener("click", e => {
         // nothing after it.
         DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
         dbSave();
+        forgetIdentity(); // fresh identity check for whoever just signed in
         // She typed her name on the signup screen, before any of this
         // existed to save it against. This is the first moment it does.
         pushProfile();
@@ -619,12 +632,23 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "role") { pickRole = el.dataset.v; return paint(); }
   if (a === "roleNext") {
     DB.role = pickRole; dbSave();
-    return nav(pickRole === "tech" ? "setup" : "signup");
+    // Kamsy, 19 Sep 2026: "this part now isn't needed anymore because
+    // whenever someone creates an account and verifies their name is
+    // permanent." The "About you" screen — type a name, type an area —
+    // asked up front for two things Oma gets a better version of later
+    // anyway: the real name comes from identity verification, and a real
+    // position now comes from the Location icon on Profile, not a typed
+    // guess. Asking twice was the redundant part, not the asking.
+    // A bare {} is enough to satisfy the "has she signed up" checks below;
+    // every screen that reads DB.me.name already falls back to "(no name)"
+    // or an empty string, the same as a customer who skipped this before.
+    if (pickRole === "customer") { DB.me = DB.me || {}; dbSave(); return nav("home"); }
+    return nav("setup");
   }
   if (a === "switchRole") {
     DB.role = DB.role === "tech" ? "customer" : "tech"; dbSave();
     if (DB.role === "tech" && (!DB.biz || !DB.biz.name)) return nav("setup");
-    if (DB.role === "customer" && !DB.me) return nav("signup");
+    if (DB.role === "customer" && !DB.me) { DB.me = {}; dbSave(); }
     return nav(DB.role === "tech" ? "requests" : "home");
   }
 
@@ -1021,6 +1045,7 @@ async function closeAccount() {
     try { localStorage.removeItem("oma-db-v1"); } catch (e) { /* private mode */ }
     try { localStorage.removeItem("oma-ref"); } catch (e) { /* private mode */ }
     API.signOut();
+    forgetIdentity();
     DB = dbLoad();
     CLOSE_BLOCKERS = null; CLOSE_BUSY = false;
     nav("welcome");
