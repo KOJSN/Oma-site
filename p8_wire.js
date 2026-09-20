@@ -705,7 +705,7 @@ document.getElementById("shell").addEventListener("click", e => {
     return locate(ll => {
       if (!ll) return;
       DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll });
-      dbSave(); toast("Shop location pinned."); paint();
+      dbSave(); toast("Location pinned."); paint();
     });
   }
   /* ── the profile rows ────────────────────────────────

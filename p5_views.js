@@ -612,10 +612,14 @@ function vSetup(edit) {
     <div style="display:flex;gap:10px">
       <label class="field" style="flex:1;min-width:0"><span class="lab">Area</span>
         <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
-          <!-- Only a shop gets a pin. A tech who travels has no fixed point to
-               pin, and a button offering her one would be a promise Oma
-               cannot keep. -->
-          ${shop ? `<span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>` : ""}
+          <!-- Kamsy, 20 Sep 2026: "for nail techs give them the option of
+               current location then they can pin it." A travelling tech has
+               no fixed shop to pin, but she still starts from somewhere —
+               this is a starting point for search/distance, not a promise
+               that she never moves. The live on/off switch below (trackRow,
+               p7_views3.js) is still what says whether she is working right
+               now; this only sets where she is pinned when that is off. -->
+          <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>
         </span></label>
       <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
         <span class="inp"><select id="bState">
