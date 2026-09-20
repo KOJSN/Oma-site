@@ -798,10 +798,14 @@ function drawFound(note) {
     return '<div style="padding:12px 0;border-top:1px solid var(--line)">'
       + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
       +   '<div style="flex:1;min-width:200px">'
-      +     '<div style="font-weight:700">' + esc(u.name || "(no name)")
+      +     '<div style="font-weight:700">' + esc(u.verified ? u.real_name : (u.name || "(no name)"))
+      +       (u.verified ? ' <span class="chip ok" style="vertical-align:1px">verified</span>' : "")
       +       (u.is_tech ? ' <span class="sub" style="font-weight:600;font-size:12px">· nail tech'
                            + (u.listed ? ", listed" : "") + "</span>" : "")
       +     "</div>"
+      +     (u.verified && u.name && u.name !== u.real_name
+            ? '<div class="sub" style="font-size:12px">goes by ' + esc(u.name) + "</div>"
+            : "")
       +     '<div class="sub" style="font-size:12.5px">' + esc(u.email || "") + "</div>"
       +   "</div>"
       +   (gone
@@ -1132,7 +1136,8 @@ async function drawGlobe(g) {
   }
 
   GLOBE_ROWS = people.map(p => ({
-    id: p.id, name: p.name, email: p.email,
+    id: p.id, name: p.name, real_name: p.real_name, verified: !!p.verified,
+    email: p.email,
     tech: !!p.tech, reported: !!p.reported, joined: p.joined,
     lat: Number(p.lat), lng: Number(p.lng),
     dLat: Number(p.lat), dLng: Number(p.lng),
@@ -1152,7 +1157,10 @@ async function drawGlobe(g) {
       .pointRadius(() => dotR)
       .pointAltitude(() => dotAlt)
       .pointLabel(d => '<div style="background:#17131e;color:#f7f4f9;border-radius:10px;'
-        + 'padding:7px 11px;font:600 12px system-ui">' + esc(d.name)
+        + 'padding:7px 11px;font:600 12px system-ui">'
+        // A checked name over a nickname, same rule as the People list —
+        // never presented so that the two look the same on the globe either.
+        + esc(d.verified ? d.real_name : d.name) + (d.verified ? " ✓" : "")
         + (d.reported ? " · reported" : "") + "</div>")
       .onPointClick(showPerson)
       // near: pins floating over the map
@@ -1209,14 +1217,27 @@ function drawPeople(g) {
     + "<th>On the globe</th><th>Joined</th><th></th></tr></thead><tbody>"
     + rows.map((p) =>
         "<tr>"
-        // A name the person actually gave is bold. Anything worked out from
-        // their email or business name is greyed and says so on hover, so a
-        // guess is never presented as a fact she can act on.
-        + "<td>" + (p.named
-                    ? "<b>" + esc(p.name) + "</b>"
-                    : '<span class="sub" title="No name on the account \u2014 this is '
-                      + 'taken from their email or business name">' + esc(p.name)
-                      + "</span>")
+        // Kamsy, 20 Sep 2026: "the admin, we see only the real name" \u2014 but
+        // most accounts never verify at all (KYC is only required for home
+        // service), so a real name is the exception, not the rule. Rather
+        // than leaving most rows blank, the checked name leads when there
+        // is one, with a checkmark, and the nickname sits underneath in
+        // small type \u2014 so it is never mistaken for a checked identity, but
+        // it also is not thrown away as the only way to tell rows apart.
+        // A name nobody actually typed is still greyed and says so on
+        // hover, exactly as before.
+        + "<td>" + (p.verified
+                    ? "<b>" + esc(p.real_name) + "</b> "
+                      + '<span class="chip ok" title="Matches a NIN or vNIN check that passed">verified</span>'
+                      + (p.name && p.name !== p.real_name
+                          ? '<div class="sub" style="font-size:12px;margin-top:2px">goes by '
+                            + esc(p.name) + "</div>"
+                          : "")
+                    : (p.named
+                        ? "<b>" + esc(p.name) + "</b>"
+                        : '<span class="sub" title="No name on the account \u2014 this is '
+                          + 'taken from their email or business name">' + esc(p.name)
+                          + "</span>"))
         + (p.reported ? ' <span class="chip no">reported</span>' : "") + "</td>"
         + "<td>" + esc(p.email || "—") + "</td>"
         + "<td>" + (p.tech ? "nail tech" : "customer")
@@ -1347,9 +1368,13 @@ function showPerson(d) {
     + '<i style="width:11px;height:11px;border-radius:50%;background:' + dot
     + ';display:block;margin-top:5px;flex:none"></i>'
     + '<div style="flex:1;min-width:0">'
-    +   '<div style="font-weight:700">' + esc(d.name)
+    +   '<div style="font-weight:700">' + esc(d.verified ? d.real_name : d.name)
+    +     (d.verified ? ' <span class="chip ok" style="vertical-align:1px">verified</span>' : "")
     +     ' <span class="sub" style="font-weight:600;font-size:12.5px">· '
     +     (d.tech ? "nail tech" : "customer") + "</span></div>"
+    +   (d.verified && d.name && d.name !== d.real_name
+        ? '<div class="sub" style="font-size:12px">goes by ' + esc(d.name) + "</div>"
+        : "")
     +   '<div class="sub" style="font-size:12.5px">' + esc(d.email || "") + "</div>"
     +   (d.reported
         ? '<div style="color:' + TECH_RED + ';font-size:12.5px;font-weight:700;margin-top:4px">'
