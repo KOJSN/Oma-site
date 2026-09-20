@@ -42,11 +42,24 @@ function paint() {
     case "requests": html = vRequestsLive(); break;
     case "diary": html = vDiaryLive(); break;
     case "earnings": html = vWallet(); break;
+    // 20 Sep 2026, Kamsy: "nothing taps whenever i enter the listing page for
+    // techs." This case used to call paint() again once her photos arrived —
+    // and paint() lands right back HERE, sees the loading flag has just been
+    // cleared, and queues ANOTHER photo load, forever, as fast as the fetch
+    // could resolve. Nothing crashed and nothing logged, so it looked like a
+    // dead screen; really the whole page was being torn down and rebuilt
+    // every few milliseconds, so whatever button a thumb landed on was gone
+    // before the tap finished. Repainting the view element directly — never
+    // through paint()'s switch again — fixes it without touching anything
+    // else paint() does for other screens.
     case "listing": html = vListing(); if (typeof loadMyPhotos === "function" && !vListing._loading) {
         vListing._loading = true;
         setTimeout(() => loadMyPhotos().then(() => {
           vListing._loading = false;
-          if (ROUTE.v === "listing") paint();
+          if (ROUTE.v === "listing") {
+            const v2 = document.getElementById("view");
+            if (v2) v2.innerHTML = vListing();
+          }
         }).catch(() => { vListing._loading = false; }), 0);
       } break;
     case "signin": html = vSignIn(); break;
@@ -234,6 +247,7 @@ document.getElementById("shell").addEventListener("click", e => {
         DB.me = Object.assign({}, DB.me, { email });
         dbSave();
         forgetIdentity(); // fresh identity check for whoever just signed in
+        pullProfile();    // and the real display name/area, not this device's guess
         toast("Signed in.");
         nav("nearby");
       })
@@ -256,6 +270,7 @@ document.getElementById("shell").addEventListener("click", e => {
         DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
         dbSave();
         forgetIdentity(); // fresh identity check for whoever just signed in
+        pullProfile();    // and the real display name/area, not this device's guess
         SIGNIN.sent = false;
         SIGNIN.mode = null;
         toast("Email confirmed — you are signed in.");
@@ -277,6 +292,7 @@ document.getElementById("shell").addEventListener("click", e => {
         DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
         dbSave();
         forgetIdentity(); // fresh identity check for whoever just signed in
+        pullProfile();    // and the real display name/area, not this device's guess
         SIGNIN.sent = false;
         SIGNIN.reset = true;          // the "Set a new password" screen
         paint();
@@ -359,9 +375,15 @@ document.getElementById("shell").addEventListener("click", e => {
         DB.me = Object.assign({}, DB.me, { email: SIGNIN.email });
         dbSave();
         forgetIdentity(); // fresh identity check for whoever just signed in
-        // She typed her name on the signup screen, before any of this
-        // existed to save it against. This is the first moment it does.
-        pushProfile();
+        // Kamsy, 20 Sep 2026: pull the server's name/area down BEFORE
+        // anything pushes this device's copy back up — the old line here
+        // was pushProfile(), from when the (now-removed) signup screen
+        // still asked for a name on this device before an account even
+        // existed to save it against. Doing both at once, in that order,
+        // would have raced: pullProfile fetches from the server, and if
+        // pushProfile ran first it could overwrite a real server name with
+        // whatever blank this device started with.
+        pullProfile();
         toast("Signed in.");
         nav("nearby");
       })
@@ -802,6 +824,28 @@ function pushProfile() {
   if (!me.name && !me.area) return;
   return API.saveProfile(me.name || "", me.area || "", null, null)
     .catch(() => { /* already saved on this device; it will try again at boot */ });
+}
+
+/* Kamsy, 20 Sep 2026: "if you have already verified and you log in on
+   another device your account already carries your..." name — but this
+   device did not know that yet. pushProfile only ever went local→server;
+   nothing pulled the other way, so a brand-new device that had never typed
+   a name locally showed a blank Name row even though the account had one
+   on file, and a returning device could show whatever it last had rather
+   than what changed elsewhere since. Called on every sign-in completion
+   below, right alongside forgetIdentity() — the server is the one true
+   copy of the display name (and area), this device is just a cache of it. */
+function pullProfile() {
+  if (!API.signedIn()) return Promise.resolve();
+  return API.me().then((m) => {
+    if (!m) return;
+    DB.me = Object.assign({}, DB.me, {
+      name: m.full_name || "",
+      area: m.area || "",
+    });
+    dbSave();
+    if (typeof paint === "function") paint();
+  }).catch(() => { /* this device just keeps whatever it already had */ });
 }
 
   if (a === "saveMe") {
