@@ -860,6 +860,11 @@ function pullProfile() {
   }
 
   /* the tech's listing ------------------------------------------------- */
+  // Small thumbnail, tap to see it full — the overlay lives in vListing()
+  // itself, driven by ZOOM_PHOTO (p7_views3.js), so it repaints with the
+  // rest of the screen instead of needing DOM of its own.
+  if (a === "zoom") { ZOOM_PHOTO = el.dataset.src || null; return paint(); }
+  if (a === "zoomclose") { ZOOM_PHOTO = null; return paint(); }
   if (a === "addSvc") {
     const b = Object.assign({ services: [] }, DB.biz, readBiz());
     b.services = (b.services || []).concat([{ n: "", p: "", m: "", sh: [] }]);

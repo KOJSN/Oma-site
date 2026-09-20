@@ -370,12 +370,16 @@ function nav(v, a) {
   const roots = (TABS[DB.role] || TABS.customer).map(t => t.k);
   if (roots.includes(v)) STACK.length = 0;
   else if (ROUTE.v !== v) STACK.push({ ...ROUTE });
+  // A photo left zoomed in on the listing page has no business reappearing
+  // over whatever screen she lands on next.
+  if (typeof ZOOM_PHOTO !== "undefined") ZOOM_PHOTO = null;
   ROUTE = { v, a: a == null ? null : a };
   paint();
   document.getElementById("view").scrollTop = 0;
 }
 function back() {
   const p = STACK.pop();
+  if (typeof ZOOM_PHOTO !== "undefined") ZOOM_PHOTO = null;
   ROUTE = p || { v: DB.role === "tech" ? "requests" : "home", a: null };
   paint();
   document.getElementById("view").scrollTop = 0;

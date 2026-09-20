@@ -704,6 +704,10 @@ function vEarnings() {
   </div>
   <div style="height:16px"></div>`;
 }
+// Kamsy, 20 Sep 2026: "let it be small at first then when the user taps on it
+// it expands and you see the service clearly." A thumbnail on the card, a
+// full view on tap — the same photo, never fetched twice, just shown bigger.
+let ZOOM_PHOTO = null;
 function vListing() {
   const b = DB.biz;
   if (!b || !b.name) return vSetup(false);
@@ -748,9 +752,13 @@ function vListing() {
       ${(b.services || []).map(s => {
         const pics = s.id && typeof PHOTOS !== "undefined" ? (PHOTOS[s.id] || []) : [];
         return `<div class="card" style="padding:0;overflow:hidden">
-          ${pics.length ? `<div style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;max-height:150px">
-            ${pics.map(p => `<img src="${esc(API.photoUrl(p.path))}" alt="" loading="lazy"
-              style="width:100%;max-height:150px;flex:none;scroll-snap-align:start;aspect-ratio:4/3;object-fit:cover">`).join("")}
+          ${pics.length ? `<div style="display:flex;gap:8px;overflow-x:auto;padding:12px 13px 0;-webkit-overflow-scrolling:touch">
+            ${pics.map(p => {
+              const url = esc(API.photoUrl(p.path));
+              return `<img src="${url}" alt="Tap to see this photo larger" loading="lazy"
+                data-a="zoom" data-src="${url}"
+                style="width:76px;height:76px;flex:none;border-radius:12px;object-fit:cover;cursor:pointer">`;
+            }).join("")}
           </div>` : ""}
           <div style="display:flex;align-items:center;gap:12px;padding:13px">
             <div style="flex:1"><div style="font-size:14.5px;font-weight:700">${esc(s.n)}</div>
@@ -762,5 +770,11 @@ function vListing() {
     </div>
     <button class="btn ghost mt16" data-a="go" data-v="editbiz">Edit ${I.arrow()}</button>
   </div>
-  <div style="height:16px"></div>`;
+  <div style="height:16px"></div>
+  ${ZOOM_PHOTO ? `<div data-a="zoomclose" style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.92);
+      display:flex;align-items:center;justify-content:center;padding:26px">
+    <img src="${esc(ZOOM_PHOTO)}" alt="" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:14px">
+    <button data-a="zoomclose" aria-label="Close" style="position:fixed;top:18px;right:18px;width:38px;height:38px;
+      border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:20px;line-height:1;border:none">×</button>
+  </div>` : ""}`;
 }
