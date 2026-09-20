@@ -740,6 +740,21 @@ function vKyc() {
              it checks you before she is asked to travel — the same check,
              both ways.`}</div></div>
 
+        <!-- Kamsy, 20 Sep 2026: "before someone verifies ask them for their
+             full name, and tell them to avoid hyphens." Asked here rather
+             than trusted from the Profile screen, because she may never have
+             opened that screen at all — this is the one moment the name is
+             actually about to be checked against something, so it is the
+             right moment to ask. Prefilled from whatever the Profile screen
+             already has, so someone who set it there is not asked twice. -->
+        <label class="fld"><span class="lbl">Your full name</span>
+          <input id="fKycName" type="text" value="${esc((DB.me && DB.me.name) || "")}"
+                 placeholder="As it is on your ID"></label>
+        <div class="tiny sub" style="margin-top:-6px">Write it as separate
+          words, not joined with a hyphen — <b>Amaka Okafor</b>, not
+          <b>Amaka-Okafor</b>. This is what gets checked against your ID, and
+          it is also what people see until you change it later.</div>
+
         <div class="tiny sub">
           <b>Use a virtual NIN, not your real one.</b> Dial <b>*346#</b> or open
           the NIMC app and generate an 11-digit vNIN. It lasts 72 hours and works

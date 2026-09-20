@@ -571,13 +571,32 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "kyc-send") {
+    const nameBox = document.getElementById("fKycName");
+    const typedName = (nameBox ? nameBox.value : "").trim();
+    if (!typedName) {
+      return toast("Your full name, please — it is checked against your ID.");
+    }
     const n = document.getElementById("fNin");
     const v = (n ? n.value : "").replace(/\D/g, "");
     if (v.length !== 11) {
       return toast("A NIN or vNIN is 11 digits.");
     }
+
+    const nameChanged = typedName !== ((DB.me && DB.me.name) || "").trim();
+    DB.me = Object.assign({}, DB.me, { name: typedName });
+    dbSave();
+
+    // Kamsy, 20 Sep 2026: "before someone verifies ask them for their full
+    // name." Saved to the server and WAITED ON before the check, because
+    // the check compares the ID's name against whatever full_name says in
+    // the database right now — a save still in flight when the check lands
+    // would be read against the old name, or against nothing at all.
+    const ensureSaved = (nameChanged && API.signedIn())
+      ? API.saveProfile(typedName, (DB.me && DB.me.area) || "", null, null)
+      : Promise.resolve();
+
     toast("Checking…");
-    return API.verifyNin(v).then(r => {
+    return ensureSaved.catch(() => {}).then(() => API.verifyNin(v)).then(r => {
       // The cached answer is now stale — she was "not verified" a second
       // ago and the home-service gate would go on saying so.
       forgetIdentity();
