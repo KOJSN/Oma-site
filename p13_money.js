@@ -247,7 +247,7 @@ function vNearby() {
 }
 
 /* ── 22 one tech, and her services ────────────────────── */
-let PICKED = { techId: null, name: "", ids: [], at: null, terms: null };
+let PICKED = { techId: null, name: "", ids: [], at: null, terms: null, mins: 0, busy: [] };
 
 function vTechLive(id) {
   load(async () => {
@@ -263,7 +263,7 @@ function vTechLive(id) {
       API.homeTerms(id).catch(() => null),
     ]);
     const r = (rate || []).find((x) => x.tech_id === id);
-    PICKED = { techId: id, name: PICKED.name, ids: [], at: null, terms };
+    PICKED = { techId: id, name: PICKED.name, ids: [], at: null, terms, mins: 0, busy: [] };
     resetHome();
     fillHost(`
       <div class="pad stack gap12">
@@ -334,6 +334,10 @@ function wireServicePicker() {
     PICKED.ids = on.map((b) => b.value);
     const k = on.reduce((a, b) => a + Number(b.dataset.kobo), 0);
     const m = on.reduce((a, b) => a + Number(b.dataset.mins), 0);
+    // How long this appointment actually runs — the "Pick a time" screen
+    // needs this to grey out a slot that would run into a booking this tech
+    // already has, not just the exact minute someone else already took.
+    PICKED.mins = m;
     total.textContent = on.length ? `${kobo(k)} · about ${mins(m)}` : "";
     go.disabled = !on.length;
   };
@@ -342,13 +346,66 @@ function wireServicePicker() {
 }
 
 /* ── 23 a time ────────────────────────────────────────── */
+//
+// Kamsy, 20 Sep 2026: "if an appointment takes more than an hour, let
+// nobody be able to book the instant hour after the time booked." The
+// database (no-overlap.sql) already refuses a booking that runs into one
+// this tech already has, for anyone who tries. What this adds is showing
+// that BEFORE she taps a slot, not after: a slot she could never actually
+// get is greyed out here rather than looking free and then bouncing her
+// with an error once she has already picked it.
+//
+// PICKED.busy holds whatever API.techBusy() last returned for this tech —
+// {starts_at, minutes} for everything still on her calendar (awaiting
+// payment, paid, or released — the same three statuses the database
+// itself treats as "this time is spoken for"). Fetched once when this
+// screen opens; re-checked for real at the moment of booking regardless,
+// same as always, because a slot can be taken by someone else between
+// opening this screen and tapping "confirm".
+function busyOverlaps(candidateStartMs, candidateMins, busy) {
+  const cEnd = candidateStartMs + Math.max(1, candidateMins || 60) * 60000;
+  return (busy || []).some((w) => {
+    const wStart = new Date(w.starts_at).getTime();
+    const wEnd = wStart + Math.max(1, w.minutes || 0) * 60000;
+    return candidateStartMs < wEnd && cEnd > wStart;
+  });
+}
+
+function slotGridHtml(dayTs) {
+  const slots = [9, 10, 11, 12, 13, 14, 15, 16, 17];
+  const dur = PICKED.mins || 60;
+  const now = Date.now();
+  return slots.map((h) => {
+    const at = new Date(dayTs); at.setHours(h, 0, 0, 0);
+    const ts = at.getTime();
+    const past = ts < now;
+    const busy = !past && busyOverlaps(ts, dur, PICKED.busy);
+    const off = past || busy;
+    return `<button class="chip${off ? " off" : ""}" data-a="mslot" data-h="${h}"${off ? " disabled" : ""}>${
+      String(h).padStart(2, "0")}:00${busy ? " · booked" : ""}</button>`;
+  }).join("");
+}
+
+/* Redraws just the slot row for whichever day is now selected — called both
+   right after the busy list arrives and whenever a day chip is tapped
+   (p8_wire.js's "mday"), since a slot free on Tuesday can be exactly the
+   one that is not free on Wednesday. */
+function paintSlotGrid(dayTs) {
+  const el = document.getElementById("slotGrid");
+  if (el) el.innerHTML = slotGridHtml(dayTs);
+}
+
 function vTimeLive() {
   const days = [];
   for (let d = 1; d <= 7; d++) {
     const t = new Date(); t.setDate(t.getDate() + d); t.setHours(0, 0, 0, 0);
     days.push(t);
   }
-  const slots = [9, 10, 11, 12, 13, 14, 15, 16, 17];
+  load(async () => {
+    try { PICKED.busy = await API.techBusy(PICKED.techId); }
+    catch (e) { PICKED.busy = []; }    // still bookable — just unable to grey anything out this time
+    paintSlotGrid(days[0].getTime());
+  });
   return `
   ${head("Pick a time", PICKED.name)}
   <div class="pad">
@@ -357,10 +414,7 @@ function vTimeLive() {
       ${days.map((d, i) => `<button class="chip${i === 0 ? " on" : ""}" data-a="mday"
          data-ts="${d.getTime()}">${dayLabel(d.getTime())}</button>`).join("")}
     </div>
-    <div class="grid3 mt16" id="slotGrid">
-      ${slots.map((h) => `<button class="chip" data-a="mslot" data-h="${h}">${
-        String(h).padStart(2, "0")}:00</button>`).join("")}
-    </div>
+    <div class="grid3 mt16" id="slotGrid">${slotGridHtml(days[0].getTime())}</div>
     <div class="note mt16"><div>You will have <b>30 minutes</b> to pay into an
       account we show you next. The slot is held for you until then.</div></div>
   </div>`;

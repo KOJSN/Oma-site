@@ -505,6 +505,11 @@ const API = (() => {
     forgetDevice:  (token)                  => live() ? rpc("api_forget_device", { p_token: token }) : MOCK.forgetDevice(token),
     myDevices:     ()                       => live() ? rpc("api_my_devices", {}) : MOCK.myDevices(),
     services:      (techId)                 => live() ? rpc("api_services", { p_tech: techId }) : MOCK.services(techId),
+    // The "Pick a time" screen (p13_money.js), so a slot that would run into
+    // an appointment this tech already has is greyed out before she taps it,
+    // not after — see no-overlap.sql, which is what actually enforces this.
+    // Just start times and lengths, nothing about who they belong to.
+    techBusy:      (techId)                 => live() ? rpc("api_tech_busy", { p_tech: techId }) : MOCK.techBusy(techId),
     book:          (techId, startsAt, ids, note, shape) => live() ? rpc("api_book", { p_tech: techId, p_starts: new Date(startsAt).toISOString(), p_service_ids: ids, p_note: note, p_shape: shape }) : MOCK.book(techId, startsAt, ids, note, shape),
     bookings:      (past)                   => live() ? rpc("api_my_bookings", { p_past: !!past }) : MOCK.bookings(!!past),
     codes:         (bookingId)              => live() ? rpc("api_booking_codes", { p_booking: bookingId }) : MOCK.codes(bookingId),
@@ -1488,12 +1493,18 @@ const API = (() => {
         const s = load(); expire();
         const at = new Date(startsAt).getTime();
         if (at <= Date.now()) fail("that time has already passed");
-        const clash = s.bookings.find((b) => b.tech_id === techId && b.starts_at_ms === at &&
-          ["awaiting_payment", "paid", "released"].includes(b.status));
-        if (clash) fail("somebody has just taken that slot");
+        const durMins = Math.max(1, items.reduce((a, x) => a + (x.minutes || 0), 0));
+        // Mirrors no-overlap.sql: refuse when this appointment's own window
+        // would run into one the tech already has, not just an exact-minute
+        // match — a 3-hour 13:00 booking has to block 14:00 too.
+        const clash = s.bookings.some((b) => b.tech_id === techId &&
+          ["awaiting_payment", "paid", "released"].includes(b.status) &&
+          at < b.starts_at_ms + b.minutes * 60000 &&
+          at + durMins * 60000 > b.starts_at_ms);
+        if (clash) fail("this tech already has an appointment that runs through that time");
         const b = {
           id: uid(), customer_id: meRow().id, tech_id: techId, starts_at_ms: at,
-          minutes: Math.max(1, items.reduce((a, x) => a + (x.minutes || 0), 0)),
+          minutes: durMins,
           total_kobo: items.reduce((a, x) => a + x.price_kobo, 0),
           status: "awaiting_payment", note: note || null, scan_shape: shapeName || null,
           pay_deadline_ms: Date.now() + 30 * 60000,
@@ -1503,6 +1514,13 @@ const API = (() => {
         };
         s.bookings.push(b); save();
         return b;
+      },
+      techBusy: async (techId) => {
+        const s = load(); expire();
+        return s.bookings
+          .filter((b) => b.tech_id === techId &&
+            ["awaiting_payment", "paid", "released"].includes(b.status))
+          .map((b) => ({ starts_at: new Date(b.starts_at_ms).toISOString(), minutes: b.minutes }));
       },
       book: async (techId, startsAt, ids, note, shapeName) => {
         const s = load();

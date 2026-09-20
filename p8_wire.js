@@ -428,6 +428,10 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "mday") {
     [...document.querySelectorAll("#dayChips .chip")].forEach(c => c.classList.remove("on"));
     el.classList.add("on");
+    // Which hours are already spoken for is a per-day question — Tuesday's
+    // busy slots are not Wednesday's. Redraw the grid for the day just
+    // picked, from whatever busy list this screen already fetched.
+    if (typeof paintSlotGrid === "function") paintSlotGrid(Number(el.dataset.ts));
     return;
   }
   if (a === "home-locate") {
