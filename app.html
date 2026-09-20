@@ -1380,7 +1380,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "720a8de6cd";
+const BUILD_ID = "5d0f2bf7cd";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -7623,9 +7623,9 @@ function vListing() {
       ${(b.services || []).map(s => {
         const pics = s.id && typeof PHOTOS !== "undefined" ? (PHOTOS[s.id] || []) : [];
         return `<div class="card" style="padding:0;overflow:hidden">
-          ${pics.length ? `<div style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch">
+          ${pics.length ? `<div style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;max-height:150px">
             ${pics.map(p => `<img src="${esc(API.photoUrl(p.path))}" alt="" loading="lazy"
-              style="width:100%;flex:none;scroll-snap-align:start;aspect-ratio:4/3;object-fit:cover">`).join("")}
+              style="width:100%;max-height:150px;flex:none;scroll-snap-align:start;aspect-ratio:4/3;object-fit:cover">`).join("")}
           </div>` : ""}
           <div style="display:flex;align-items:center;gap:12px;padding:13px">
             <div style="flex:1"><div style="font-size:14.5px;font-weight:700">${esc(s.n)}</div>
