@@ -1380,7 +1380,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "c8b18d3b7a";
+const BUILD_ID = "1eba9d5742";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -6310,16 +6310,19 @@ function vSetup(edit) {
       <div id="workplaceBox">${workplaceRow(b)}</div></div>` : ""}
     <div style="display:flex;gap:10px">
       <label class="field" style="flex:1;min-width:0"><span class="lab">Area</span>
-        <span class="inp"><input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
-          <!-- Kamsy, 20 Sep 2026: "for nail techs give them the option of
-               current location then they can pin it." A travelling tech has
-               no fixed shop to pin, but she still starts from somewhere —
-               this is a starting point for search/distance, not a promise
-               that she never moves. The live on/off switch below (trackRow,
-               p7_views3.js) is still what says whether she is working right
-               now; this only sets where she is pinned when that is off. -->
-          ${b.ll ? `<span class="tiny sub" style="white-space:nowrap;margin-right:6px">Current location</span>` : ""}
-          <span class="act" data-a="gps" data-t="biz">Pin me</span>
+        <span class="inp">
+          <!-- Kamsy, 20 Sep 2026: two separate buttons, not one label.
+               "Current location" (left) is the calibration step — stand in
+               the shop, tap it, and it looks up the address for you so you
+               are not guessing what to type. "Pin me" (right) is the actual
+               pin: it takes its own fresh GPS fix and saves it, independent
+               of whatever the text box says. A travelling tech gets this
+               too — she starts from somewhere, even if the live on/off
+               switch below (trackRow, p7_views3.js) is what says whether
+               she is working right now. -->
+          <span class="act" data-a="biz-locate" aria-label="Use current location" title="Use current location">${I.pin()}</span>
+          <input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
+          <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>
         </span></label>
       <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
         <span class="inp"><select id="bState">
@@ -12652,6 +12655,37 @@ document.getElementById("shell").addEventListener("click", e => {
       DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { ll });
       dbSave(); toast("Location pinned."); paint();
     });
+  }
+  // "Current location" — the calibration step. Stand where the shop actually
+  // is, tap this, and the address box fills itself in from the phone's GPS
+  // instead of her typing a guess. It does NOT pin anything by itself — "Pin
+  // me" (data-a="gps", above) is the separate, deliberate act that saves a
+  // coordinate. Same reverse-geocode as home-locate, aimed at #bArea.
+  if (a === "biz-locate") {
+    const inp = document.getElementById("bArea");
+    if (!inp) return;
+    if (!navigator.geolocation) return toast("Location is not available on this device.");
+    inp.placeholder = "Getting your location…";
+    navigator.geolocation.getCurrentPosition(
+      async (p) => {
+        const lat = p.coords.latitude, lng = p.coords.longitude;
+        try {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+            { headers: { "Accept-Language": "en" } });
+          const j = await r.json();
+          const a2 = j.address || {};
+          const parts = [a2.neighbourhood || a2.suburb || a2.city_district, a2.city || a2.town].filter(Boolean);
+          inp.value = parts.join(", ") || j.display_name || "";
+          toast(inp.value ? "Found it — check it looks right, then Pin me." : "Got your position, but no address came back.");
+        } catch {
+          toast("Got your position but could not look up the address. Type it in.");
+        }
+      },
+      () => toast("Could not get your location. Type the area instead."),
+      { timeout: 10000, maximumAge: 60000 }
+    );
+    return;
   }
   /* ── the profile rows ────────────────────────────────
      One row at a time turns into its own input; nothing else on the page
