@@ -710,8 +710,7 @@ function vListing() {
   const link = shareLink(b);
   return `
   <div class="topbar">
-    <div class="rowbetween"><h2>My listing</h2>
-      <button class="iconbtn" data-a="go" data-v="editbiz" aria-label="Edit">${I.cog()}</button></div>
+    <div class="rowbetween"><h2>My listing</h2></div>
   </div>
   <div class="pad mt16">
     <div class="card" style="display:flex;align-items:center;gap:14px">
@@ -761,7 +760,7 @@ function vListing() {
         </div>`;
       }).join("") || `<div class="empty">No services yet — add them from the cog.</div>`}
     </div>
-    <button class="btn ghost mt16" data-a="go" data-v="settings">Settings ${I.arrow()}</button>
+    <button class="btn ghost mt16" data-a="go" data-v="editbiz">Edit ${I.arrow()}</button>
   </div>
   <div style="height:16px"></div>`;
 }
