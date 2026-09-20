@@ -1380,7 +1380,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "ec356cf667";
+const BUILD_ID = "c8b18d3b7a";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -6318,7 +6318,8 @@ function vSetup(edit) {
                that she never moves. The live on/off switch below (trackRow,
                p7_views3.js) is still what says whether she is working right
                now; this only sets where she is pinned when that is off. -->
-          <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>
+          ${b.ll ? `<span class="tiny sub" style="white-space:nowrap;margin-right:6px">Current location</span>` : ""}
+          <span class="act" data-a="gps" data-t="biz">Pin me</span>
         </span></label>
       <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
         <span class="inp"><select id="bState">
