@@ -1380,7 +1380,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "cca3ae5570";
+const BUILD_ID = "88e60c2521";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -8367,6 +8367,21 @@ function vKyc() {
              it checks you before she is asked to travel — the same check,
              both ways.`}</div></div>
 
+        <!-- Kamsy, 20 Sep 2026: "before someone verifies ask them for their
+             full name, and tell them to avoid hyphens." Asked here rather
+             than trusted from the Profile screen, because she may never have
+             opened that screen at all — this is the one moment the name is
+             actually about to be checked against something, so it is the
+             right moment to ask. Prefilled from whatever the Profile screen
+             already has, so someone who set it there is not asked twice. -->
+        <label class="fld"><span class="lbl">Your full name</span>
+          <input id="fKycName" type="text" value="${esc((DB.me && DB.me.name) || "")}"
+                 placeholder="As it is on your ID"></label>
+        <div class="tiny sub" style="margin-top:-6px">Write it as separate
+          words, not joined with a hyphen — <b>Amaka Okafor</b>, not
+          <b>Amaka-Okafor</b>. This is what gets checked against your ID, and
+          it is also what people see until you change it later.</div>
+
         <div class="tiny sub">
           <b>Use a virtual NIN, not your real one.</b> Dial <b>*346#</b> or open
           the NIMC app and generate an 11-digit vNIN. It lasts 72 hours and works
@@ -12436,13 +12451,32 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "kyc-send") {
+    const nameBox = document.getElementById("fKycName");
+    const typedName = (nameBox ? nameBox.value : "").trim();
+    if (!typedName) {
+      return toast("Your full name, please — it is checked against your ID.");
+    }
     const n = document.getElementById("fNin");
     const v = (n ? n.value : "").replace(/\D/g, "");
     if (v.length !== 11) {
       return toast("A NIN or vNIN is 11 digits.");
     }
+
+    const nameChanged = typedName !== ((DB.me && DB.me.name) || "").trim();
+    DB.me = Object.assign({}, DB.me, { name: typedName });
+    dbSave();
+
+    // Kamsy, 20 Sep 2026: "before someone verifies ask them for their full
+    // name." Saved to the server and WAITED ON before the check, because
+    // the check compares the ID's name against whatever full_name says in
+    // the database right now — a save still in flight when the check lands
+    // would be read against the old name, or against nothing at all.
+    const ensureSaved = (nameChanged && API.signedIn())
+      ? API.saveProfile(typedName, (DB.me && DB.me.area) || "", null, null)
+      : Promise.resolve();
+
     toast("Checking…");
-    return API.verifyNin(v).then(r => {
+    return ensureSaved.catch(() => {}).then(() => API.verifyNin(v)).then(r => {
       // The cached answer is now stale — she was "not verified" a second
       // ago and the home-service gate would go on saying so.
       forgetIdentity();
