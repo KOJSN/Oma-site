@@ -623,7 +623,8 @@ function vSetup(edit) {
                that she never moves. The live on/off switch below (trackRow,
                p7_views3.js) is still what says whether she is working right
                now; this only sets where she is pinned when that is off. -->
-          <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>
+          ${b.ll ? `<span class="tiny sub" style="white-space:nowrap;margin-right:6px">Current location</span>` : ""}
+          <span class="act" data-a="gps" data-t="biz">Pin me</span>
         </span></label>
       <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
         <span class="inp"><select id="bState">
