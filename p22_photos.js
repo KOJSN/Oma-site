@@ -127,8 +127,26 @@ async function loadMyPhotos() {
   try {
     const me = await API.me();
     const id = me && me.tech && me.tech.id;
-    PHOTOS = id ? (await API.techPhotos(id)) || {} : {};
-  } catch (e) { PHOTOS = {}; }
+    if (!id) {
+      // Kamsy, 20 Sep 2026: "the pictures dont show on the services." This is
+      // the silent half of that bug — no tech id here means PHOTOS was set to
+      // {} and nothing ever said why. A tech whose account has no `tech` row
+      // yet (never actually published, or api_my_services/api_me disagreeing
+      // about that) would see every service card with no photos, forever,
+      // with nothing on screen to say her photos were never even asked for.
+      PHOTOS = {};
+      if (typeof toast === "function") toast("Photos didn't load — Oma could not find your listing.");
+      return paintSvcPhotos();
+    }
+    PHOTOS = (await API.techPhotos(id)) || {};
+  } catch (e) {
+    // The other silent half: a failed fetch (missing function, RLS refusal,
+    // a network drop) used to disappear into this catch with no trace at
+    // all — the page just showed no photos, same as a tech with none. Now it
+    // says so, so the next report is "it says X" instead of "nothing shows."
+    PHOTOS = {};
+    if (typeof toast === "function") toast("Photos didn't load: " + (e && e.message ? e.message : "unknown error"));
+  }
   paintSvcPhotos();
 }
 
