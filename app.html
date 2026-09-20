@@ -1380,7 +1380,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "d68c21acb0";
+const BUILD_ID = "8361e59e9a";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -8701,7 +8701,13 @@ function vJob(bookingId) {
              the area now, the street once the money is in escrow. -->
         <div id="whereSlot"></div>
 
-        ${["cancelled", "expired", "refunded"].includes(b.status) ? "" : `
+        <!-- Kamsy, 20 Sep 2026: "for no reason can the customer message when
+             she hasn't paid, or report either." Before payment there is
+             nothing between them yet — no money held, no promise either
+             side has to keep — so neither the chat door nor the report door
+             opens until that changes. Both now read the same status list:
+             not yet paid, same as already-over. -->
+        ${["awaiting_payment", "cancelled", "expired", "refunded"].includes(b.status) ? "" : `
           <button class="btn ghost" data-a="go" data-v="chat" data-id="${esc(b.id)}"
                   style="display:flex;align-items:center;justify-content:center;gap:9px">
             ${I.chat()} Message ${esc(asTech ? (b.customer_name || "her")
@@ -8718,20 +8724,34 @@ function vJob(bookingId) {
              <button class="btn" data-a="go" data-v="scanner">Open the scanner</button>` : ""}
         <!-- No cancel button, deliberately. An unpaid hold expires on its own
              after 30 minutes, and a paid one is escrow's problem: the tech
-             scans at the end, and money nobody scanned auto-refunds after 7
-             days. A free cancel button is a way to hold a tech's slot and
-             drop it at no cost, over and over; making a pest pay first and
-             wait a week for it back is the deterrent. -->
+             scans at the end, and money nobody scanned auto-refunds 12 hours
+             after the appointment (refund-window.sql). A free cancel button
+             is a way to hold a tech's slot and drop it at no cost, over and
+             over; making a pest pay first and wait for it back is the
+             deterrent. -->
 
-        <!-- Both sides, always. A tech reports a customer and a customer
-             reports a tech through the same door, and it stays open after
-             the appointment is over — most people do not report while it is
+        <!-- Both sides, through the same door, and it stays open after the
+             appointment is over — most people do not report while it is
              still happening. Quiet, because a loud one invites use as a
-             threat during an argument about a price. -->
+             threat during an argument about a price.
+
+             Kamsy, 20 Sep 2026: "as long as the appointment has occurred the
+             customer can never report anything." Once a booking is
+             'released' the appointment has happened AND been paid for —
+             that status only exists because the tech scanned the customer's
+             own code, which is proof the two of them really met. There is
+             nothing left to report at that point that this button could act
+             on, so it disappears exactly there. Before release — including
+             a no-show, which is reported here as "Did not turn up" — the
+             door stays open, because a no-show is exactly the kind of
+             problem this button exists for. Also gone before payment, for
+             the same "nothing has happened yet" reason as the chat button
+             above. -->
+        ${["awaiting_payment", "released"].includes(b.status) ? "" : `
         <div style="margin-top:22px;text-align:center">
           <button class="tag" data-a="go" data-v="report" data-id="${esc(b.id)}"
                   style="color:var(--bad)">Report a problem with this appointment</button>
-        </div>
+        </div>`}
       </div>`);
     fillWhere(bookingId);
   });
