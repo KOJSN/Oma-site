@@ -28,7 +28,18 @@ const API = (() => {
      project, not the person, and every function it can reach checks who is
      calling before it answers. The service_role key is the opposite of that
      and build.py refuses to build if it sees one. */
-  const BUILT_IN = { url: "__SUPABASE_URL__", anon: "__SUPABASE_ANON__" };
+  // 21 Sep 2026, Kamsy: these were "__SUPABASE_URL__" / "__SUPABASE_ANON__"
+  // placeholders — build.py never actually substitutes them, so every real
+  // build from this source was shipping with NO backend baked in. app.html
+  // on GitHub had the right values, but only because someone pasted them in
+  // by hand after a build; the next push that touched any src/ file would
+  // have rebuilt app.html from this file and silently wiped them back out,
+  // breaking sign-in for every tech and customer app-wide. Values below are
+  // the same project (ucytdvycfkrbpaknoiuc) already used by oma-config.js.
+  const BUILT_IN = {
+    url: "https://ucytdvycfkrbpaknoiuc.supabase.co",
+    anon: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjeXRkdnljZmtyYnBha25vaXVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5ODE5NDEsImV4cCI6MjEwMzU1Nzk0MX0.HgYvYVuOHtEQAlJMZCeHMTWFUMzr7TakVpx-c91cNxA",
+  };
   // Both tests fail on the un-substituted placeholders, so a build without the
   // details still produces a working practice app rather than a broken live one.
   const hasBuiltIn = () =>
