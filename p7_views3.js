@@ -708,10 +708,20 @@ function vEarnings() {
 // it expands and you see the service clearly." A thumbnail on the card, a
 // full view on tap — the same photo, never fetched twice, just shown bigger.
 let ZOOM_PHOTO = null;
+// Kamsy, 21 Sep 2026: a tech listed on the server but invisible everywhere —
+// map, services, booking — traced back to this. The "Your link" box was
+// built from shareLink(b), the OLD local-payload scheme, which stamps a
+// throwaway id nothing server-side recognises. The Share/Copy BUTTONS were
+// already correct (they fetch the real id from API.me() at tap time), so
+// tapping Copy worked — but reading, forwarding, or hand-copying the text
+// actually shown on screen handed out a link that could never book. Now the
+// box shows nothing until the real id comes back, so there is no wrong
+// answer to copy from it.
+let LISTING_LINK = null;
 function vListing() {
   const b = DB.biz;
   if (!b || !b.name) return vSetup(false);
-  const link = shareLink(b);
+  const link = LISTING_LINK;
   return `
   <div class="topbar">
     <div class="rowbetween"><h2>My listing</h2></div>
@@ -735,10 +745,10 @@ function vListing() {
     </div>
 
     <div class="seehead" style="padding-left:0;padding-right:0"><h3>Your link</h3></div>
-    <div class="card" style="word-break:break-all;font-size:11.5px;color:var(--sub);font-weight:500;line-height:1.5">${esc(link)}</div>
+    <div class="card" style="word-break:break-all;font-size:11.5px;color:var(--sub);font-weight:500;line-height:1.5">${link ? esc(link) : "Getting your link…"}</div>
     <div class="btnrow mt12">
-      <button class="btn sm" data-a="shareMine">${I.share()} Share</button>
-      <button class="btn sm ghost" data-a="copyLink">Copy</button>
+      <button class="btn sm" data-a="shareMine" ${link ? "" : "disabled"}>${I.share()} Share</button>
+      <button class="btn sm ghost" data-a="copyLink" ${link ? "" : "disabled"}>Copy</button>
     </div>
     <div class="note mt16">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8.2v.1"/></svg>

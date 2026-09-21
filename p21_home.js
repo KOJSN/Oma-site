@@ -62,8 +62,14 @@ async function loadIdentity() {
 }
 
 /* Called after a check comes back, so the next screen asks the server
-   again instead of showing the answer from before she verified. */
-function forgetIdentity() { IDENT = null; }
+   again instead of showing the answer from before she verified. Also called
+   on every sign-in/out — LISTING_LINK (p7_views3.js) is account-bound too,
+   and a stale one from whoever used this device last must never survive a
+   switch of accounts. */
+function forgetIdentity() {
+  IDENT = null;
+  if (typeof LISTING_LINK !== "undefined") LISTING_LINK = null;
+}
 
 let HOME = {
   at: false,        // she comes to me

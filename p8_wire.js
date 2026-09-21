@@ -52,15 +52,25 @@ function paint() {
     // before the tap finished. Repainting the view element directly — never
     // through paint()'s switch again — fixes it without touching anything
     // else paint() does for other screens.
-    case "listing": html = vListing(); if (typeof loadMyPhotos === "function" && !vListing._loading) {
+    case "listing": html = vListing(); if (!vListing._loading) {
         vListing._loading = true;
-        setTimeout(() => loadMyPhotos().then(() => {
-          vListing._loading = false;
-          if (ROUTE.v === "listing") {
-            const v2 = document.getElementById("view");
-            if (v2) v2.innerHTML = vListing();
-          }
-        }).catch(() => { vListing._loading = false; }), 0);
+        // 21 Sep 2026: also fetch her real tech id here, for LISTING_LINK
+        // (p7_views3.js) — same non-looping repaint as the photo fix above,
+        // just carrying two fetches instead of one.
+        setTimeout(() => {
+          const photosP = typeof loadMyPhotos === "function" ? loadMyPhotos() : Promise.resolve();
+          const linkP = API.me().then((m) => {
+            const id = m && m.tech && m.tech.id;
+            LISTING_LINK = id ? techLink(id) : null;
+          }).catch(() => {});
+          Promise.all([photosP, linkP]).then(() => {
+            vListing._loading = false;
+            if (ROUTE.v === "listing") {
+              const v2 = document.getElementById("view");
+              if (v2) v2.innerHTML = vListing();
+            }
+          }).catch(() => { vListing._loading = false; });
+        }, 0);
       } break;
     case "signin": html = vSignIn(); break;
     case "nearby": html = vFind(); break;
