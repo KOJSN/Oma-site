@@ -92,7 +92,7 @@ function vMore() {
   <div class="pad mt16">
 
     ${API.signedIn() ? "" : `<div class="menu" style="margin-bottom:14px">
-      ${row("signin", I.user(), "Sign in to book and pay")}
+      ${row("signin", I.user(), tech ? "Sign in" : "Sign in to book and pay")}
     </div>`}
 
     <div class="menu" style="margin-bottom:14px">
