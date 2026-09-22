@@ -705,6 +705,21 @@ document.querySelectorAll(".navbtn").forEach((b) => {
     document.querySelectorAll(".page").forEach((x) => x.classList.toggle("on", x.dataset.page === p));
     if (p === "bookings") loadBookings();
     if (p === "control") loadConfig();
+    // 22 Sep 2026: the globe spilled out of its card, wider than the page
+    // itself. drawGlobe() sizes it once with slot.clientWidth/clientHeight
+    // — but the dashboard loads every section at once, including Reports,
+    // while Reports still sits behind .page{display:none}. A hidden element
+    // has no box, so that first fit measured a 0×0 slot and globe.gl fell
+    // back to its own default size instead, which is where the overflow
+    // came from. Nothing resized it afterward — the ONLY other trigger is
+    // the browser's own resize event, and switching tabs isn't one. Now
+    // opening Reports re-measures the real, now-visible card and fits the
+    // globe to it, exactly the way GLOBE's own window-resize handler
+    // already does.
+    if (p === "reports" && typeof GLOBE !== "undefined" && GLOBE) {
+      const slot = document.getElementById("globe");
+      if (slot) GLOBE.width(slot.clientWidth).height(slot.clientHeight);
+    }
   });
 });
 
