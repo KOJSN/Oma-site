@@ -1,0 +1,75 @@
+name: Build the app
+
+on:
+  push:
+    paths:
+      - "p*.js"
+      - "p*.html"
+      - "core_*.js"
+      - "rules.min.json"
+      - "libheif-bundle.js"
+      - "sw.js.template"
+      - "vapid_public.txt"
+      - "src/**"
+      - "build.py"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-app
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build app.html, sw.js, techapp.html and techapp-sw.js
+        run: python3 build.py
+
+      - name: Check both are whole pages
+        run: |
+          test -s app.html
+          test -s sw.js
+          test -s techapp.html
+          test -s techapp-sw.js
+          grep -q "</html>" app.html
+          grep -q 'id="heifsrc"' app.html
+          grep -q "</html>" techapp.html
+          grep -q 'id="heifsrc"' techapp.html
+          echo "app.html     is $(wc -c < app.html) bytes"
+          echo "techapp.html is $(wc -c < techapp.html) bytes"
+
+      - name: Check each pair is the same build
+        # 22 Sep 2026: two pairs now, not one. app.html/sw.js still have to
+        # match each other, and techapp.html/techapp-sw.js still have to
+        # match each other — but the two PAIRS are allowed to carry
+        # different ids, since they are different builds (APP_MODE differs,
+        # so the hashed content differs). Checking app's id against tech's
+        # would fail every single build for no reason.
+        run: |
+          app=$(grep -o 'BUILD_ID = "[0-9a-f]\{10\}"' app.html | grep -o '[0-9a-f]\{10\}')
+          sw=$(head -1 sw.js | grep -o 'build [0-9a-f]\{10\}' | cut -d' ' -f2)
+          echo "app.html: $app"
+          echo "sw.js:    $sw"
+          test -n "$app" || { echo "app.html carries no build id"; exit 1; }
+          test "$app" = "$sw" || { echo "MISMATCH (app pair) — refusing to publish"; exit 1; }
+
+          tapp=$(grep -o 'BUILD_ID = "[0-9a-f]\{10\}"' techapp.html | grep -o '[0-9a-f]\{10\}')
+          tsw=$(head -1 techapp-sw.js | grep -o 'build [0-9a-f]\{10\}' | cut -d' ' -f2)
+          echo "techapp.html: $tapp"
+          echo "techapp-sw.js: $tsw"
+          test -n "$tapp" || { echo "techapp.html carries no build id"; exit 1; }
+          test "$tapp" = "$tsw" || { echo "MISMATCH (tech pair) — refusing to publish"; exit 1; }
+
+      - name: Commit them
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.html sw.js techapp.html techapp-sw.js
+          git diff --staged --quiet || git commit -m "Build app.html, sw.js, techapp.html and techapp-sw.js"
+          git push

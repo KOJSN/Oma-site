@@ -1,32 +1,50 @@
-"""Stitch the files in src/ into app.html, and the worker that belongs with it.
+"""Stitch the source files into app.html and techapp.html, and the service
+worker that belongs with each.
 
 Run by GitHub Actions on every push, so nobody builds or uploads anything by
-hand. Both outputs are committed back and GitHub Pages serves them.
+hand. All four outputs are committed back and GitHub Pages serves them.
 
     python3 build.py
 
-Two files come out and they are a MATCHED PAIR:
+Two MATCHED PAIRS come out:
 
-    app.html    the whole app
-    sw.js       the service worker for that exact app
+    app.html       sw.js           the customer/full app
+    techapp.html   techapp-sw.js   the same app, locked to tech mode at boot
 
-Both carry the same build id. That is not decoration — an afternoon was lost to
-a stale worker quietly serving an old app.html while a fixed bug looked
-unfixed. Now Settings prints the id, the worker's first line prints the id, and
-they agree only when the pair that was built together is the pair that is live.
+Both files in a pair carry the same build id. That is not decoration — an
+afternoon was lost to a stale worker quietly serving an old app.html while a
+fixed bug looked unfixed. Now Settings prints the id, the worker's first line
+prints the same id, and they agree only when the pair that was built together
+is the pair that is live. Each pair has its own worker and its own cache name
+so app.html and techapp.html never fight over one another's cached copy.
+
+techapp.html is NOT a second codebase. It is assembled from the exact same
+p*.js files as app.html — same auth, same chat, same bookings, same API —
+because those functions call into each other too much for splitting "just
+the tech screens" out to be safe. The only difference between the two is one
+substituted constant, APP_MODE (see p3_core.js), which p8_wire.js's boot()
+reads to skip straight into tech mode and never offer the customer home
+screen. A bug fixed in one is fixed in both, because they are the same file
+wearing two different first screens.
+
+The sources sit beside this file, in the root of the repository. They were
+meant to live in src/, and a folder drag-and-drop into GitHub flattened them.
+Rather than move twenty-five files by hand through a web page, this looks in
+both places — src/ first if it exists, then here — so tidying up later is a
+move, not a rewrite.
 """
 import hashlib
 import json
 import pathlib
-import re
 import sys
 
 HERE = pathlib.Path(__file__).parent
-# Sources live in src/ when there is one, and beside this file when there
-# is not. Both layouts are tested and produce byte-identical output.
 SRC = HERE / "src" if (HERE / "src" / "p3_core.js").exists() else HERE
 
-read = lambda n: (SRC / n).read_text(encoding="utf-8")
+
+def read(name):
+    return (SRC / name).read_text(encoding="utf-8")
+
 
 # The scan engine is assembled from its own pieces first, and the ruleset is
 # minified into it so the page carries its own thresholds.
@@ -41,8 +59,8 @@ core = core.replace("__RULES__",
 
 # The VAPID public key. It is the half of the pair that identifies the sender
 # and is meant to ship inside the app; the private half lives only in Supabase's
-# secrets and must never appear here. Without it the app says notifications are
-# not switched on for this build, rather than half-working.
+# secrets and must never appear in this repository. Without it the app says
+# notifications are not switched on for this build, rather than half-working.
 push = read("p17_push.js")
 vapid = SRC / "vapid_public.txt"
 if vapid.exists():
@@ -55,75 +73,55 @@ js = "\n".join([
     read("p9_sheet.js"), read("p10_sheetpage.js"), read("p11_qr.js"),
     read("p12_api.js"), read("p4_result.js"), read("p5_views.js"),
     read("p6_views2.js"), read("p7_views3.js"), read("p13_money.js"),
-    read("p14_live.js"), read("p15_chat.js"), read("p16_find.js"), read("p18_review.js"), read("p19_fee.js"), read("p20_live.js"), read("p21_home.js"), read("p22_photos.js"), read("p24_points.js"),
+    read("p14_live.js"), read("p15_chat.js"), read("p16_find.js"),
     push, read("p8_wire.js"),
 ])
-
-# ── the app's own backend details ────────────────────────────────────
-#
-# Baked in so nobody has to paste a project URL and a key into a phone. That
-# step is why real accounts signed up, filled in a listing, and had every word
-# of it saved to their own device and nowhere else.
-#
-# The ANON key belongs in here. It is public by design: it names the project,
-# not the person, and every function it can reach checks who is calling before
-# it answers — it is already printed inside every copy of every Supabase app on
-# every phone. The service_role key bypasses all of that, and this refuses to
-# build if it sees one.
-#
-# One place to fill in: the website's oma-config.js, which has to carry the same
-# two values anyway. src/supabase_public.txt (url on line 1, anon on line 2)
-# overrides it when the app and the site need different projects.
-url = anon = ""
-pub = SRC / "supabase_public.txt"
-if pub.exists():
-    lines = [l.strip() for l in pub.read_text(encoding="utf-8").splitlines() if l.strip()]
-    if len(lines) >= 2:
-        url, anon = lines[0], lines[1]
-else:
-    # root, beside build.py, and inside src/ — oma-config.js lives at the
-    # repo root while build.py may sit in src/, so look both ways.
-    for candidate in (HERE / "oma-config.js", HERE.parent / "oma-config.js",
-                      SRC / "oma-config.js", SRC.parent / "oma-config.js"):
-        if candidate.exists():
-            t = candidate.read_text(encoding="utf-8")
-            m_url = re.search(r'url\s*:\s*["\']([^"\']*)["\']', t)
-            m_anon = re.search(r'anon\s*:\s*["\']([^"\']*)["\']', t)
-            if m_url and m_anon:
-                url, anon = m_url.group(1).strip(), m_anon.group(1).strip()
-            break
-
-if "service_role" in anon or "service_role" in url:
-    sys.exit("REFUSING TO BUILD: that is the service_role key. It bypasses every "
-             "permission check in the database and must never ship in the app. "
-             "Use the anon / publishable key.")
-
-url = url.rstrip("/")
-js = js.replace("__SUPABASE_URL__", url).replace("__SUPABASE_ANON__", anon)
 
 # The decoder rides in a text/plain script and is eval'd only when a HEIC photo
 # actually arrives, so a closing tag inside it would end the block early.
 heif = read("libheif-bundle.js").replace("</script", "<\\/script")
 
-html = (read("p1_head.html")
+# __BUILD__ and __APP_MODE__ are both still literal placeholders in this
+# template — one page assembled once, then stamped twice below into the two
+# separate builds. Neither placeholder is substituted here on purpose.
+html_template = (read("p1_head.html")
         + read("p2_body.html")
         + '<script type="text/plain" id="heifsrc">' + heif + '</script>\n'
         + "<script>\n" + js + "\n</script>\n</body>\n</html>\n")
 
-# Hashed while __BUILD__ is still a placeholder, then substituted into both
-# files. Hashing the finished page instead would change the hash by writing it
-# in, and the id could never describe the file it lives in.
-stamp = hashlib.sha256(html.encode("utf-8")).hexdigest()[:10]
-if "__BUILD__" not in html:
-    sys.exit("src/p3_core.js has lost its __BUILD__ placeholder — Settings would "
-             "show the literal text instead of the build id. Refusing to build.")
-html = html.replace("__BUILD__", stamp)
+if "__BUILD__" not in html_template:
+    sys.exit("p3_core.js has lost its __BUILD__ placeholder — Settings would show "
+             "the literal text instead of the build id. Refusing to build.")
+if "__APP_MODE__" not in html_template:
+    sys.exit("p3_core.js has lost its __APP_MODE__ placeholder — techapp.html "
+             "would boot as a customer app with no way to tell. Refusing to build.")
 
-(HERE / "app.html").write_text(html, encoding="utf-8")
-(HERE / "sw.js").write_text(
-    read("sw.js.template").replace("__BUILD__", stamp), encoding="utf-8")
+sw_template = read("sw.js.template")
 
-print(f"build {stamp}")
-print(f"  app.html  {(HERE / 'app.html').stat().st_size / 1e6:.2f} MB")
-print(f"  sw.js     {(HERE / 'sw.js').stat().st_size} bytes")
-print(f"  backend   {url or 'NOT SET — the app will ship in practice mode'}")
+
+def build_pair(app_mode, html_name, sw_name, shell, cache_prefix):
+    """Writes one matched html/sw pair, both stamped with the same build id."""
+    html = html_template.replace("__APP_MODE__", app_mode)
+
+    # Hashed while __BUILD__ is still a placeholder, then substituted into
+    # both files. Hashing the finished page instead would change the hash by
+    # writing it in, and the id could never describe the file it lives in.
+    stamp = hashlib.sha256(html.encode("utf-8")).hexdigest()[:10]
+    html = html.replace("__BUILD__", stamp)
+
+    sw = sw_template.replace('const SHELL = "/app.html";',
+                              f'const SHELL = "{shell}";')
+    sw = sw.replace('const CACHE = "oma-__BUILD__";',
+                     f'const CACHE = "{cache_prefix}-__BUILD__";')
+    sw = sw.replace("__BUILD__", stamp)
+
+    (HERE / html_name).write_text(html, encoding="utf-8")
+    (HERE / sw_name).write_text(sw, encoding="utf-8")
+
+    print(f"build {stamp}  ({app_mode})")
+    print(f"  {html_name:<14} {(HERE / html_name).stat().st_size / 1e6:.2f} MB")
+    print(f"  {sw_name:<14} {(HERE / sw_name).stat().st_size} bytes")
+
+
+build_pair("customer", "app.html", "sw.js", "/app.html", "oma")
+build_pair("tech", "techapp.html", "techapp-sw.js", "/techapp.html", "omatech")

@@ -6,6 +6,14 @@ const RULES = __RULES__;
    value, and they only agree when both files were uploaded together. */
 const BUILD_ID = "__BUILD__";
 
+/* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
+   same p*.js files, same everything — build.py substitutes this to "tech"
+   only for techapp.html. It never picks screens apart (too many functions
+   call into each other for that to be safe); it just decides, once, at
+   boot, whether this copy is allowed to ever be a customer. See the
+   APP_MODE check at the top of boot() in p8_wire.js. */
+const APP_MODE = "__APP_MODE__";
+
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
 const S = {

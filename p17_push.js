@@ -228,7 +228,11 @@ async function offerPushAfterBooking() {
    handled natively. */
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((e) => {
+    // 22 Sep 2026: techapp.html gets its own worker/cache (techapp-sw.js) so
+    // the two apps never fight over the same cache entry or service-worker
+    // scope on the same origin.
+    const swPath = APP_MODE === "tech" ? "/techapp-sw.js" : "/sw.js";
+    navigator.serviceWorker.register(swPath).catch((e) => {
       // Not fatal, and not worth a toast: the app works, it simply will not
       // work offline or receive a web push on this device.
       console.warn("service worker did not register:", e && e.message);

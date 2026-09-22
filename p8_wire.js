@@ -1595,6 +1595,25 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
     toast(t.n + " added.");
     return;
   }
+  // 22 Sep 2026, Kamsy: techapp.html — same code, locked to tech from the
+  // very first screen. No role picker, no "welcome", no way to end up on
+  // the customer home screen even if this browser once used app.html.
+  //
+  // Routes straight to "requests" and nothing else — exactly what app.html
+  // already does for DB.role === "tech" two lines below. Deliberately NOT
+  // gated on DB.biz (that's only this browser's local cache, empty on a
+  // device that has never opened the app before): a tech who registered
+  // through app.html already has her real business row on the server, and
+  // vRequestsLive() already knows how to ask her to sign in if she is not.
+  // Signing in with her existing email/password on techapp.html is all it
+  // takes for her — same Supabase project, same tech row, nothing to
+  // re-register.
+  if (APP_MODE === "tech") {
+    if (DB.role !== "tech") { DB.role = "tech"; dbSave(); }
+    ROUTE = { v: "requests", a: null };
+    paint();
+    return;
+  }
   ROUTE = { v: DB.role ? (DB.role === "tech" ? "requests" : "home") : "welcome", a: null };
   paint();
 
