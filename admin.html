@@ -482,31 +482,17 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
         </div>
 
         <!-- Backend control, 22 Sep 2026 — "i want to be able to control the
-             backend from the admin." Two things, on purpose, no more: app
-             settings (a generic key/value table, api_admin_config_*) and a
-             tech's listed/KYC flag. Both are plain flags with nothing
-             financial wired through them. The fee rate and a booking's
-             status are NOT here — see the note at the top of
-             admin-control.sql for why. -->
+             backend from the admin." One thing, on purpose: a tech's
+             listed/KYC flag, a plain flag with nothing financial wired
+             through it. The fee rate and a booking's status are NOT here —
+             see the note at the top of admin-control.sql for why.
+             Kamsy, 22 Sep 2026: "that app setting is nor needed" — the
+             generic key/value table (api_admin_config_*) is gone from this
+             page. admin-control.sql still creates app_config and the three
+             RPCs; nothing here calls them any more, and removing the SQL
+             too would be the riskier half of this to get right blind, so
+             it stays installed and simply unused. -->
         <div class="page" data-page="control">
-          <section>
-            <div class="lbl">App settings</div>
-            <div class="card">
-              <div id="configRows"></div>
-              <form id="configForm" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;
-                    padding-top:14px;border-top:1px solid var(--line)">
-                <input id="cfgKey" placeholder="key" autocomplete="off" spellcheck="false"
-                       style="width:180px">
-                <input id="cfgValue" placeholder="value" autocomplete="off" spellcheck="false"
-                       style="flex:1;min-width:160px">
-                <button class="btn sm" id="cfgGo" type="submit">Save</button>
-              </form>
-              <div class="hint" style="margin-top:10px">A value like <code>true</code>,
-                <code>false</code> or a number is saved as that type; anything else is
-                saved as text.</div>
-            </div>
-          </section>
-
           <section>
             <div class="lbl">A tech's listing and verification</div>
             <div class="card">
@@ -704,7 +690,6 @@ document.querySelectorAll(".navbtn").forEach((b) => {
     document.querySelectorAll(".navbtn").forEach((x) => x.classList.toggle("on", x === b));
     document.querySelectorAll(".page").forEach((x) => x.classList.toggle("on", x.dataset.page === p));
     if (p === "bookings") loadBookings();
-    if (p === "control") loadConfig();
     // 22 Sep 2026: the globe spilled out of its card, wider than the page
     // itself. drawGlobe() sizes it once with slot.clientWidth/clientHeight
     // — but the dashboard loads every section at once, including Reports,
@@ -806,102 +791,13 @@ document.getElementById("bkNext").addEventListener("click", () => {
 });
 
 /* ══ backend control, 22 Sep 2026 ═════════════════════════════════════
-   Two things, deliberately: app_config (a generic key/value table) and a
-   tech's listed/KYC flag. Nothing here moves money or touches a
+   A tech's listed/KYC flag. Nothing here moves money or touches a
    booking's status — see admin-control.sql's header for why those two
-   stayed out. */
-
-/* value comes back typed from jsonb, so writing it back out has to guess
-   the same way it was guessed on save: true/false, a bare number, or text. */
-function cfgParse(raw) {
-  const s = String(raw).trim();
-  if (s === "true") return true;
-  if (s === "false") return false;
-  if (s !== "" && !isNaN(Number(s))) return Number(s);
-  return s;
-}
-function cfgShow(v) {
-  if (typeof v === "boolean") return v ? "true" : "false";
-  return String(v);
-}
-
-function drawConfig(rows) {
-  const el = document.getElementById("configRows");
-  if (rows === null) {
-    el.innerHTML = `<div class="empty">Settings are not loaded yet —
-      run <b>admin-control.sql</b> in Supabase.</div>`;
-    return;
-  }
-  el.innerHTML = rows.length
-    ? rows.map((c) => `<div class="kv" data-cfgkey="${esc(c.key)}">
-        <span class="k">${esc(c.key)}${c.note ? ` <span class="faint">— ${esc(c.note)}</span>` : ""}</span>
-        <span class="v" style="display:flex;gap:8px;align-items:center">
-          <input data-cfgval style="width:150px;padding:6px 9px;font-size:13.5px"
-                 value="${esc(cfgShow(c.value))}">
-          <button class="btn sm plain" data-cfgsave type="button">Save</button>
-          <button class="btn sm plain" data-cfgdel type="button" style="color:var(--bad)">Remove</button>
-        </span>
-      </div>`).join("")
-    : `<div class="empty">No settings yet — add one below.</div>`;
-}
-
-async function loadConfig() {
-  const t = token();
-  if (!t) return lockOut();
-  try {
-    const data = await rpc("api_admin_config_list", { p_token: t });
-    drawConfig(data.config || []);
-  } catch (e) {
-    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
-    drawConfig(null);
-  }
-}
-
-async function saveConfig(key, value, note) {
-  const t = token();
-  if (!t) return lockOut();
-  try {
-    await rpc("api_admin_config_set", { p_token: t, p_key: key, p_value: value, p_note: note || null });
-    loadConfig();
-  } catch (e) {
-    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
-    alert(e.message);
-  }
-}
-
-async function deleteConfig(key) {
-  const t = token();
-  if (!t) return lockOut();
-  if (!confirm(`Remove "${key}"?`)) return;
-  try {
-    await rpc("api_admin_config_delete", { p_token: t, p_key: key });
-    loadConfig();
-  } catch (e) {
-    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
-    alert(e.message);
-  }
-}
-
-document.getElementById("configForm").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const key = document.getElementById("cfgKey").value.trim();
-  const raw = document.getElementById("cfgValue").value;
-  if (!key) return;
-  saveConfig(key, cfgParse(raw));
-  document.getElementById("cfgKey").value = "";
-  document.getElementById("cfgValue").value = "";
-});
-
-document.getElementById("configRows").addEventListener("click", (e) => {
-  const row = e.target.closest("[data-cfgkey]");
-  if (!row) return;
-  const key = row.dataset.cfgkey;
-  if (e.target.closest("[data-cfgsave]")) {
-    const raw = row.querySelector("[data-cfgval]").value;
-    saveConfig(key, cfgParse(raw));
-  }
-  if (e.target.closest("[data-cfgdel]")) deleteConfig(key);
-});
+   stayed out. The generic app_config key/value editor that used to sit
+   above this was removed 22 Sep 2026 ("that app setting is nor needed") —
+   along with configRows/configForm and everything that read or wrote
+   them, so nothing here is left pointing at elements that no longer
+   exist. */
 
 /* ── a tech's listing and KYC ── */
 function techChipKyc(kyc) {
