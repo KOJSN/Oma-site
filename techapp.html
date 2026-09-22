@@ -1380,7 +1380,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "e9a144c7a0";
+const BUILD_ID = "22a7242b13";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -6998,7 +6998,7 @@ function vMore() {
   <div class="pad mt16">
 
     ${API.signedIn() ? "" : `<div class="menu" style="margin-bottom:14px">
-      ${row("signin", I.user(), "Sign in to book and pay")}
+      ${row("signin", I.user(), tech ? "Sign in" : "Sign in to book and pay")}
     </div>`}
 
     <div class="menu" style="margin-bottom:14px">
