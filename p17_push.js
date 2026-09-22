@@ -232,10 +232,46 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     // the two apps never fight over the same cache entry or service-worker
     // scope on the same origin.
     const swPath = APP_MODE === "tech" ? "/techapp-sw.js" : "/sw.js";
-    navigator.serviceWorker.register(swPath).catch((e) => {
+
+    // Kamsy, 22 Sep 2026: a fix could be live on the server and she would
+    // still see the old bug, reload after reload. Standard browser behaviour
+    // is the cause, not a stuck upload: once a service worker is running, a
+    // NEW one that shows up on the server only ever gets as far as
+    // "waiting" — it does not take over an open tab until every tab on the
+    // site is fully closed, not just reloaded. The old worker (and its old
+    // cached app.html/techapp.html) kept answering every request in the
+    // meantime, silently.
+    //
+    // This makes an update take over the moment it is found, and reloads
+    // the page once it does, so the very next load — not the next time
+    // every tab happens to be closed — is always the current build.
+    function activate(worker) { worker.postMessage({ type: "SKIP_WAITING" }); }
+
+    navigator.serviceWorker.register(swPath).then((reg) => {
+      if (reg.waiting) activate(reg.waiting);
+      reg.addEventListener("updatefound", () => {
+        const fresh = reg.installing;
+        if (!fresh) return;
+        fresh.addEventListener("statechange", () => {
+          // Only once a worker was already controlling this page — the very
+          // first install has nothing stale to replace, and reloading then
+          // would just loop.
+          if (fresh.state === "installed" && navigator.serviceWorker.controller) {
+            activate(fresh);
+          }
+        });
+      });
+    }).catch((e) => {
       // Not fatal, and not worth a toast: the app works, it simply will not
       // work offline or receive a web push on this device.
       console.warn("service worker did not register:", e && e.message);
+    });
+
+    let refreshedOnce = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (refreshedOnce) return;   // controllerchange can fire more than once
+      refreshedOnce = true;
+      location.reload();
     });
   });
 }
