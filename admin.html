@@ -205,15 +205,21 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
    page-switcher only ever toggles .on. Nothing that already worked had to
    be taught to work differently. */
 .shell{display:flex;align-items:flex-start;min-height:100dvh}
+/* 22 Sep 2026: this used to be hard-coded near-black (#150e1b) no matter
+   what — a sidebar that never noticed the day/night switch sitting right
+   above it in Settings. Same --card/--ink/--line tokens as every other
+   surface on this page now, so it goes light or dark with the rest of it,
+   the phone, or her own toggle at the top — see the theme script below. */
 .sidebar{width:230px;flex:none;position:sticky;top:0;height:100dvh;
-  overflow-y:auto;background:#150e1b;color:#e9e1ee;
+  overflow-y:auto;background:var(--card);color:var(--ink);
+  border-right:1px solid var(--line);
   display:flex;flex-direction:column;padding:20px 14px 20px;gap:3px}
-.sidebar .mark{color:#fff;padding:2px 8px 22px;font-size:17px}
+.sidebar .mark{color:var(--ink);padding:2px 8px 22px;font-size:17px}
 .navbtn{display:flex;align-items:center;gap:11px;width:100%;
   padding:11px 13px;border-radius:12px;background:transparent;
-  color:#bfb3c8;font-weight:650;font-size:14px;text-align:left}
+  color:var(--sub);font-weight:650;font-size:14px;text-align:left}
 .navbtn svg{flex:none;opacity:.85}
-.navbtn:hover{background:rgba(255,255,255,.07);color:#fff}
+.navbtn:hover{background:var(--fill);color:var(--ink)}
 .navbtn.on{background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
   color:#fff;box-shadow:0 10px 22px -12px rgba(240,81,141,.85)}
 .navbtn.on svg{opacity:1}
