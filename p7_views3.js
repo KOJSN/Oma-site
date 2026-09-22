@@ -121,9 +121,6 @@ function vMore() {
       <button data-a="theme"><span class="ic">${I.moon()}</span>
         <span style="flex:1">Dark mode</span>
         <span class="switch ${isDark() ? "on" : ""}"><i></i></span></button>
-      <button data-a="switchRole"><span class="ic">${I.shop()}</span>
-        <span style="flex:1">${tech ? "Switch to a customer account"
-                                    : "Switch to a nail tech account"}</span>${I.chev()}</button>
       ${row("settings", I.cog(), "Settings")}
     </div>
   </div>
@@ -502,8 +499,6 @@ function vSettings() {
       <button data-a="theme"><span class="ic">${I.moon()}</span><span style="flex:1">Dark mode</span>
         <span class="switch ${isDark() ? "on" : ""}"><i></i></span></button>
       ${pushRow()}
-      <button data-a="switchRole"><span class="ic">${I.shop()}</span>
-        <span style="flex:1">Use Oma as a ${DB.role === "tech" ? "customer" : "nail tech"}</span>${I.chev()}</button>
       <button data-a="go" data-v="points"><span class="ic">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M6 4h12v5a6 6 0 0 1-12 0V4ZM18 5h2a2 2 0 0 1 0 4h-2M6 5H4a2 2 0 0 0 0 4h2"/></svg></span>
         <span style="flex:1">O points and the board</span>${I.chev()}</button>

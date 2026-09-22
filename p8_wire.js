@@ -700,12 +700,13 @@ document.getElementById("shell").addEventListener("click", e => {
     if (pickRole === "customer") { DB.me = DB.me || {}; dbSave(); return nav("home"); }
     return nav("setup");
   }
-  if (a === "switchRole") {
-    DB.role = DB.role === "tech" ? "customer" : "tech"; dbSave();
-    if (DB.role === "tech" && (!DB.biz || !DB.biz.name)) return nav("setup");
-    if (DB.role === "customer" && !DB.me) { DB.me = {}; dbSave(); }
-    return nav(DB.role === "tech" ? "requests" : "home");
-  }
+  // 22 Sep 2026, Kamsy: app.html is customer-only now and techapp.html is
+  // tech-only — crossing over doesn't exist any more, so this is retired to
+  // a no-op rather than deleted outright: the button that called it is gone
+  // from Settings (p7_views3.js), but if an old cached copy of a screen
+  // somewhere still renders it, tapping it does nothing instead of
+  // corrupting DB.role into a state this build was never built to show.
+  if (a === "switchRole") return;
 
   if (a === "gps") {
     // Techs only. A salon is a place and stays where it is; a customer moves,
@@ -1611,6 +1612,18 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
   if (APP_MODE === "tech") {
     if (DB.role !== "tech") { DB.role = "tech"; dbSave(); }
     ROUTE = { v: "requests", a: null };
+    paint();
+    return;
+  }
+  // 22 Sep 2026, Kamsy: "let it no longer be there — the original app only
+  // contain customers." Mirrors the tech branch above: app.html is now
+  // customer-only, the same way techapp.html is tech-only. No welcome/role
+  // picker, no way to end up on the tech dashboard even if this browser
+  // once used techapp.html. See the switchRole guard below too — the
+  // "become a nail tech" door in Settings is gone from both builds now.
+  if (APP_MODE === "customer") {
+    if (DB.role !== "customer") { DB.role = "customer"; dbSave(); }
+    ROUTE = { v: "home", a: null };
     paint();
     return;
   }
