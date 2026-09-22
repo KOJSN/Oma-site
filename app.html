@@ -1380,7 +1380,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "d7a0abc96c";
+const BUILD_ID = "f52eb05dd2";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -7027,9 +7027,6 @@ function vMore() {
       <button data-a="theme"><span class="ic">${I.moon()}</span>
         <span style="flex:1">Dark mode</span>
         <span class="switch ${isDark() ? "on" : ""}"><i></i></span></button>
-      <button data-a="switchRole"><span class="ic">${I.shop()}</span>
-        <span style="flex:1">${tech ? "Switch to a customer account"
-                                    : "Switch to a nail tech account"}</span>${I.chev()}</button>
       ${row("settings", I.cog(), "Settings")}
     </div>
   </div>
@@ -7408,8 +7405,6 @@ function vSettings() {
       <button data-a="theme"><span class="ic">${I.moon()}</span><span style="flex:1">Dark mode</span>
         <span class="switch ${isDark() ? "on" : ""}"><i></i></span></button>
       ${pushRow()}
-      <button data-a="switchRole"><span class="ic">${I.shop()}</span>
-        <span style="flex:1">Use Oma as a ${DB.role === "tech" ? "customer" : "nail tech"}</span>${I.chev()}</button>
       <button data-a="go" data-v="points"><span class="ic">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M6 4h12v5a6 6 0 0 1-12 0V4ZM18 5h2a2 2 0 0 1 0 4h-2M6 5H4a2 2 0 0 0 0 4h2"/></svg></span>
         <span style="flex:1">O points and the board</span>${I.chev()}</button>
@@ -10894,12 +10889,13 @@ document.getElementById("shell").addEventListener("click", e => {
     if (pickRole === "customer") { DB.me = DB.me || {}; dbSave(); return nav("home"); }
     return nav("setup");
   }
-  if (a === "switchRole") {
-    DB.role = DB.role === "tech" ? "customer" : "tech"; dbSave();
-    if (DB.role === "tech" && (!DB.biz || !DB.biz.name)) return nav("setup");
-    if (DB.role === "customer" && !DB.me) { DB.me = {}; dbSave(); }
-    return nav(DB.role === "tech" ? "requests" : "home");
-  }
+  // 22 Sep 2026, Kamsy: app.html is customer-only now and techapp.html is
+  // tech-only — crossing over doesn't exist any more, so this is retired to
+  // a no-op rather than deleted outright: the button that called it is gone
+  // from Settings (p7_views3.js), but if an old cached copy of a screen
+  // somewhere still renders it, tapping it does nothing instead of
+  // corrupting DB.role into a state this build was never built to show.
+  if (a === "switchRole") return;
 
   if (a === "gps") {
     // Techs only. A salon is a place and stays where it is; a customer moves,
@@ -11805,6 +11801,18 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
   if (APP_MODE === "tech") {
     if (DB.role !== "tech") { DB.role = "tech"; dbSave(); }
     ROUTE = { v: "requests", a: null };
+    paint();
+    return;
+  }
+  // 22 Sep 2026, Kamsy: "let it no longer be there — the original app only
+  // contain customers." Mirrors the tech branch above: app.html is now
+  // customer-only, the same way techapp.html is tech-only. No welcome/role
+  // picker, no way to end up on the tech dashboard even if this browser
+  // once used techapp.html. See the switchRole guard below too — the
+  // "become a nail tech" door in Settings is gone from both builds now.
+  if (APP_MODE === "customer") {
+    if (DB.role !== "customer") { DB.role = "customer"; dbSave(); }
+    ROUTE = { v: "home", a: null };
     paint();
     return;
   }
