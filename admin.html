@@ -229,11 +229,21 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
 .page{display:none}
 .page.on{display:block}
 @media (max-width:820px){
-  .shell{flex-direction:column}
-  .sidebar{position:static;height:auto;width:auto;flex-direction:row;
-    overflow-x:auto;padding:12px;gap:6px}
+  /* 22 Sep 2026: the bar looked cut off, not scrollable — .shell was still
+     align-items:flex-start (set above, for the desktop sidebar), which lets
+     a flex column's children size to their own content instead of the
+     viewport. The row of buttons was simply wider than the phone and had
+     no width to scroll WITHIN — the whole page shifted sideways instead,
+     which is why "Control" ran off the edge with nothing to swipe.
+     align-items:stretch plus a real width:100% on the bar gives overflow-x
+     something to clip to, so the buttons scroll inside their own strip and
+     the page itself stays put. */
+  .shell{flex-direction:column;align-items:stretch}
+  .sidebar{position:static;height:auto;width:100%;flex-direction:row;
+    overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;padding:12px;gap:6px}
   .sidebar .mark{display:none}
-  .navbtn{width:auto;white-space:nowrap;padding:9px 13px}
+  .navbtn{width:auto;flex:none;white-space:nowrap;padding:9px 13px}
 }
 
 /* ── bookings page ── */
