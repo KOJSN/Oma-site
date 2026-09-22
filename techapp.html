@@ -1380,7 +1380,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "8765196131";
+const BUILD_ID = "99af4aa8ae";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -9893,6 +9893,1799 @@ function findFor(text) {
   nav("salons");
   const el = document.getElementById("qFind");
   if (el) { el.focus(); el.setSelectionRange(FQ.length, FQ.length); }
+}
+
+/* ══ ratings and reviews ═════════════════════════════
+   Search could find a customer twenty nail techs and tell her nothing about
+   which of them are any good. This is that missing half.
+
+   Two rules, decided by Kamsy, and the whole design follows from them:
+
+     * only after a COMPLETED appointment — one where the tech scanned the QR
+       code and the money was released
+     * stars, and words only if she wants to write any
+
+   The first rule is what makes this trustworthy without a moderation queue.
+   `released` cannot be faked from a phone: it needs the customer's one-time
+   code, scanned by that specific tech, which is the same moment the tech got
+   paid. A tech cannot rate herself and a rival cannot bomb her. The escrow
+   was already doing this work; reviews just lean on it.
+
+   The honest cost: a new tech has no reviews, and these screens say exactly
+   that rather than showing four grey stars or a hopeful "New!". */
+
+/* ── drawing stars ───────────────────────────────────
+   Half a star matters: 4.5 shown as four is a tech losing a rating she
+   earned, and shown as five is a customer being misled. */
+function starSvg(fill) {
+  const id = "sg" + Math.random().toString(36).slice(2, 8);
+  const path = "M12 3.6l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 17l-5.25 2.75 1-5.85"
+             + "L3.5 9.75l5.9-.85z";
+  if (fill >= 0.99) {
+    return `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"
+      ><path d="${path}" fill="currentColor"/></svg>`;
+  }
+  if (fill <= 0.01) {
+    return `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"
+      ><path d="${path}" fill="none" stroke="currentColor" stroke-width="1.6"
+       opacity=".45"/></svg>`;
+  }
+  return `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+    <defs><linearGradient id="${id}">
+      <stop offset="${fill * 100}%" stop-color="currentColor"/>
+      <stop offset="${fill * 100}%" stop-color="transparent"/>
+    </linearGradient></defs>
+    <path d="${path}" fill="url(#${id})"/>
+    <path d="${path}" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".45"/>
+  </svg>`;
+}
+
+function starsHtml(n) {
+  const v = Math.max(0, Math.min(5, Number(n) || 0));
+  let out = "";
+  for (let i = 1; i <= 5; i++) out += starSvg(Math.max(0, Math.min(1, v - i + 1)));
+  return `<span class="stars" role="img" aria-label="${v.toFixed(1)} out of 5"
+    style="display:inline-flex;gap:1px;color:var(--pink);vertical-align:-2px">${out}</span>`;
+}
+
+/* The count is never dropped. "5.0" from one appointment and "4.6" from forty
+   are different facts, and a line that shows only the first lies by omission
+   in the direction that flatters whoever has fewest reviews. */
+function ratingLine(r) {
+  if (!r || !r.reviews) {
+    return `<span class="tiny faint">No reviews yet</span>`;
+  }
+  const n = Number(r.stars);
+  return `${starsHtml(n)} <b style="font-size:12.5px">${n.toFixed(1)}</b>
+    <span class="tiny faint">(${r.reviews})</span>`;
+}
+
+/* ── filling scores into a list that is already on screen ──
+   api_search and api_nearby deliberately do not carry the score. One call for
+   a whole screen is a round trip; redefining their return types in a second
+   SQL file would have meant whichever file ran last silently won. That trade
+   was made once today already, the expensive way.
+
+   Rendered after the list, never before it: a screen that waits for ratings
+   to show results would be slower for a feature that is decoration until she
+   is actually choosing. */
+let RATESEQ = 0;
+async function fillRatings(ids) {
+  const mine = ++RATESEQ;
+  if (!ids || !ids.length) return;
+  let rows;
+  try { rows = await API.ratings(ids); } catch (e) { return; }  // silent: no score is not an error
+  if (mine !== RATESEQ) return;
+  const by = {};
+  (rows || []).forEach((r) => { by[r.tech_id] = r; });
+  ids.forEach((id) => {
+    const slot = document.querySelector(`[data-rating="${cssEsc(id)}"]`);
+    if (slot) slot.innerHTML = ratingLine(by[id]);
+  });
+}
+
+/* An id goes into a CSS selector, so anything that could end an attribute has
+   to be handled. Ids are uuids today; that is not a reason to write a
+   selector that breaks the day they are not. */
+function cssEsc(s) {
+  return String(s).replace(/["\\]/g, "\\$&");
+}
+
+/* The empty box a row leaves for its score. */
+function ratingSlot(id) {
+  return `<span data-rating="${esc(id)}" class="tiny faint">·</span>`;
+}
+
+/* ── the reviews on a tech's page ────────────────────── */
+function reviewsBlock(list, r) {
+  if (!list || !list.length) {
+    return `<div class="lbl mt16">Reviews</div>
+      <div class="empty"><b>No reviews yet</b>
+        Only customers who have actually been to an appointment here can leave
+        one, so a new nail tech starts with none.</div>`;
+  }
+  return `
+    <div class="lbl mt16">Reviews</div>
+    <div class="tiny faint" style="margin:-4px 0 10px">${ratingLine(r)} · only from
+      customers who completed an appointment here</div>
+    <div class="stack gap12">
+      ${list.map((v) => `
+        <div class="card" style="display:block">
+          <div class="rowbetween">
+            <div>${starsHtml(v.stars)}</div>
+            <div class="tiny faint">${esc(whenShort(v.created_at))}</div>
+          </div>
+          ${v.words ? `<div style="margin-top:8px;line-height:1.5">${esc(v.words)}</div>` : ""}
+          <div class="tiny faint" style="margin-top:8px">${esc(v.who || "Someone")}</div>
+        </div>`).join("")}
+    </div>`;
+}
+
+function whenShort(ts) {
+  const d = new Date(ts);
+  if (isNaN(d)) return "";
+  const days = Math.floor((Date.now() - d) / 864e5);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 30) return days + " days ago";
+  return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+}
+
+/* ── leaving one ─────────────────────────────────────── */
+/* Held outside the view so tapping a star does not have to survive a repaint
+   of the whole screen — the stars are redrawn on their own. */
+let RATING = { booking: null, stars: 0, words: "", name: "", saving: false };
+
+function drawStars() {
+  const box = document.getElementById("rateStars");
+  if (!box) return;
+  box.innerHTML = [1, 2, 3, 4, 5].map((i) => `
+    <button class="starbtn" data-a="rate-star" data-n="${i}"
+      aria-label="${i} star${i === 1 ? "" : "s"}"
+      style="background:none;border:0;padding:6px 4px;cursor:pointer;color:${
+        i <= RATING.stars ? "var(--pink)" : "currentColor"};${
+        i <= RATING.stars ? "" : "opacity:.35"}">
+      <svg viewBox="0 0 24 24" width="34" height="34"><path
+        d="M12 3.6l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 17l-5.25 2.75 1-5.85L3.5 9.75l5.9-.85z"
+        fill="${i <= RATING.stars ? "currentColor" : "none"}"
+        stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+    </button>`).join("");
+  const w = document.getElementById("rateWord");
+  if (w) {
+    w.textContent = ["", "Poor", "Not great", "Fine", "Good", "Excellent"][RATING.stars] || "";
+  }
+  const go = document.getElementById("rateSave");
+  // Words are optional; stars are not. A review with no stars is not a review.
+  if (go) go.disabled = !RATING.stars || RATING.saving;
+}
+
+function setStars(n) {
+  RATING.stars = Number(n) || 0;
+  drawStars();
+}
+
+function vReview(bookingId) {
+  load(async () => {
+    let mine = null, b = null;
+    try {
+      const [r, list] = await Promise.all([
+        API.myReview(bookingId).catch(() => null),
+        API.bookings(true).catch(() => []),
+      ]);
+      mine = r;
+      b = (list || []).find((x) => x.id === bookingId);
+    } catch (e) { /* the form still works; it just cannot prefill */ }
+
+    if (b && b.status !== "released") {
+      return fillHost(`<div class="pad"><div class="note warn"><div>
+        <b>This appointment is not finished yet.</b> You can leave a review once
+        the nail tech has scanned your code — that is the moment she gets paid,
+        and it is what makes a review here impossible to fake.</div></div></div>`);
+    }
+
+    RATING = { booking: bookingId, stars: mine ? mine.stars : 0,
+               words: (mine && mine.words) || "",
+               name: (b && b.tech && b.tech.business_name) || "", saving: false };
+
+    fillHost(`
+      <div class="pad">
+        <div class="card" style="display:block;text-align:center;padding:20px 16px">
+          <div style="font-weight:800;font-size:17px">${
+            RATING.name ? `How was ${esc(RATING.name)}?` : "How was it?"}</div>
+          <div id="rateStars" style="display:flex;justify-content:center;margin-top:10px"></div>
+          <div id="rateWord" class="tiny" style="font-weight:700;height:16px"></div>
+        </div>
+        <div class="lbl mt16">Anything you want to add?</div>
+        <textarea id="rateWords" rows="4" maxlength="600"
+          placeholder="Optional — what was good, what was not."
+          style="width:100%">${esc(RATING.words)}</textarea>
+        <div class="tiny faint" style="margin-top:6px">Your first name and the
+          initial of your surname are shown with it. Nothing else.</div>
+        <button class="btn mt16" id="rateSave" data-a="rate-save" disabled>${
+          mine ? "Update my review" : "Post my review"}</button>
+        ${mine ? `<div class="tiny faint" style="text-align:center;margin-top:10px">
+          You reviewed this on ${esc(whenShort(mine.created_at))}. Saving replaces it.
+        </div>` : ""}
+      </div>`);
+    drawStars();
+  });
+  return head("Rate your appointment", "Only you can see this screen") + host();
+}
+
+async function saveReview() {
+  if (RATING.saving || !RATING.stars) return;
+  const box = document.getElementById("rateWords");
+  RATING.words = box ? box.value : "";
+  RATING.saving = true; drawStars();
+  try {
+    await API.leaveReview(RATING.booking, RATING.stars, RATING.words);
+  } catch (e) {
+    RATING.saving = false; drawStars();
+    return toast((e && e.message) || "That review could not be saved.");
+  }
+  RATING.saving = false;
+  toast("Thank you — that helps the next person choose.");
+  nav("bookings");
+}
+
+/* ── the nudge ───────────────────────────────────────
+   Shown on the bookings screen for appointments that are finished and not yet
+   rated. Not a popup, not on startup: it sits in the list she already came to
+   look at, next to the appointment it is about. */
+async function reviewNudge() {
+  let list;
+  try { list = await API.reviewable(); } catch (e) { return; }
+  const slot = document.getElementById("rateNudge");
+  if (!slot || !list || !list.length) return;
+  const one = list[0];
+  slot.innerHTML = `
+    <button class="card row" data-a="rate-open" data-id="${esc(one.booking_id)}"
+      style="width:100%">
+      <div class="ic">${starSvg(1)}</div>
+      <div style="flex:1;min-width:0;text-align:left">
+        <div class="ttl">Rate ${esc(one.business_name || "your appointment")}</div>
+        <div class="tiny sub">${list.length > 1
+          ? `${list.length} appointments are waiting for a review`
+          : "It takes one tap"}</div>
+      </div>
+      ${I.chev()}
+    </button>`;
+}
+
+/* ══ reporting a person ══════════════════════════════════════════════
+   Kamsy, 10 Sep 2026: a way for either side to report the other, with a
+   video, "for tech safety and customer safety".
+
+   Two decisions inside this screen.
+
+   The VIDEO IS OPTIONAL. Somebody who has just been assaulted, or had her
+   phone taken, or is frightened and shaking, often cannot record anything.
+   If a video were the only way to file, the worst incidents would be the
+   ones that never got reported. The words are the report; the video is
+   evidence attached when there is one.
+
+   And it does NOT promise justice. Oma can suspend an account, freeze a
+   payout, refund, and keep the evidence where nobody can delete it. It
+   cannot decide whether a crime happened, and telling somebody it will
+   look into it can leave her feeling she has done the necessary thing
+   when she has not told anyone who can act.                             */
+let REPORT = { kind: "safety", busy: false, video: null, filed: null, booking: null };
+
+const REPORT_KINDS = [
+  ["safety",     "I felt unsafe"],
+  ["harassment", "Harassment"],
+  ["theft",      "Something was taken"],
+  ["no_show",    "Did not turn up"],
+  ["other",      "Something else"],
+];
+
+async function loadReport(bookingId) {
+  REPORT = { kind: "safety", busy: false, video: null, filed: null, booking: bookingId };
+  try { REPORT.filed = await API.myReport(bookingId); } catch (e) { /* none yet */ }
+  if (ROUTE.v === "report") paint();
+}
+
+function vReport(bookingId) {
+  if (REPORT.booking !== bookingId) { loadReport(bookingId); }
+  const f = REPORT.filed;
+
+  return `
+  ${head("Report a problem")}
+  <div class="pad">
+
+    ${f && f.filed ? `
+      <div class="note">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg>
+        <div><b>You already reported this appointment.</b> Oma has it${
+          f.has_video ? ", with your video" : ""}. Writing again below replaces
+          what you sent.</div>
+      </div>` : ""}
+
+    <div class="note warn">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v5M12 16v.1M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <div><b>If you are in danger, call the police first.</b> Oma is not an
+        emergency service. Report it here as well and we will act on the
+        account — but a crime is for the police, and this is not a substitute
+        for telling them.</div>
+    </div>
+
+    <div class="seehead" style="padding-left:0;padding-right:0"><h3>What happened</h3></div>
+    <div class="pills mb12">
+      ${REPORT_KINDS.map(([k, label]) => `
+        <button class="pill ${REPORT.kind === k ? "on" : ""}"
+                data-a="repKind" data-id="${k}">${label}</button>`).join("")}
+    </div>
+
+    <label class="field"><span class="lab">In your own words</span>
+      <textarea id="fReport" rows="6" placeholder="What happened, and when."
+        style="width:100%;resize:vertical">${esc((f && f.body) || "")}</textarea></label>
+
+    <div class="seehead" style="padding-left:0;padding-right:0"><h3>A video, if you have one</h3></div>
+    <div class="card">
+      ${REPORT.video ? `
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="ic" style="width:34px;height:34px;border-radius:11px;background:var(--tint);display:flex;align-items:center;justify-content:center;color:var(--pinkd)">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 10l5-3v10l-5-3M3 7h12v10H3z"/></svg></span>
+          <span style="flex:1;min-width:0">
+            <span style="display:block;font-size:14.5px;font-weight:700">Video attached</span>
+            <span class="tiny sub">${Math.round(REPORT.video.size / 1e6)} MB</span>
+          </span>
+          <button class="tag" data-a="repDropVideo">Remove</button>
+        </div>` : `
+        <label class="btn sm ghost" style="width:100%;justify-content:center">
+          <input type="file" accept="video/*" id="fRepVideo" hidden>
+          Choose a video
+        </label>
+        <div class="small sub" style="margin-top:10px;line-height:1.5">
+          Up to about a minute, 60 MB. <b>Optional</b> — a report without one
+          is still a report, and is read the same way.
+        </div>`}
+    </div>
+
+    <button class="btn danger mt16" data-a="sendReport"${REPORT.busy ? " disabled" : ""}>
+      ${REPORT.busy ? "Sending…" : "Send this to Oma"}</button>
+
+    <div class="small sub" style="margin-top:14px;line-height:1.55">
+      Only Oma sees this. The other person is never told who reported them and
+      never sees your video. Nobody can delete it afterwards — not them, not
+      you, not by accident.
+    </div>
+  </div>
+  <div style="height:24px"></div>`;
+}
+
+
+/* ══ what Oma charges, shown once it has been charged ══
+   ₦250 for every completed service, plus 2% of whatever a sale is ABOVE
+   ₦30,000. The tech pays it, and she pays the card fee too.
+
+   ── who sees the arithmetic, and when ───────────────────────────────
+
+   Kamsy, 8 Sep 2026: "don't let the customer see the breakdown of price, and
+   when a tech wants to set a price let her not see the breakdown — only
+   reveal it to a tech when she has been paid, so she can see why she won't
+   get the full money."
+
+   So the breakdown lives in exactly ONE place: her earnings, after the
+   appointment is done. Not in the price editor, where a running deduction
+   beside every box she types in makes setting a price feel like being taxed
+   in real time. Not on the customer's screen at all — what Oma takes from a
+   tech is between Oma and the tech, and a customer reading it learns nothing
+   she can act on.
+
+   The TERMS are still stated in the listing editor, in one sentence, because
+   a fee somebody has to be charged to discover is not a fee they agreed to.
+   Terms are not a breakdown; the difference is a number that moves as she
+   types versus a rule she can read once.
+
+   The database is the authority — api/fee.sql owns the rate, charges it with
+   a trigger when the QR is scanned, and records it. The two functions below
+   repeat the arithmetic so the receipt can be drawn without a round trip.
+
+   Two copies of a pricing rule is a real risk and it is taken deliberately.
+   t_fee.py pins the two together — the numbers here are checked against what
+   api_fee_quote returns, so the day the rate changes in SQL and not here, a
+   test fails instead of a tech being paid the wrong figure. */
+
+const OMA_FLAT_KOBO = 25000;        // ₦250
+const OMA_TIER_KOBO = 3000000;      // ₦30,000 — 2% applies above this
+const OMA_TIER_RATE = 0.02;
+
+/* Integer kobo, and rounded the same way the SQL rounds, or the app and the
+   database disagree about somebody's money by one kobo — which is a support
+   conversation nobody wants to have. */
+function omaFeeKobo(total) {
+  const t = Math.max(0, Math.round(Number(total) || 0));
+  let fee = OMA_FLAT_KOBO;
+  if (t > OMA_TIER_KOBO) {
+    fee += Math.round((t - OMA_TIER_KOBO) * OMA_TIER_RATE);
+  }
+  return Math.min(t, fee);          // never more than the sale itself
+}
+
+/* Paystack: 1.5% + ₦100, the ₦100 waived under ₦2,500, capped at ₦2,000.
+   Shown because the tech bears it. Hiding it would make Oma's ₦250 look like
+   the whole cost, and the difference turns up in her bank account instead. */
+function paystackFeeKobo(total) {
+  const t = Math.max(0, Math.round(Number(total) || 0));
+  const f = Math.round(t * 0.015) + (t >= 250000 ? 10000 : 0);
+  return Math.min(200000, f);
+}
+
+/* ── the receipt, and the only place the deductions appear ──────────
+   Drawn once the appointment is scanned and the money is hers. This is where
+   "why is it not the full ₦9,000" gets answered, in the one place where the
+   answer is a fact rather than a projection:
+
+       ₦9,000     Price
+        −₦250     Oma's fee
+        −₦235     Paystack
+       ₦8,515     You got
+
+   Deductions carry a real minus sign, not a hyphen, and the amounts are
+   right-aligned in a tabular font so the columns line up down the page
+   however many digits each number has. */
+function paidBill(row) {
+  const line = (label, amount, opts) => `
+    <div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0${
+      opts && opts.rule ? ";margin-top:4px;padding-top:6px;border-top:1px solid var(--line)" : ""}">
+      <span${opts && opts.strong ? ' style="font-weight:800"' : ' class="faint"'}>${label}</span>
+      <span style="font-variant-numeric:tabular-nums${
+        opts && opts.strong ? ";font-weight:800" : ""}">${amount}</span>
+    </div>`;
+  return `
+    <div class="card" style="display:block">
+      <div class="tiny faint" style="margin-bottom:8px">${esc(whenShort(row.paid_at))}
+        ${row.travel_kobo ? "· she went to the client" : ""}</div>
+      <!-- On a home visit the price splits in two, because the fee lines
+           below apply to them differently: Oma charges on the services only,
+           Paystack on the whole card payment. Showing one "Price" line and
+           then a fee that is not a percentage of it is how a tech decides she
+           is being quietly shorted. -->
+      ${row.travel_kobo
+        ? line("Services", kobo(row.base_kobo)) + line("Travel and call-out", kobo(row.travel_kobo))
+        : ""}
+      ${line(row.travel_kobo ? "Client paid" : "Price", kobo(row.total_kobo),
+             row.travel_kobo ? { rule: true } : null)}
+      ${line("Oma's fee" + (row.travel_kobo ? " (on services)" : ""), "−" + kobo(row.oma_kobo))}
+      ${line("Paystack", "−" + kobo(row.paystack_kobo))}
+      ${line("You got", kobo(row.net_kobo), { strong: true, rule: true })}
+      <!-- The sentence, not just the columns. This screen exists because a
+           tech looking at ₦8,515 after quoting ₦9,000 deserves the reason in
+           words, once, rather than being left to work out the subtraction and
+           wonder whether she was short-changed. -->
+      <div class="tiny faint" style="margin-top:8px">
+        ${kobo(row.total_kobo)} came in; ${kobo(Number(row.oma_kobo) + Number(row.paystack_kobo))}
+        went to Oma and the card, so ${kobo(row.net_kobo)} is yours.</div>
+    </div>`;
+}
+
+/* Filled in after the wallet paints, like everything else that needs the
+   network. A tech with no completed appointments yet is told so plainly. */
+async function drawEarnings() {
+  const slot = document.getElementById("paidList");
+  if (!slot) return;
+  let rows;
+  try { rows = await API.earnings(30); } catch (e) { return; }
+  if (!rows || !rows.length) {
+    slot.innerHTML = `<div class="empty"><b>No completed appointments yet</b>
+      Once you scan a client's code, what she paid and what you kept appears
+      here, appointment by appointment.</div>`;
+    return;
+  }
+  const took = rows.reduce((a, r) => a + Number(r.oma_kobo || 0), 0);
+  const got = rows.reduce((a, r) => a + Number(r.net_kobo || 0), 0);
+  slot.innerHTML = `
+    <div class="lbl mt16">Past payments</div>
+    <div class="tiny faint" style="margin:-4px 0 10px">${rows.length} appointment${
+      rows.length === 1 ? "" : "s"} · you kept ${kobo(got)} · Oma ${kobo(took)}</div>
+    <div class="stack gap12">${rows.map(paidBill).join("")}</div>`;
+}
+
+/* There is deliberately nothing here that runs while she is typing a price.
+   That used to be a receipt under every box, recalculating on each keystroke.
+   It was accurate and it was the wrong screen for it: setting a price is when
+   a tech is deciding what she is worth, and a deduction counting itself out
+   beside her while she does that is a thing to remove, not to polish. */
+
+/* ══ WORKING, AND WHERE ════════════════════════════════════════════════
+   For the nail tech who has no shop.
+
+   Kamsy, 8 Sep 2026: "not all nail techs have a store, so before the tech
+   fills her form let her confirm she has a salon or not; if she doesn't, let
+   her location be tracked for her to be visible."
+
+   A salon is a place. A tech who works out of a bag is not: she is wherever
+   she is this afternoon, and a pin she dropped last week is a lie that costs
+   a customer a taxi fare. So she gets a HEARTBEAT instead of a pin — her
+   phone says where she is while she is working, and live.sql shows her for as
+   long as that heartbeat is fresh. Stop working and she leaves the map,
+   rather than sitting on it, wrong.
+
+   ── the honest shape of "24/7" ───────────────────────────────────────
+
+   A WEB PAGE CANNOT FOLLOW ANYBODY AROUND IN THE BACKGROUND. The moment she
+   locks her phone or switches app, iOS and Android suspend the page and
+   watchPosition stops. There is no flag, permission or trick that changes
+   that; anyone who says otherwise is describing a native app.
+
+   So this file has two halves that do the same job at different depths:
+
+     ON THE WEB (today)      watchPosition while the app is open and visible,
+                             plus a renewal tick so a tech standing still
+                             still counts as here. She is visible for 45
+                             minutes after her last fix, which covers a phone
+                             in a pocket through one appointment.
+
+     IN THE APP (App Store)  the native wrapper keeps CoreLocation /
+                             FusedLocationProvider running with the app in the
+                             background and calls window.OmaLive.position(...)
+                             here. Everything downstream — the throttle, the
+                             API call, what the screen says — is the same code.
+                             See ios/BACKGROUND-LOCATION.md.
+
+   The bridge is deliberately the whole of the difference. When the wrapper
+   ships, no screen and no server function changes; a wrapper that is not
+   there simply never calls in, and the web half carries on alone.
+
+   ── what is never done ───────────────────────────────────────────────
+
+   No trail. Each heartbeat overwrites the last, here and in the database.
+   Oma holds WHERE SHE IS, never WHERE SHE HAS BEEN — a record of a woman's
+   movements is a far more dangerous thing to keep than a current position,
+   it is not needed to put her on a map, and the reliable way not to leak it
+   is not to have it.
+
+   Nothing here runs for a customer, ever. A customer's position is asked of
+   her phone when a screen needs a distance and then dropped.               */
+
+const LIVE = {
+  on: false,        // she has said she is working
+  watch: null,      // navigator.geolocation.watchPosition id
+  tick: null,       // the renewal timer
+  last: null,       // { lat, lng, at } — the last fix we SENT
+  liveAt: null,     // what the SERVER said, not what we hoped
+  err: null,        // the last refusal, in her words
+  src: "web",       // or "ios" / "android" once a wrapper is calling in
+  native: false,    // a wrapper answered when we asked
+};
+
+// A fix is worth sending when she has moved 25 m, or when four minutes have
+// passed and the freshness itself needs renewing. Both are well inside
+// live.sql's 45-minute window, so a missed send is never a disappearance.
+const LIVE_MOVE_M = 25;
+const LIVE_RENEW_MS = 240000;
+const LIVE_MIN_GAP_MS = 20000;      // never more than three sends a minute
+const LIVE_KEY = "oma-working";     // she was working when the app last closed
+
+function metresApart(a, b) {
+  if (!a || !b) return Infinity;
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
+  const s = Math.sin(dLat / 2) ** 2
+          + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(s));
+}
+
+/* ── the one place a position goes to the server ────────────────────
+   Every source — the web watcher, the renewal tick, the native wrapper —
+   comes through here, so the throttle cannot be bypassed by adding a fourth
+   source later. */
+async function liveSend(lat, lng, acc, src) {
+  if (!LIVE.on) return;
+  if (!Number.isFinite(+lat) || !Number.isFinite(+lng)) return;
+  const now = { lat: +lat, lng: +lng, at: Date.now() };
+  if (src) { LIVE.src = src; LIVE.native = src !== "web"; }
+
+  if (LIVE.last) {
+    const since = now.at - LIVE.last.at;
+    if (since < LIVE_MIN_GAP_MS) return;                 // too soon, whatever moved
+    if (metresApart(LIVE.last, now) < LIVE_MOVE_M && since < LIVE_RENEW_MS) return;
+  }
+
+  try {
+    const r = (await API.pingPosition(now.lat, now.lng, acc))[0] || {};
+    LIVE.last = now;
+    LIVE.liveAt = r.live_at || null;
+    LIVE.err = null;
+  } catch (e) {
+    // Her screen must not claim she is visible because we sent something. It
+    // says visible only when the SERVER said so.
+    LIVE.err = (e && e.message) || "Could not reach Oma";
+  }
+  paintWorking();
+}
+
+/* ── the web half ───────────────────────────────────────────────────── */
+function liveWatchStart() {
+  if (LIVE.watch !== null || !navigator.geolocation) return;
+  LIVE.watch = navigator.geolocation.watchPosition(
+    (p) => liveSend(p.coords.latitude, p.coords.longitude,
+                    Math.round(p.coords.accuracy || 0), "web"),
+    (e) => {
+      LIVE.err = e && e.code === 1
+        ? "Location is off for Oma, so customers cannot see you."
+        : "No fix yet — outdoors, or with Wi-Fi on, usually does it.";
+      paintWorking();
+    },
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 15000 },
+  );
+  // watchPosition fires when she MOVES. A tech doing somebody's nails for an
+  // hour does not move, and without this she would quietly expire mid-
+  // appointment. The tick re-sends the same position to renew the freshness.
+  if (!LIVE.tick) {
+    LIVE.tick = setInterval(() => {
+      if (!LIVE.on) return;
+      if (LIVE.last) return liveSend(LIVE.last.lat, LIVE.last.lng, null, LIVE.src);
+      whereAmI().then((p) => { if (!p.guessed) liveSend(p.lat, p.lng, p.acc, "web"); });
+    }, LIVE_RENEW_MS);
+  }
+}
+
+function liveWatchStop() {
+  if (LIVE.watch !== null && navigator.geolocation) {
+    try { navigator.geolocation.clearWatch(LIVE.watch); } catch (e) { /* gone */ }
+  }
+  LIVE.watch = null;
+  if (LIVE.tick) { clearInterval(LIVE.tick); LIVE.tick = null; }
+}
+
+/* ── the native half ─────────────────────────────────────────────────
+   Two lines of contract, and the wrapper implements whichever side it is.
+   Absent — which is every browser today — these do nothing at all. */
+function nativeBridge() {
+  try {
+    if (window.webkit && webkit.messageHandlers && webkit.messageHandlers.omaLocation) {
+      return { post: (m) => webkit.messageHandlers.omaLocation.postMessage(m), kind: "ios" };
+    }
+    if (window.OmaAndroid && typeof OmaAndroid.setBackgroundLocation === "function") {
+      return { post: (m) => OmaAndroid.setBackgroundLocation(JSON.stringify(m)), kind: "android" };
+    }
+  } catch (e) { /* a wrapper that half-exists is the same as none */ }
+  return null;
+}
+
+function nativeSay(on) {
+  const b = nativeBridge();
+  if (!b) return false;
+  try {
+    b.post({ action: on ? "start" : "stop", minMetres: LIVE_MOVE_M,
+             minSeconds: Math.round(LIVE_RENEW_MS / 1000) });
+    LIVE.native = true;
+    return true;
+  } catch (e) { return false; }
+}
+
+/* What the wrapper calls, from CoreLocation's didUpdateLocations or Android's
+   LocationCallback, with the app in the background. This is the ONLY entry
+   point it needs, and it is the same funnel the web watcher uses. */
+window.OmaLive = {
+  position(lat, lng, acc, src) {
+    return liveSend(lat, lng, acc, src || "native");
+  },
+  // The wrapper asks this on launch so it knows whether to start CoreLocation
+  // at all — a nail tech who is not working should not be tracked.
+  wanted() { return !!LIVE.on; },
+  // The wrapper calls this when the phone refuses. Her screen must say so
+  // rather than showing a switch that is on and a listing nobody can find.
+  denied(why) {
+    LIVE.err = why === "denied"
+      ? "Location is off for Oma in your device's settings, so customers "
+        + "cannot see you."
+      : "Oma cannot get your position right now.";
+    paintWorking();
+  },
+  version: 1,
+};
+
+/* ── on and off ─────────────────────────────────────────────────────── */
+async function liveStart() {
+  LIVE.on = true; LIVE.err = null;
+  try { localStorage.setItem(LIVE_KEY, "1"); } catch (e) { /* private mode */ }
+  liveWatchStart();
+  nativeSay(true);
+  paintWorking();
+  // Send one immediately rather than waiting for the first movement, so she is
+  // on the map the moment she says she is working.
+  const p = await whereAmI();
+  if (p.guessed) {
+    LIVE.err = p.why === "denied"
+      ? "Location is off for Oma, so customers cannot see you."
+      : "No fix yet — Oma will keep trying.";
+    return paintWorking();
+  }
+  LIVE.last = null;                       // never throttle the first one
+  return liveSend(p.lat, p.lng, p.acc, LIVE.native ? LIVE.src : "web");
+}
+
+async function liveStop() {
+  LIVE.on = false;
+  try { localStorage.removeItem(LIVE_KEY); } catch (e) { /* private mode */ }
+  liveWatchStop();
+  nativeSay(false);
+  LIVE.last = null;
+  try {
+    const r = (await API.goOffline())[0] || {};
+    LIVE.liveAt = r.live_at || null;
+  } catch (e) { LIVE.err = (e && e.message) || "Could not reach Oma"; }
+  paintWorking();
+}
+
+function toggleWorking() {
+  return LIVE.on ? liveStop() : liveStart();
+}
+
+/* Called once by boot(), and again whenever she signs in. Picks the working
+   switch back up where she left it — but only after ASKING THE SERVER whether
+   she is actually a travelling tech, because a salon must never start
+   broadcasting. */
+async function liveResume() {
+  if (!API.signedIn()) return;
+  let p;
+  try { p = (await API.myPresence())[0]; } catch (e) { return; }
+  if (!p || p.has_salon) return;                 // a shop does not move
+  LIVE.liveAt = p.live_at || null;
+  let wanted = false;
+  try { wanted = localStorage.getItem(LIVE_KEY) === "1"; } catch (e) { /* private */ }
+  // Fresh on the server counts as working even if this phone forgot — she may
+  // have switched device, and the map already has her.
+  if (wanted || p.visible) return liveStart();
+  paintWorking();
+}
+
+/* ── what she sees ──────────────────────────────────────────────────── */
+function agoWords(iso) {
+  if (!iso) return null;
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return "just now";
+  if (s < 3600) return Math.round(s / 60) + " min ago";
+  return Math.round(s / 3600) + " hr ago";
+}
+
+function workingCard() {
+  const seen = agoWords(LIVE.liveAt);
+  const on = LIVE.on && !!LIVE.liveAt && !LIVE.err;
+  return `<div class="card work${on ? " on" : ""}" id="workCard">
+    <div class="rowbetween">
+      <div style="min-width:0">
+        <div style="font-weight:800;letter-spacing:-.02em">
+          ${on ? "Customers can see you" : "You are off the map"}</div>
+        <div class="tiny faint" style="margin-top:3px">
+          ${LIVE.err ? esc(LIVE.err)
+            : on ? `Your position updated ${esc(seen || "just now")}. Oma shows
+                    where you are now, and keeps no record of where you have been.`
+                 : `Turn this on when you start work. Nobody can find you while
+                    it is off, and Oma is not watching you.`}</div>
+      </div>
+      <button class="switch${LIVE.on ? " on" : ""}" data-a="work-toggle"
+              role="switch" aria-checked="${LIVE.on ? "true" : "false"}"
+              aria-label="Working now"><i></i></button>
+    </div>
+    ${LIVE.on && !LIVE.native ? `<div class="tiny faint" style="margin-top:9px">
+      Keep Oma open while you work. A website cannot follow you once the device
+      is locked — the Oma app from the App Store will, and this switch is what
+      it uses.</div>` : ""}
+  </div>`;
+}
+
+/* Repaint the one card in place. paint() would rebuild the whole screen and
+   throw away a half-typed price. */
+function paintWorking() {
+  const el = document.getElementById("workCard");
+  if (!el) return;
+  const box = document.createElement("div");
+  box.innerHTML = workingCard();
+  el.replaceWith(box.firstElementChild);
+}
+
+/* A page that is hidden is a page whose watchPosition has probably been
+   suspended. Ask again the moment she comes back, so her first look at the
+   screen is not a stale "updated 40 min ago". */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !LIVE.on) return;
+  whereAmI().then((p) => { if (!p.guessed) liveSend(p.lat, p.lng, p.acc, LIVE.src); });
+});
+
+/* ══ "Track my location" — the More screen ════════════════════════════
+   Kamsy, 16 Sep 2026: "add a track location button in the more screen for
+   both customers and techs."
+
+   One row, in one place, doing two different things — because a customer
+   and a tech are placed by Oma in two different ways, and a single switch
+   that pretended otherwise would be a lie on one of the two screens.
+
+   A TECH IS ON THE MAP. Her row is the working switch: the same LIVE
+   heartbeat, the same 45-minute window, surfaced where she was told to
+   look for it instead of only on her listing. Off takes her off the map
+   at once.
+
+   A CUSTOMER IS NEVER ON THE MAP and is never stored — that rule is from
+   3 Sep and has not moved. What her row turns on is her *browser's*
+   permission, so the distances she is shown are real ones. There is
+   nothing inside Oma to switch off, only something to grant or refuse in
+   the browser, so the row reports the permission, asks for it, and says
+   plainly that nothing is kept. A switch here would imply Oma holds
+   something it could release, and it holds nothing.
+
+   A SALON GETS NEITHER. It has an address; it does not move. Offering a
+   shop a tracking switch invites her to turn on something the server will
+   refuse anyway (live.sql rejects a heartbeat for a salon), and a control
+   that cannot work is worse than no control.                            */
+let PRESENCE = null;    // { has_salon, live_at, visible } — asked once
+let GEOPERM  = null;    // "granted" | "denied" | "prompt" | "unknown"
+
+async function loadPresence() {
+  if (PRESENCE || !API.signedIn()) return PRESENCE;
+  try { PRESENCE = (await API.myPresence())[0] || {}; }
+  catch (e) { PRESENCE = { error: (e && e.message) || "Could not reach Oma" }; }
+  if (ROUTE.v === "more") paint();
+  return PRESENCE;
+}
+function forgetPresence() { PRESENCE = null; }
+
+/* The Permissions API is not everywhere — Safari came to it late and some
+   private modes withhold it. When it is missing the honest answer is
+   "unknown", and the row invites a tap rather than announcing "off" about
+   a permission that may well already be granted. */
+async function loadGeoPerm() {
+  if (GEOPERM) return GEOPERM;
+  try {
+    if (!navigator.permissions || !navigator.permissions.query) GEOPERM = "unknown";
+    else {
+      const s = await navigator.permissions.query({ name: "geolocation" });
+      GEOPERM = s.state;
+      // She may change it in browser settings while Oma is open. Without
+      // this the row keeps showing the answer it got at first paint.
+      s.onchange = () => { GEOPERM = s.state; if (ROUTE.v === "more") paint(); };
+    }
+  } catch (e) { GEOPERM = "unknown"; }
+  if (ROUTE.v === "more") paint();
+  return GEOPERM;
+}
+
+/* Asking for a position IS the prompt — a page cannot raise the browser's
+   permission dialog any other way. So ask, then re-read the permission
+   rather than assuming the answer, because she may have dismissed it. */
+async function askGeo() {
+  const p = await whereAmI();
+  GEOPERM = null;
+  await loadGeoPerm();
+  if (p.guessed && p.why === "denied" && GEOPERM !== "granted") GEOPERM = "denied";
+  if (ROUTE.v === "more") paint();
+}
+
+async function trackToggle() {
+  if (DB.role !== "tech") {
+    await loadGeoPerm();
+    // Already granted: this switch cannot touch the browser's own answer,
+    // so it flips Oma's own opt-out instead — off stops whereAmI() from
+    // ever asking, on lets it ask again without re-prompting a permission
+    // she has already given.
+    if (GEOPERM === "granted") {
+      setGeoOptOut(!geoOptedOut());
+      if (ROUTE.v === "more") paint();
+      return;
+    }
+    // Not granted yet (or denied): the only thing tapping can do is ask.
+    return askGeo();
+  }
+  const p = (await loadPresence()) || {};
+  if (p.has_salon) return;                  // a shop does not move
+  await toggleWorking();
+  PRESENCE = null; loadPresence();
+  paint();
+}
+
+/* ══ SHE COMES TO YOU ══════════════════════════════════════════════════
+   Home appointments — the price, the address, and the tech's own settings.
+
+   Kamsy, 8 Sep 2026: "sometimes users are lazy and don't want to go out, so
+   let the nail techs come to them, and that costs money — base price + 3000 +
+   transport fare at 1,300 per km, or the nail tech customizes her own
+   standard price."
+
+   ── the one number that matters ─────────────────────────────────────
+
+   Nothing on this page decides what anything costs. Every figure below comes
+   back from api_home_quote in home.sql, computed from the tech's own row
+   against her real coordinates — which never leave the database. A fare the
+   phone works out is a fare the phone can change, and the distance cannot
+   even be measured here: the app only ever sees her hexagon.
+
+   So this file asks, shows, and books. It does not calculate.
+
+   ── what the customer is shown ──────────────────────────────────────
+
+   Kamsy, 8 Sep 2026: "don't let the customer see the breakdown of price."
+
+   ONE NUMBER, and a sentence saying what is in it:
+
+       She comes to you
+       ₦28,250
+       Includes her call-out and the trip to you.
+
+   Not "₦9,000 + ₦3,000 + ₦16,250". The itemised version was defensible —
+   it showed her exactly where the money went — but it also invited an
+   argument with each line in turn, and the fare is the tech's, not something
+   a customer can negotiate down. A price is a price. What she needs is the
+   figure, an honest word about what it covers, and the other option to
+   compare it against.
+
+   The two prices sit side by side, because a number with nothing beside it
+   is just a number, and a customer who cannot see that going to the salon
+   costs less is being quietly steered.
+
+   Nothing about OMA'S fee appears here at all. What Oma takes from a tech is
+   between Oma and the tech, and a customer reading it learns nothing she can
+   act on.                                                                */
+
+/* Where this appointment happens. Reset whenever a tech is chosen, because
+   "she comes to me" is not a thing to carry over to a different tech. */
+/* Her identity, asked once and remembered for the screen. Null means we
+   have not looked yet, which is not the same as "not verified" — drawing
+   the refusal before the answer arrives would accuse her of something the
+   app has not checked. */
+let IDENT = null;
+
+async function loadIdentity() {
+  if (IDENT) return IDENT;
+  try { IDENT = await API.myIdentity(); }
+  catch (e) { IDENT = { kyc: "none", verified: false, error: e.message }; }
+  // Three screens ask this now — the home-service gate, More, and the
+  // verify screen itself — so repaint whichever is actually open. The
+  // first version always called paintHome(), which on any other screen
+  // either did nothing or redrew a hidden one.
+  if (ROUTE.v === "home") paintHome(); else paint();
+  return IDENT;
+}
+
+/* Called after a check comes back, so the next screen asks the server
+   again instead of showing the answer from before she verified. Also called
+   on every sign-in/out — LISTING_LINK (p7_views3.js) is account-bound too,
+   and a stale one from whoever used this device last must never survive a
+   switch of accounts. */
+function forgetIdentity() {
+  IDENT = null;
+  if (typeof LISTING_LINK !== "undefined") LISTING_LINK = null;
+}
+
+let HOME = {
+  at: false,        // she comes to me
+  addr: "",         // the street, typed
+  pos: null,        // { lat, lng } — her phone, asked fresh
+  quote: null,      // whatever the server last said
+  asking: false,
+};
+
+function resetHome() { HOME = { at: false, addr: "", pos: null, quote: null, asking: false }; }
+
+/* ── asking for a quote ──────────────────────────────────────────────
+   Position first, because there is no fare without one, and a refused
+   permission has to say so rather than leaving the screen half-drawn. */
+async function askHomeQuote() {
+  if (HOME.asking) return;
+  HOME.asking = true;
+  paintHome();
+  try {
+    if (!HOME.pos) {
+      const p = await whereAmI();
+      if (p.guessed) {
+        HOME.quote = { ok: false, why: "no_position",
+          says: p.why === "denied"
+            ? "Oma needs your location to work out the travel. Turn it on for "
+              + "this site and try again."
+            : p.why === "opted_out"
+            ? "You've turned off “Track my location” in More. Turn it back "
+              + "on to get a travel price."
+            : "Could not get a fix. Outdoors, or with Wi-Fi on, usually does it." };
+        return;
+      }
+      HOME.pos = { lat: p.lat, lng: p.lng };
+    }
+    HOME.quote = await API.homeQuote(PICKED.techId, PICKED.ids, HOME.pos.lat, HOME.pos.lng);
+  } catch (e) {
+    HOME.quote = { ok: false, why: "error", says: (e && e.message) || "Could not get a price." };
+  } finally {
+    HOME.asking = false;
+    paintHome();
+  }
+}
+
+/* ── the block on the "pick a time" screen ──────────────────────────── */
+function homeBlock(tech) {
+  // A tech who does not travel is not offered as one. Showing the choice and
+  // then refusing it is a worse screen than not showing it.
+  if (!tech || !tech.home_service) return "";
+  return `<div id="homeBlock">${homeInner()}</div>`;
+}
+
+function homeInner() {
+  const q = HOME.quote;
+  return `
+    <div class="lbl" style="margin-bottom:7px">Where</div>
+    <div class="pick">
+      <button type="button" class="${HOME.at ? "" : "on"}" data-a="home-where" data-v="0">
+        <b>I'll go to her</b><em>Her salon or wherever she is working.</em></button>
+      <button type="button" class="${HOME.at ? "on" : ""}" data-a="home-where" data-v="1">
+        <b>She comes to me</b><em>Costs more — a call-out and the travel.</em></button>
+    </div>
+    ${!HOME.at ? "" : (IDENT && !IDENT.verified ? `
+      <!-- The gate, said out loud rather than thrown as an error after she
+           has picked a time. A nail tech coming to a private address is the
+           one moment in Oma where the person taking the risk was, until now,
+           the only person who had been checked. -->
+      <div class="note warn">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/><path d="M12 11v3M12 8v.1"/></svg>
+        <div><b>Verify yourself first for home appointments.</b>
+          She is coming to your address alone. Oma checks her identity before
+          she can be listed, and it checks yours before she is asked to
+          travel — the same check, both ways.</div>
+      </div>
+      <div class="small sub" style="margin-top:10px;line-height:1.55">
+        It takes a minute and uses your <b>virtual NIN</b>, not your NIN.
+        Oma never stores the number. Booking at her salon needs none of this.
+      </div>
+      <button class="btn mt12" data-a="go" data-v="kyc">Verify my identity</button>`
+    : `
+      <label class="field"><span class="lab">Where should she come to?</span>
+        <span class="inp"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
+          <input id="hAddr" value="${esc(HOME.addr)}"
+                 placeholder="12 Herbert Macaulay Way, Flat 3"
+                 style="padding-right:36px">
+          <button type="button" data-a="home-locate" class="inp-icon" title="Use my current location"
+                  style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;padding:4px;cursor:pointer">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+          </button></span></label>
+      <div class="note" style="margin-top:-4px">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>
+        <div>She sees your <b>area</b> now and your <b>street only once you have
+          paid</b> — the same way you only get hers after booking.</div></div>
+      ${HOME.asking
+        ? `<div class="card"><div class="tiny sub">Working out the travel…</div></div>`
+        : q ? (q.ok ? homeBill(q) : `<div class="note warn"><div>${esc(q.says
+              || "She cannot come to you for this one.")}</div></div>`)
+            : ""}`)}`;
+}
+
+/* One number, not a bill. The comparison stays: it is not a breakdown of this
+   price, it is the OTHER price, and it is the only thing on the screen that
+   lets her decide rather than just accept. */
+function homeBill(q) {
+  return `<div class="card">
+    <div class="rowbetween" style="align-items:flex-end">
+      <div style="min-width:0">
+        <div class="tiny faint">She comes to you</div>
+        <div style="font-size:26px;font-weight:800;letter-spacing:-.03em;
+                    font-variant-numeric:tabular-nums">${kobo(q.total_kobo)}</div>
+      </div>
+      ${q.salon_kobo && q.salon_kobo !== q.total_kobo ? `<div style="text-align:right">
+        <div class="tiny faint">At her place</div>
+        <div style="font-weight:700;font-variant-numeric:tabular-nums">${kobo(q.salon_kobo)}</div>
+      </div>` : ""}
+    </div>
+    ${(q.callout_kobo || q.fare_kobo) ? `<div class="tiny faint" style="margin-top:8px">
+      Includes her call-out and the trip to you.</div>` : ""}
+  </div>`;
+}
+
+/* Repaint just this block. paint() would rebuild the screen and throw away a
+   half-typed address, which is exactly the sort of small cruelty that makes
+   people abandon a booking. */
+function paintHome() {
+  const el = document.getElementById("homeBlock");
+  if (!el) return;
+  const typed = document.getElementById("hAddr");
+  if (typed) HOME.addr = typed.value;
+  el.innerHTML = homeInner();
+}
+
+/* ── where am I going / where is she coming ──────────────────────────
+   One call, both sides. The server decides what each of them may see; this
+   only renders the answer. */
+function whereCard(w) {
+  if (!w || !w.at_home) return "";
+  const km = w.km == null ? "" : ` · ${Math.round(w.km * 10) / 10} km`;
+  return `<div class="card">
+    <div class="lbl">At the customer's place${esc(km)}</div>
+    ${w.address
+      ? `<div style="font-weight:600;margin-top:4px">${esc(w.address)}</div>`
+      : `<div style="font-weight:600;margin-top:4px">${esc(w.area || "Her area")}</div>
+         <div class="tiny faint" style="margin-top:4px">${esc(w.why || "")}</div>`}
+  </div>`;
+}
+
+async function fillWhere(bookingId) {
+  const slot = document.getElementById("whereSlot");
+  if (!slot) return;
+  try { slot.innerHTML = whereCard(await API.bookingWhere(bookingId)); }
+  catch (e) { slot.innerHTML = ""; }
+}
+
+/* ══ the tech's side ═══════════════════════════════════════════════════
+   Her settings sit under her service menu, because they are about the menu:
+   whether she travels at all, what the trip costs, and how far she will go. */
+function homeSettings(b) {
+  const on = !!b.homeService;
+  const n = (kb, d) => String(Math.round((kb == null ? d : kb) / 100));
+  return `
+    <div class="rowbetween" style="margin:16px 0 8px">
+      <div style="font-size:14.5px;font-weight:800;letter-spacing:-.02em">Going to customers</div>
+      <button class="switch${on ? " on" : ""}" data-a="home-toggle"
+              role="switch" aria-checked="${on ? "true" : "false"}"
+              aria-label="I travel to customers"><i></i></button>
+    </div>
+    ${!on ? `<div class="tiny faint">Off. Customers come to you.</div>` : `
+      <div style="display:flex;gap:10px">
+        <label class="field" style="flex:1;min-width:0"><span class="lab">Call-out, per visit</span>
+          <span class="inp"><span class="pre">${esc(b.cur || DB.cur)}</span>
+            <input id="hCallout" inputmode="numeric" value="${esc(n(b.calloutKobo, 300000))}"></span></label>
+        <label class="field" style="flex:1;min-width:0"><span class="lab">Per kilometre</span>
+          <span class="inp"><span class="pre">${esc(b.cur || DB.cur)}</span>
+            <input id="hPerKm" inputmode="numeric" value="${esc(n(b.perKmKobo, 130000))}"></span></label>
+      </div>
+      <label class="field"><span class="lab">How far will you go?</span>
+        <span class="inp"><input id="hMaxKm" inputmode="decimal"
+          value="${esc(String(b.maxKm == null ? 15 : b.maxKm))}">
+          <span class="tiny faint">km</span></span></label>
+      <div class="note">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8.2v.1"/></svg>
+        <div>The call-out is charged <b>once a visit</b>, however many services
+          she books. <b>Oma takes nothing from either of these</b> — the fee is
+          on your service prices only, because the trip is your time and your
+          petrol.</div></div>`}`;
+}
+
+/* Removed: the per-service "Price at her home" input. The home price is now
+   the service price + the call-out fee — no separate field to fill in. */
+function svcHomeRow(s, i, cur) { return ""; }
+
+/* Saving. Sent one at a time rather than in a lump, because api_set_home_service
+   and api_set_service_home_price are separate for a reason: a bad number in one
+   service must not silently discard her call-out. */
+async function saveHomeSettings(b) {
+  if (!API.signedIn()) return;
+  const kb = (v, d) => {
+    const n = Math.round(Number(String(v == null ? "" : v).replace(/[^\d.]/g, "")) * 100);
+    return Number.isFinite(n) && n >= 0 ? n : d;
+  };
+  await API.setHomeService(!!b.homeService, kb(b.calloutNaira, 300000),
+                           kb(b.perKmNaira, 130000), Number(b.maxKm) || 15);
+}
+
+/* ══ HER WORK, UNDER EACH SERVICE ══════════════════════════════════════
+   Kamsy, 8 Sep 2026: "let the nail tech upload the picture under each service
+   that she uploads — that's if she has."
+
+   ── "that's if she has" ─────────────────────────────────────────────
+
+   That clause is the whole brief for the empty state. Most techs will have no
+   photographs on the day they list themselves, and a listing that looks
+   broken until she finds some is a listing she abandons. So: no grey
+   placeholder boxes, no "no photos yet" apology on the customer's side. A
+   service with pictures shows them; a service without simply does not.
+
+   ── the shrinking, and why it happens here ──────────────────────────
+
+   A photograph off a Nigerian phone is three to six megabytes. Uploading that
+   costs her data, costs the customer data every time it is looked at, and
+   fills the free storage tier in a few hundred pictures.
+
+   So it is resized to 1200px on the long edge and re-encoded as JPEG at 0.82
+   before a single byte leaves the phone — about 150 kB, which is more than
+   enough to judge a set of nails on a screen the size of a hand.
+
+   The decoding reuses the scan's machinery, HEIC and all. iPhones save HEIC
+   by default and no desktop browser decodes it; without this a nail tech on
+   an iPhone would meet "that file is not an image" and conclude Oma was
+   broken. That decoder is already in the page for the hand scan and this
+   costs nothing to reuse.
+
+   ── what this file does NOT decide ──────────────────────────────────
+
+   Three per service, whose folder a file may go in, and whether a photo is
+   visible: all of that is in photo.sql, enforced in the database. A cap the
+   page enforces is a cap anyone with the anon key ignores.                */
+
+const PHOTO_MAX_PX = 1200;
+const PHOTO_QUALITY = 0.82;
+const PHOTOS_PER_SERVICE = 3;
+
+/* Whatever the phone hands over — JPEG, PNG, HEIC — as a canvas. */
+async function photoToCanvas(file) {
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (isHeif(head)) return decodeHeif(file);          // p3_core.js
+  const im = await decodeStandard(file);              // p3_core.js
+  const c = document.createElement("canvas");
+  c.width = im.naturalWidth || im.width;
+  c.height = im.naturalHeight || im.height;
+  c.getContext("2d").drawImage(im, 0, 0);
+  return c;
+}
+
+/* Down to 1200px on the long edge, as a JPEG. Never UP: a small photograph
+   scaled up is a bigger file that looks worse. */
+function shrinkToBlob(canvas, maxPx, quality) {
+  const w = canvas.width, h = canvas.height;
+  const sc = Math.min(1, (maxPx || PHOTO_MAX_PX) / Math.max(w, h));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(w * sc));
+  c.height = Math.max(1, Math.round(h * sc));
+  const g = c.getContext("2d");
+  // A white ground, because a transparent PNG re-encoded as JPEG turns black
+  // otherwise, and a nail photo on black looks like a mistake.
+  g.fillStyle = "#ffffff";
+  g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(canvas, 0, 0, c.width, c.height);
+  return new Promise((res) => {
+    c.toBlob((b) => res({ blob: b, w: c.width, h: c.height }),
+             "image/jpeg", quality || PHOTO_QUALITY);
+  });
+}
+
+/* A name nobody can guess and nothing can collide with, inside her own
+   folder — which is what photo.sql and the storage policy both check. */
+function photoPath(techId, serviceId) {
+  const r = (crypto.getRandomValues(new Uint8Array(8)));
+  const hex = [...r].map((n) => n.toString(16).padStart(2, "0")).join("");
+  return `${techId}/${serviceId}-${hex}.jpg`;
+}
+
+/* ── uploading one ───────────────────────────────────────────────────
+   Bytes first, row second. If the row fails the file is orphaned, which
+   costs a few kilobytes; if it were the other way round a listing would
+   show a broken image, which costs a booking. */
+async function uploadServicePhoto(serviceId, file, ownWork) {
+  const canvas = await photoToCanvas(file);
+  const { blob, w, h } = await shrinkToBlob(canvas);
+  if (!blob) throw new Error("That photo could not be prepared.");
+
+  if (API.isMock()) {
+    // The practice app has no Storage. A data URL stands in — small, because
+    // it has been through exactly the same shrinking.
+    const url = await new Promise((res) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.readAsDataURL(blob);
+    });
+    return API.addPhoto(serviceId, url, w, h, blob.size, ownWork);
+  }
+
+  const who = await API.me();
+  const techId = who && who.tech && who.tech.id;
+  if (!techId) throw new Error("List yourself first — photos go under your services.");
+  const path = photoPath(techId, serviceId);
+  await API.storagePut(path, blob, "image/jpeg");
+  return API.addPhoto(serviceId, path, w, h, blob.size, ownWork);
+}
+
+/* ══ the tech's side ═══════════════════════════════════════════════════ */
+
+/* Her own photographs, while she is editing. Kept on PHOTOS so the editor can
+   redraw without re-fetching — the service list is rebuilt every time she adds
+   or removes a row. */
+let PHOTOS = {};          // { serviceId: [{ id, path, w, h }] }
+let PHOTO_BUSY = null;    // the service currently uploading, if any
+
+/* ── queued photos for services that have no id yet ──────────────────
+   During registration a tech types a service name and picks photos
+   BEFORE she hits "Publish". The service has no database id at that
+   point, so we cannot upload. Instead we hold the File objects and a
+   data-URL preview keyed by the service's index in the menu, prefixed
+   with "q_" so the rest of the code can tell a queue key from a real
+   id. Once publishListing() gets ids back from syncServices, it calls
+   flushPhotoQueue() to upload them for real. */
+let PHOTO_QUEUE = {};     // { "q_0": [{ file, preview }], … }
+
+async function loadMyPhotos() {
+  if (!API.signedIn()) { PHOTOS = {}; return; }
+  try {
+    const me = await API.me();
+    const id = me && me.tech && me.tech.id;
+    if (!id) {
+      // Kamsy, 20 Sep 2026: "the pictures dont show on the services." This is
+      // the silent half of that bug — no tech id here means PHOTOS was set to
+      // {} and nothing ever said why. A tech whose account has no `tech` row
+      // yet (never actually published, or api_my_services/api_me disagreeing
+      // about that) would see every service card with no photos, forever,
+      // with nothing on screen to say her photos were never even asked for.
+      PHOTOS = {};
+      if (typeof toast === "function") toast("Photos didn't load — Oma could not find your listing.");
+      return paintSvcPhotos();
+    }
+    PHOTOS = (await API.techPhotos(id)) || {};
+  } catch (e) {
+    // The other silent half: a failed fetch (missing function, RLS refusal,
+    // a network drop) used to disappear into this catch with no trace at
+    // all — the page just showed no photos, same as a tech with none. Now it
+    // says so, so the next report is "it says X" instead of "nothing shows."
+    PHOTOS = {};
+    if (typeof toast === "function") toast("Photos didn't load: " + (e && e.message ? e.message : "unknown error"));
+  }
+  paintSvcPhotos();
+}
+
+/* The strip under one service in the editor. A service with no id yet — she
+   has typed a name but not saved — cannot have photographs, and says so
+   rather than offering a button that would fail. */
+function svcPhotoRow(s, i) {
+  // A service that already has a database id — the normal path.
+  if (s.id) {
+    const list = PHOTOS[s.id] || [];
+    const busy = PHOTO_BUSY === s.id;
+    const room = list.length < PHOTOS_PER_SERVICE;
+    return `<div class="shots" data-shots="${esc(s.id)}">
+      ${list.map((p) => `<div class="shot">
+          <img src="${esc(API.photoUrl(p.path))}" alt="" loading="lazy">
+          <button class="x" data-a="photo-del" data-id="${esc(p.id)}"
+                  aria-label="Remove this photo">×</button>
+        </div>`).join("")}
+      ${busy ? `<div class="shot add"><span class="tiny faint">Adding…</span></div>` : ""}
+      ${room && !busy ? `<label class="shot add">
+          <input type="file" accept="image/*" data-photo="${esc(s.id)}">
+          <span aria-hidden="true">+</span>
+          <span class="tiny faint">Add</span>
+        </label>` : ""}
+    </div>
+    ${list.length || busy ? "" : `<div class="tiny faint" style="margin-top:7px">
+      Up to ${PHOTOS_PER_SERVICE} photos of this service. Optional — a listing
+      works without them.</div>`}`;
+  }
+
+  // A service with no id yet — she is still registering. Let her pick
+  // photos now; they are held locally and uploaded after she publishes.
+  const qk = "q_" + i;
+  const queued = PHOTO_QUEUE[qk] || [];
+  const room = queued.length < PHOTOS_PER_SERVICE;
+  return `<div class="shots" data-shots="${esc(qk)}">
+    ${queued.map((q, qi) => `<div class="shot">
+        <img src="${esc(q.preview)}" alt="">
+        <button class="x" data-a="photo-qdel" data-qk="${esc(qk)}" data-qi="${qi}"
+                aria-label="Remove this photo">×</button>
+      </div>`).join("")}
+    ${room ? `<label class="shot add">
+        <input type="file" accept="image/*" data-photo="${esc(qk)}">
+        <span aria-hidden="true">+</span>
+        <span class="tiny faint">Add</span>
+      </label>` : ""}
+  </div>
+  ${queued.length ? "" : `<div class="tiny faint" style="margin-top:7px">
+    Up to ${PHOTOS_PER_SERVICE} photos of this service. Optional — they'll
+    upload when you publish.</div>`}`;
+}
+
+/* Redraw only the strips. paint() would rebuild the editor and lose a
+   half-typed price, and an upload takes long enough that she will be typing. */
+function paintSvcPhotos() {
+  document.querySelectorAll("[data-shots]").forEach((el) => {
+    const id = el.dataset.shots;
+    const box = document.createElement("div");
+    if (String(id).startsWith("q_")) {
+      // Queued (unsaved service) — pass the index so svcPhotoRow picks up the queue
+      const idx = Number(id.replace("q_", ""));
+      box.innerHTML = svcPhotoRow({ id: null }, idx);
+    } else {
+      box.innerHTML = svcPhotoRow({ id }, 0);
+    }
+    const next = box.querySelector("[data-shots]");
+    if (next) el.replaceWith(next);
+  });
+}
+
+/* The tick box. Asked once, above the whole menu rather than on every upload:
+   the same answer three times in a row is a form somebody stops reading. */
+function ownWorkBox() {
+  return `<label class="own">
+    <input type="checkbox" id="ownWork" checked>
+    <span>These are nails <b>I did myself</b>. Photos of somebody else's work
+      can have your listing taken down.</span>
+  </label>`;
+}
+const ownWorkTicked = () => {
+  const el = document.getElementById("ownWork");
+  return !el || el.checked;
+};
+
+/* One delegated change listener, because the service list is re-rendered
+   whenever she adds or removes a row and a bound one would be lost. */
+document.addEventListener("change", async (e) => {
+  const inp = e.target;
+  if (!inp || !inp.dataset || !inp.dataset.photo) return;
+  const serviceId = inp.dataset.photo;
+  const file = inp.files && inp.files[0];
+  inp.value = "";                       // so the same file can be chosen twice
+  if (!file) return;
+
+  if (!ownWorkTicked()) {
+    return toast("Tick the box to say the nails are your own work.");
+  }
+  if (file.size > 25 * 1024 * 1024) {
+    // Before decoding, not after: a 40 MP image can exhaust a phone's memory
+    // in the canvas rather than failing politely.
+    return toast("That photo is very large. Try one under 25 MB.");
+  }
+
+  // ── queued (unsaved service) ──────────────────────────────────────
+  if (String(serviceId).startsWith("q_")) {
+    const q = PHOTO_QUEUE[serviceId] || [];
+    if (q.length >= PHOTOS_PER_SERVICE) return toast("That service already has " + PHOTOS_PER_SERVICE + " photos.");
+    try {
+      // Shrink to a preview exactly the way a real upload would, so what she
+      // sees now is what the customer will see later.
+      const canvas = await photoToCanvas(file);
+      const { blob } = await shrinkToBlob(canvas);
+      const preview = await new Promise((res) => {
+        const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob);
+      });
+      PHOTO_QUEUE[serviceId] = [...q, { file, preview }];
+      paintSvcPhotos();
+    } catch (err) {
+      toast(err.message || "That photo could not be prepared.");
+    }
+    return;
+  }
+
+  // ── real (saved service) ──────────────────────────────────────────
+  PHOTO_BUSY = serviceId;
+  paintSvcPhotos();
+  try {
+    const isNum = /^\d+$/.test(serviceId);
+    await uploadServicePhoto(isNum ? Number(serviceId) : serviceId, file, true);
+    await loadMyPhotos();
+    toast("Photo added.");
+  } catch (err) {
+    toast(err.message || "That photo would not upload.");
+  } finally {
+    PHOTO_BUSY = null;
+    paintSvcPhotos();
+  }
+});
+
+async function deleteMyPhoto(id) {
+  try {
+    const r = await API.removePhoto(/^\d+$/.test(id) ? Number(id) : id);
+    if (r && r.path && !API.isMock()) API.storageDelete(r.path);
+    await loadMyPhotos();
+    toast("Photo removed.");
+  } catch (err) { toast(err.message || "Could not remove that."); }
+}
+
+function deleteQueuedPhoto(qk, qi) {
+  const q = PHOTO_QUEUE[qk];
+  if (!q) return;
+  q.splice(qi, 1);
+  if (!q.length) delete PHOTO_QUEUE[qk];
+  paintSvcPhotos();
+}
+
+/* After publishListing() saves the services and gets real ids back,
+   this uploads every photo that was queued during registration.
+   Called with the services array whose .id fields are now filled in. */
+async function flushPhotoQueue(services) {
+  const keys = Object.keys(PHOTO_QUEUE);
+  if (!keys.length) return;
+  const ow = ownWorkTicked();
+  let count = 0;
+  for (const qk of keys) {
+    const idx = Number(qk.replace("q_", ""));
+    const svc = services[idx];
+    if (!svc || !svc.id) continue;
+    const items = PHOTO_QUEUE[qk] || [];
+    for (const item of items) {
+      try {
+        await uploadServicePhoto(svc.id, item.file, ow);
+        count++;
+      } catch (err) { /* best effort — skip failed ones */ }
+    }
+    delete PHOTO_QUEUE[qk];
+  }
+  PHOTO_QUEUE = {};
+  if (count) {
+    await loadMyPhotos();
+    toast(count === 1 ? "Photo uploaded." : count + " photos uploaded.");
+  }
+}
+
+/* ══ the customer's side ═══════════════════════════════════════════════ */
+
+let TECHPHOTOS = {};      // the tech currently being looked at
+
+/* The photographs inside one service card: a swipeable gallery with the
+   scrim and the dots. No lightbox — a full-screen viewer is a second thing to
+   get right on a slow connection, and at this size the work is already
+   legible.
+
+   A service with none returns nothing at all, and the card stays the Oma
+   gradient. That is "that's if she has": no grey box, no broken-image icon,
+   no apology on a listing that is otherwise fine. */
+function svcShots(serviceId) {
+  const list = TECHPHOTOS[serviceId] || [];
+  if (!list.length) return "";
+  return `<div class="svcpix" data-gal="${esc(serviceId)}">
+      ${list.map((p) => `<div class="pane">
+        <img src="${esc(API.photoUrl(p.path))}" alt="Nails by this tech" loading="lazy">
+        <button class="svcflag" data-a="photo-report" data-id="${esc(p.id)}"
+                aria-label="Report this photo" title="Report this photo">⚑</button>
+      </div>`).join("")}
+    </div>
+    ${list.length > 1 ? `<div class="svcdots" data-dots="${esc(serviceId)}">
+      ${list.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}
+    </div>` : ""}`;
+}
+
+/* Which one she is looking at. A scroll listener rather than an
+   IntersectionObserver: one number, no observers to tear down when the card
+   is repainted, and it is exact rather than threshold-dependent. */
+function wireGalleries() {
+  document.querySelectorAll("[data-gal]").forEach((gal) => {
+    if (gal.dataset.wired) return;
+    gal.dataset.wired = "1";
+    gal.addEventListener("scroll", () => {
+      const dots = document.querySelector(`[data-dots="${gal.dataset.gal}"]`);
+      if (!dots) return;
+      const i = Math.round(gal.scrollLeft / Math.max(1, gal.clientWidth));
+      [...dots.children].forEach((d, n) => d.classList.toggle("on", n === i));
+    }, { passive: true });
+  });
+}
+
+async function fillTechPhotos(techId) {
+  try { TECHPHOTOS = (await API.techPhotos(techId)) || {}; }
+  catch (e) { TECHPHOTOS = {}; return; }
+  document.querySelectorAll("[data-shotslot]").forEach((el) => {
+    el.innerHTML = svcShots(el.dataset.shotslot);
+    // The card only becomes a photograph when there IS one. Without this the
+    // gallery is empty, the caption is absolutely positioned, and the whole
+    // card collapses to nothing — the service disappears off her page.
+    const card = el.closest(".svccard");
+    if (card) card.classList.toggle("haspix", !!el.firstElementChild);
+  });
+  wireGalleries();
+}
+
+async function reportPhoto(id) {
+  // A prompt rather than a form: reporting has to be two taps or nobody does
+  // it, and the reason is useful but not required.
+  const why = prompt("What is wrong with this photo? (optional)");
+  if (why === null) return;               // she changed her mind
+  try {
+    await API.reportPhoto(/^\d+$/.test(id) ? Number(id) : id, why);
+    // The same words whatever happened, including for a photo that was already
+    // reported or does not exist. What Oma does about it is not this screen's
+    // business to narrate.
+    toast("Thank you — Oma will look at it.");
+  } catch (e) {
+    toast("Thank you — Oma will look at it.");
+  }
+}
+
+/* ══ O points ═════════════════════════════════════════
+   The leaderboard, her own score, and her referral code.
+
+   Everything on this screen comes from api_my_points and api_leaderboard.
+   Nothing is computed here — a score worked out on the phone is a score
+   that disagrees with the one the prize is paid against, and the phone
+   is the copy she will screenshot.
+
+   The rate, the prizes and the pair cap all arrive from the season row
+   rather than being written into the app, so changing the prize is one
+   UPDATE and not a rebuild.                                            */
+
+let PTS = null, PBOARD = null, PROLE = "tech", PBUSY = false;
+
+/* The share link carries the code, because reading six characters down a
+   phone is how a referral quietly stops happening. Stashed at load and used
+   to prefill the box — never applied on its own, since it has to be her
+   choice and she has to be signed in for it to mean anything. */
+try {
+  const m = /[#&]r=([A-Za-z0-9]+)/.exec(location.hash || "");
+  if (m) localStorage.setItem("oma-ref", m[1].toUpperCase());
+} catch (e) { /* private mode */ }
+function pendingRef() {
+  try { return localStorage.getItem("oma-ref") || ""; } catch (e) { return ""; }
+}
+
+function naira(kobo) {
+  if (kobo == null) return "—";
+  return "₦" + Math.round(kobo / 100).toLocaleString("en");
+}
+function longDate(iso) {
+  if (!iso) return "soon";
+  const d = new Date(iso);
+  if (isNaN(d)) return "soon";
+  return d.toLocaleDateString("en-GB",
+    { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos" });
+}
+function daysLeft(iso) {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  if (!isFinite(ms)) return null;
+  return Math.max(0, Math.ceil(ms / 86400000));
+}
+
+async function loadPoints() {
+  if (PBUSY) return;
+  PBUSY = true;
+  try {
+    PTS = await API.myPoints();
+    PBOARD = await API.leaderboard(PROLE, 20);
+  } catch (e) {
+    PTS = PTS || { error: e.message };
+  }
+  PBUSY = false;
+  if (ROUTE.v === "points") paint();
+}
+
+function codeCard(p) {
+  return `
+      <!-- ── the referral code ── -->
+      <div class="seehead" style="padding-left:0;padding-right:0"><h3>Your code</h3></div>
+      ${p.code ? `
+        <div class="card" style="text-align:center;padding:18px">
+          <div style="font-size:30px;font-weight:800;letter-spacing:.14em;
+                      font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(p.code)}</div>
+          <div class="small sub" style="margin-top:8px">
+            They get <b>0.1</b>, you get <b>0.3</b> — when they finish their
+            first booking, not when they sign up.</div>
+        </div>
+        <div class="btnrow mt12">
+          <button class="btn sm" data-a="shareCode">${I.share()} Share</button>
+          <button class="btn sm ghost" data-a="copyCode">Copy</button>
+        </div>
+        ${p.referrals ? `<div class="small sub" style="margin-top:10px;text-align:center">
+          <b>${p.referrals}</b> ${p.referrals === 1 ? "person has" : "people have"}
+          joined on your code and booked.</div>` : ""}
+      ` : `
+        <button class="btn mt8" data-a="makeCode">Get my code</button>
+      `}
+
+      ${p.can_use_code ? `
+      <div class="card mt16">
+        <div style="font-size:15px;font-weight:700">Someone gave you a code?</div>
+        <div class="small sub" style="margin-top:4px;margin-bottom:10px">
+          One code, once, and only before your first booking — so make it
+          the right one.</div>
+        <div class="btnrow">
+          <input id="fRefCode" placeholder="ABC123" autocapitalize="characters"
+                 value="${esc(pendingRef())}"
+                 maxlength="12" style="flex:1;text-transform:uppercase;
+                 letter-spacing:.1em;font-family:ui-monospace,Menlo,monospace">
+          <button class="btn sm" data-a="useCode">Use it</button>
+        </div>
+      </div>` : ""}`;
+}
+
+function vPoints() {
+  // First paint has nothing yet; the fetch repaints when it lands.
+  if (!PTS) { loadPoints(); }
+  const p = PTS || {};
+  const live = !!p.season;
+  const left = daysLeft(p.ends_at);
+  const board = PBOARD || [];
+
+  return `
+  ${head("O points")}
+  <div class="pad">
+
+    ${!live ? (p.next_season ? `
+      <!-- The gathering year. She is here before anybody has heard of Oma,
+           and that is exactly the person the board is meant to keep. Telling
+           her a date is a reason to still be here on it; "no competition at
+           the moment" is a reason to leave. -->
+      <div class="card" style="background:var(--grad);color:#fff;padding:22px 20px">
+        <div class="eyebrow" style="color:rgba(255,255,255,.85)">Coming</div>
+        <div style="font-size:26px;font-weight:800;letter-spacing:-.035em;
+                    line-height:1.15;margin-top:6px">${esc(p.next_season)}</div>
+        <div style="margin-top:8px;font-size:14px;opacity:.92">Starts ${
+          longDate(p.next_starts_at)}${(() => {
+            const d = daysLeft(p.next_starts_at);
+            return d == null ? "" : ` · ${d} day${d === 1 ? "" : "s"} away`;
+          })()}</div>
+      </div>
+
+      ${(p.next_tech_prize_kobo > 0 || p.next_customer_prize_kobo > 0) ? `
+      <div class="grid2 mt12">
+        <div class="tile"><div class="k">Top nail tech</div>
+          <div class="v">${naira(p.next_tech_prize_kobo)}</div></div>
+        <div class="tile"><div class="k">Top customer</div>
+          <div class="v">${naira(p.next_customer_prize_kobo)}</div></div>
+      </div>` : ""}
+
+      <div class="note mt16">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.1"/></svg>
+        <div><b>Nothing counts yet.</b> Work you do before the start does not
+          score — the board opens with everybody on nothing, so somebody who
+          joins in January is not already behind.</div>
+      </div>
+
+      <div class="small sub" style="margin-top:16px;line-height:1.55">
+        1 O point will be ${naira(p.per_point)} of work. Your code works
+        already — someone who joins on it now still pays out when they book
+        once the season opens.
+      </div>
+
+      ${codeCard(p)}`
+    : `
+      <div class="empty" style="margin-top:8px">
+        <b>No season running</b>
+        There is no competition open at the moment. When one starts, every
+        booking you complete starts counting toward it.
+      </div>`)
+    : `
+      <!-- her own standing. The place is deliberately quieter than the
+           score: the score is a fact about her work, the place is a fact
+           about everybody else's and it moves while she is asleep. -->
+      <div class="card" style="background:var(--grad);color:#fff;padding:22px 20px">
+        <div class="eyebrow" style="color:rgba(255,255,255,.85)">${esc(p.season)}${
+          left != null ? ` · ${left} day${left === 1 ? "" : "s"} left` : ""}</div>
+        <div style="display:flex;align-items:flex-end;gap:14px;margin-top:8px">
+          <div style="font-size:44px;font-weight:800;letter-spacing:-.045em;line-height:1">${
+            Number(p.points || 0).toLocaleString("en", { maximumFractionDigits: 2 })}</div>
+          <div style="font-size:15px;font-weight:700;padding-bottom:7px;opacity:.9">
+            O point${Number(p.points) === 1 ? "" : "s"}</div>
+        </div>
+        <div style="margin-top:6px;font-size:13.5px;opacity:.9">${
+          p.place ? `You are <b>#${p.place}</b> among ${
+            p.role === "tech" ? "nail techs" : "customers"}`
+          : "Complete a booking and you are on the board"}</div>
+      </div>
+
+      <div class="note mt16">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.1"/></svg>
+        <div><b>1 O point = ${naira(p.per_point)} of work.</b> ${
+          p.role === "tech"
+            ? "Counted on the services you did, never on travel or the call-out."
+            : "Counted on the services you booked, never on travel."}
+          Points land when the appointment is scanned, and come back off if it
+          is refunded.</div>
+      </div>
+
+      ${(p.tech_prize_kobo > 0 || p.customer_prize_kobo > 0) ? `
+      <div class="grid2 mt12">
+        <div class="tile"><div class="k">Top nail tech</div>
+          <div class="v">${naira(p.tech_prize_kobo)}</div></div>
+        <div class="tile"><div class="k">Top customer</div>
+          <div class="v">${naira(p.customer_prize_kobo)}</div></div>
+      </div>` : ""}
+
+      ${codeCard(p)}
+
+      <!-- ── the board ── -->
+      <div class="seehead" style="padding-left:0;padding-right:0"><h3>The board</h3></div>
+      <div class="tabs2 mb12">
+        <button data-a="pboard" data-id="tech"${
+          PROLE === "tech" ? ' class="on"' : ""}>Nail techs</button>
+        <button data-a="pboard" data-id="customer"${
+          PROLE === "customer" ? ' class="on"' : ""}>Customers</button>
+      </div>
+
+      ${board.length ? `
+      <div class="stack gap8">
+        ${board.map((r) => `
+          <div class="prow${r.is_me ? " me" : ""}">
+            <span class="pplace">${r.place}</span>
+            <span class="pname">${esc(r.label)}${r.is_me ? " · you" : ""}</span>
+            <span class="ppts">${Number(r.points).toLocaleString("en",
+              { maximumFractionDigits: 2 })}</span>
+          </div>
+          <!-- How many DIFFERENT people that score came from. A big total
+               from one person is what collusion looks like, and it belongs
+               beside the score rather than being noticed after a prize has
+               been paid. -->
+          <div class="small faint" style="margin:-4px 0 4px 46px">${
+            r.partners} ${r.partners === 1 ? "person" : "people"}</div>`).join("")}
+      </div>`
+      : `<div class="empty"><b>Nobody has scored yet</b>
+           The first completed booking of the season puts somebody here.</div>`}
+
+      <div class="small sub" style="margin-top:16px;line-height:1.55">
+        Only appointments that were actually scanned count, and a booking
+        between the same two people stops counting past ${
+          p.pair_cap || 10} points — so the board rewards being busy with
+        many people rather than one.
+      </div>
+    `}
+  </div>
+  <div style="height:24px"></div>`;
 }
 
 /* ══ being told something happened ═══════════════════

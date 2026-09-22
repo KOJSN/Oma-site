@@ -1380,7 +1380,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "f3e94f72f0";
+const BUILD_ID = "4559c72335";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -1388,7 +1388,7 @@ const BUILD_ID = "f3e94f72f0";
    call into each other for that to be safe); it just decides, once, at
    boot, whether this copy is allowed to ever be a customer. See the
    APP_MODE check at the top of boot() in p8_wire.js. */
-const APP_MODE = "__APP_MODE__";
+const APP_MODE = "customer";
 
 /* ══ state ═══════════════════════════════════════════ */
 const FINGERS = ["index", "middle", "ring", "pinky"];
@@ -3652,7 +3652,7 @@ const API = (() => {
      project, not the person, and every function it can reach checks who is
      calling before it answers. The service_role key is the opposite of that
      and build.py refuses to build if it sees one. */
-  // 21 Sep 2026, Kamsy: these were "https://ucytdvycfkrbpaknoiuc.supabase.co" / "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjeXRkdnljZmtyYnBha25vaXVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5ODE5NDEsImV4cCI6MjEwMzU1Nzk0MX0.HgYvYVuOHtEQAlJMZCeHMTWFUMzr7TakVpx-c91cNxA"
+  // 21 Sep 2026, Kamsy: these were "__SUPABASE_URL__" / "__SUPABASE_ANON__"
   // placeholders — build.py never actually substitutes them, so every real
   // build from this source was shipping with NO backend baked in. app.html
   // on GitHub had the right values, but only because someone pasted them in
