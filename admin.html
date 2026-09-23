@@ -742,10 +742,16 @@ function bkChip(status) {
              : `<span class="chip no">${esc(status || "—")}</span>`;
 }
 
-function drawBookings(data) {
+function drawBookings(data, errMsg) {
   const el = document.getElementById("bookings");
   if (data === null) {
-    el.innerHTML = `<div class="empty">Bookings are not loaded yet —
+    // 23 Sep 2026: this used to always say "run admin-bookings.sql" no
+    // matter what actually went wrong, which made a real error impossible
+    // to tell apart from a genuinely missing function. Now it shows
+    // Supabase's own message when there is one.
+    el.innerHTML = errMsg
+      ? `<div class="empty">Bookings did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Bookings are not loaded yet —
       run <b>admin-bookings.sql</b> in Supabase.</div>`;
     document.getElementById("bkPageInfo").textContent = "";
     document.getElementById("bkPrev").disabled = true;
@@ -790,7 +796,7 @@ async function loadBookings(resetPage) {
     drawBookings(data);
   } catch (e) {
     if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
-    drawBookings(null);
+    drawBookings(null, e && e.message);
   }
 }
 
