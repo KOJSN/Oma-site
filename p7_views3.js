@@ -459,8 +459,27 @@ function vEditMe() {
            current location." Typing a neighbourhood by hand is gone; the
            only way this row is set is the same location-icon pattern as
            the home-service address field, so what lands here is a real fix
-           on the map, not a word she typed. -->
-      ${line(`<div style="display:flex;align-items:center;gap:12px">
+           on the map, not a word she typed.
+
+           Kamsy, 23 Sep 2026: "in tech profiles they should not update
+           location normally anymore, it should be automated every 15
+           minutes" — a tech tapping "Update" here was a second, manual way
+           of doing what p20_live.js's autoLiveCheck() already does for her
+           on its own, every 15 minutes, the whole time she has the app
+           open (see the "Track my location" row on More, and trackRow()'s
+           notes in this file for why a tech no longer gets a manual switch
+           there either). Keeping a button here would have re-opened exactly
+           the door that was closed. A customer still gets the editable row
+           — she is never auto-tracked, so this is the only way her
+           location is ever set. -->
+      ${tech ? line(`
+          ${label("Location")}
+          <span class="tiny sub" style="display:block;margin-top:3px;font-weight:600">Automatic
+            &mdash; updated every 15 minutes while you're working</span>
+          <span class="tiny faint" style="display:block;margin-top:3px">Oma tracks where you
+            are the same way it does for customers looking for you. There is nothing to set
+            here any more.</span>`)
+        : line(`<div style="display:flex;align-items:center;gap:12px">
         <span style="flex:1;min-width:0">
           ${label("Location")}
           ${value((m.area || "").trim(), "Add your location")}
