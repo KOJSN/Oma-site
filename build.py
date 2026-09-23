@@ -103,9 +103,10 @@ js = "\n".join([
 # actually arrives, so a closing tag inside it would end the block early.
 heif = read("libheif-bundle.js").replace("</script", "<\\/script")
 
-# __BUILD__ and __APP_MODE__ are both still literal placeholders in this
-# template — one page assembled once, then stamped twice below into the two
-# separate builds. Neither placeholder is substituted here on purpose.
+# __BUILD__, __APP_MODE__, __MANIFEST__ and __HOME_TITLE__ are all still
+# literal placeholders in this template — one page assembled once, then
+# stamped four times below into the two separate builds. None of them is
+# substituted here on purpose.
 html_template = (read("p1_head.html")
         + read("p2_body.html")
         + '<script type="text/plain" id="heifsrc">' + heif + '</script>\n'
@@ -117,13 +118,25 @@ if "__BUILD__" not in html_template:
 if "__APP_MODE__" not in html_template:
     sys.exit("p3_core.js has lost its __APP_MODE__ placeholder — techapp.html "
              "would boot as a customer app with no way to tell. Refusing to build.")
+if "__MANIFEST__" not in html_template:
+    sys.exit("p1_head.html has lost its __MANIFEST__ placeholder — 23 Sep 2026: "
+             "this is what stops 'Add to Home Screen' on techapp.html from "
+             "installing app.html instead (see the note beside it in "
+             "p1_head.html). Refusing to build.")
+if "__HOME_TITLE__" not in html_template:
+    sys.exit("p1_head.html has lost its __HOME_TITLE__ placeholder. Refusing to build.")
 
 sw_template = read("sw.js.template")
+if "__MANIFEST__" not in sw_template:
+    sys.exit("sw.js.template has lost its __MANIFEST__ placeholder — the worker "
+             "would offline-cache the wrong app's manifest. Refusing to build.")
 
 
-def build_pair(app_mode, html_name, sw_name, shell, cache_prefix):
+def build_pair(app_mode, html_name, sw_name, shell, cache_prefix, manifest, home_title):
     """Writes one matched html/sw pair, both stamped with the same build id."""
     html = html_template.replace("__APP_MODE__", app_mode)
+    html = html.replace("__MANIFEST__", manifest)
+    html = html.replace("__HOME_TITLE__", home_title)
 
     # Hashed while __BUILD__ is still a placeholder, then substituted into
     # both files. Hashing the finished page instead would change the hash by
@@ -135,6 +148,7 @@ def build_pair(app_mode, html_name, sw_name, shell, cache_prefix):
                               f'const SHELL = "{shell}";')
     sw = sw.replace('const CACHE = "oma-__BUILD__";',
                      f'const CACHE = "{cache_prefix}-__BUILD__";')
+    sw = sw.replace("__MANIFEST__", manifest)
     sw = sw.replace("__BUILD__", stamp)
 
     (HERE / html_name).write_text(html, encoding="utf-8")
@@ -145,5 +159,7 @@ def build_pair(app_mode, html_name, sw_name, shell, cache_prefix):
     print(f"  {sw_name:<14} {(HERE / sw_name).stat().st_size} bytes")
 
 
-build_pair("customer", "app.html", "sw.js", "/app.html", "oma")
-build_pair("tech", "techapp.html", "techapp-sw.js", "/techapp.html", "omatech")
+build_pair("customer", "app.html", "sw.js", "/app.html", "oma",
+           "/manifest.webmanifest", "Oma")
+build_pair("tech", "techapp.html", "techapp-sw.js", "/techapp.html", "omatech",
+           "/techapp-manifest.webmanifest", "Oma for techs")

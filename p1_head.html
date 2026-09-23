@@ -12,15 +12,26 @@
      PWA's icon, so that one is fixed at "Add to Home Screen" time
      regardless of what this line does. -->
 <link rel="icon" type="image/png" sizes="96x96" href="icon-96-dark.png" media="(prefers-color-scheme: dark)">
-<meta name="apple-mobile-web-app-title" content="Oma">
+<meta name="apple-mobile-web-app-title" content="__HOME_TITLE__">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#f0518d">
-<link rel="manifest" href="/manifest.webmanifest">
+<!-- 23 Sep 2026: Kamsy — "i tried adding techapp to my home screen and
+     instead it added app to homescreen". Chrome does not use the page you
+     tapped "Add to Home Screen" from — it reads THIS manifest's start_url
+     and launches that, always, on every install, from either page. One
+     shared manifest.webmanifest hard-coded start_url to /app.html, so
+     "Add to Home Screen" from techapp.html was never going to open
+     techapp.html; it was reading the customer manifest and being told,
+     correctly by its own rules, to launch the customer app. __MANIFEST__
+     is stamped per build below — customer gets manifest.webmanifest
+     (start_url /app.html), tech gets techapp-manifest.webmanifest
+     (start_url /techapp.html) — same fix shape as __BUILD__/__APP_MODE__. -->
+<link rel="manifest" href="__MANIFEST__">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Oma — nail scan &amp; booking</title>
+<title>__HOME_TITLE__ — nail scan &amp; booking</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
