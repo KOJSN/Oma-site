@@ -227,8 +227,15 @@ function vJob(bookingId) {
              nothing between them yet — no money held, no promise either
              side has to keep — so neither the chat door nor the report door
              opens until that changes. Both now read the same status list:
-             not yet paid, same as already-over. -->
-        ${["awaiting_payment", "cancelled", "expired", "refunded"].includes(b.status) ? "" : `
+             not yet paid, same as already-over.
+
+             Kamsy, 23 Sep 2026: "I don't want customers to be messaging
+             techs or techs messaging customers after a finished booking" —
+             'released' was missing from this list entirely, so the Message
+             button kept showing (and working) on every appointment marked
+             "finished" here. Added, matching the same close vChat already
+             uses in p15_chat.js. -->
+        ${["awaiting_payment", "cancelled", "expired", "refunded", "released"].includes(b.status) ? "" : `
           <button class="btn ghost" data-a="go" data-v="chat" data-id="${esc(b.id)}"
                   style="display:flex;align-items:center;justify-content:center;gap:9px">
             ${I.chat()} Message ${esc(asTech ? (b.customer_name || "her")
