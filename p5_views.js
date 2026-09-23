@@ -567,7 +567,21 @@ const NG_STATES = ["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa
   "FCT — Abuja", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi",
   "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo",
   "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"];
-function vSetup(edit) {
+// Kamsy, 23 Sep 2026, from a screenshot of the "How will you use oma?" role
+// picker showing up when a tech backed out of her OWN listing form: vRequests
+// (the tech's Home tab) and vListing ("My listing", under More) both fall
+// straight into vSetup(false) inline, with no nav() call, whenever a tech's
+// business has no name yet — see p7_views3.js. Before this, vSetup(false)'s
+// back button was hard-coded to data-v="role" unconditionally, which only
+// makes sense for the ONE real reason a not-yet-edit setup screen exists:
+// straight after picking "I'm a nail tech" on the role screen itself. It was
+// wrong for either of those two in-app fallbacks, because neither of them
+// went through the role screen at all — so "back" is now a real destination
+// this screen is told, not an assumption. The role → setup onboarding path
+// (roleNext in p8_wire.js) still leaves "role" as the default; vRequests and
+// vListing now pass "more" explicitly, so backing out of an unfinished
+// listing lands her on the More tab, where she found "My listing" from.
+function vSetup(edit, backTo) {
   const b = DB.biz || { services: [] };
   // Default true: a listing made before this question existed described a
   // shop, and quietly turning those techs into travelling ones would take
@@ -576,7 +590,7 @@ function vSetup(edit) {
   return `<div class="pad" style="min-height:100dvh;display:flex;flex-direction:column;
       padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(30px + env(safe-area-inset-bottom))">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-      <button class="iconbtn" data-a="${edit ? "back" : "go"}" data-v="role">${I.back()}</button>
+      <button class="iconbtn" data-a="${edit ? "back" : "go"}" data-v="${edit ? "" : (backTo || "role")}">${I.back()}</button>
       <div style="font-size:15px;font-weight:700">${edit ? "Edit your listing" : "Set up your listing"}</div>
     </div>
     ${edit ? "" : `<h2 style="font-size:24px;line-height:1.2;margin-bottom:18px">Tell customers where to find you</h2>`}
@@ -613,28 +627,31 @@ function vSetup(edit) {
          spellings of one salon is the failure this is here to avoid. -->
     <div class="field"><span class="lab">Do you share this shop?</span>
       <div id="workplaceBox">${workplaceRow(b)}</div></div>` : ""}
+    <!-- Kamsy, 23 Sep 2026: "techs without a shop should not use that area
+         feature again since the app already tracks their location every 15
+         minutes from their profile." The typed Area box was a stand-in for a
+         real position — useful for a shop, which has no other way to say
+         where it is. A travelling tech has a better one already: p20_live.js
+         has been pinning her real position automatically since the last fix,
+         every 15 minutes while she works, which is exactly what Area was
+         approximating by hand. Keeping the box around would just be a second,
+         staler answer to the same question. State stays — it is a different
+         feature (which state's customers find her in at all, see
+         api_state_techs) and every tech still needs to set it. -->
     <div style="display:flex;gap:10px">
-      <label class="field" style="flex:1;min-width:0"><span class="lab">Area</span>
+      ${shop ? `<label class="field" style="flex:1;min-width:0"><span class="lab">Area</span>
         <span class="inp">
           <!-- Kamsy, 20 Sep 2026: two separate buttons, not one label.
                "Current location" (left) is the calibration step — stand in
                the shop, tap it, and it looks up the address for you so you
                are not guessing what to type. "Pin me" (right) is the actual
                pin: it takes its own fresh GPS fix and saves it, independent
-               of whatever the text box says.
-
-               Kamsy, 23 Sep 2026: "techs without shops should not have this
-               pin me feature anymore since they already move around" —
-               taken away for a travelling tech. p20_live.js now tracks her
-               automatically during her set hours the moment she opens the
-               app, which supersedes a one-time manual pin; keeping the
-               button around would just be a stale coordinate she could
-               tap and forget. A shop still pins itself here — it does not
-               move, so its one manual fix is the whole story. -->
-          ${shop ? `<span class="act" data-a="biz-locate" aria-label="Use current location" title="Use current location">${I.pin()}</span>` : ""}
+               of whatever the text box says. A shop pins itself here — it
+               does not move, so its one manual fix is the whole story. -->
+          <span class="act" data-a="biz-locate" aria-label="Use current location" title="Use current location">${I.pin()}</span>
           <input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
-          ${shop ? `<span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>` : ""}
-        </span></label>
+          <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>
+        </span></label>` : ""}
       <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
         <span class="inp"><select id="bState">
           <option value="">Choose…</option>

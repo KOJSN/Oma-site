@@ -570,7 +570,9 @@ function vSettings() {
 /* ══ 16 the tech's side ══════════════════════════════ */
 function vRequests() {
   const b = DB.biz;
-  if (!b || !b.name) return vSetup(false);
+  // 23 Sep 2026: "more", not the default "role" — a tech already on her Home
+  // tab has already picked a role. See the comment on vSetup() itself.
+  if (!b || !b.name) return vSetup(false, "more");
   const week = DB.jobs.filter(j => j.status === "accepted" &&
     j.at > Date.now() - 7 * 864e5 && j.at < Date.now() + 7 * 864e5);
   const earned = week.reduce((a, j) => a + (+j.total || 0), 0);
@@ -583,7 +585,7 @@ function vRequests() {
         <div style="font-size:16.5px;font-weight:800;letter-spacing:-.025em">${esc(b.name)}</div>
         <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
           <span style="width:7px;height:7px;border-radius:50%;background:var(--good)"></span>
-          <span class="small sub" style="font-weight:600">Listing ready · ${esc(b.area || "no area set")}</span>
+          <span class="small sub" style="font-weight:600">Listing ready · ${esc(b.area || b.state || "no area set")}</span>
         </div>
       </div>
       <button class="iconbtn" data-a="shareMine" aria-label="Share my listing">${I.share()}</button>
@@ -719,7 +721,8 @@ let ZOOM_PHOTO = null;
 let LISTING_LINK = null;
 function vListing() {
   const b = DB.biz;
-  if (!b || !b.name) return vSetup(false);
+  // 23 Sep 2026: same fix as vRequests() above — "more", not "role".
+  if (!b || !b.name) return vSetup(false, "more");
   const link = LISTING_LINK;
   return `
   <div class="topbar">
@@ -730,7 +733,7 @@ function vListing() {
       <span class="avatar sq" style="width:56px;height:56px;border-radius:18px">${esc(initials(b.name))}</span>
       <span style="flex:1">
         <span style="display:block;font-size:16px;font-weight:800;letter-spacing:-.02em">${esc(b.name)}</span>
-        <span class="small sub" style="display:block;margin-top:2px">${esc([b.address, b.area].filter(Boolean).join(", ") || "No address")}</span>
+        <span class="small sub" style="display:block;margin-top:2px">${esc([b.address, b.area || b.state].filter(Boolean).join(", ") || "No address")}</span>
       </span>
     </div>
     <div style="display:flex;gap:8px;margin-top:12px">
