@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as f77fa76389/customer. -->
+     (start_url /techapp.html) — same fix shape as 72daceeccb/customer. -->
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1395,7 +1395,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "f77fa76389";
+const BUILD_ID = "72daceeccb";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -6960,17 +6960,21 @@ function trackRow() {
         <span style="flex:1;min-width:0">${label(
           "Your shop has an address, so it does not move")}</span>
         ${I.chev()}</button>`;
+    // Kamsy, 23 Sep 2026: "techs should not have the toggle to turn off
+    // track location — it should not be an option at all, they shall
+    // always be tracked." No switch any more — a status row only, same
+    // shape as every other row here so it doesn't look broken, just not
+    // tappable into anything.
     const on = LIVE.on && !!LIVE.liveAt && !LIVE.err;
     const note = LIVE.err ? esc(LIVE.err)
       : on ? "Customers can see you &middot; updated "
              + esc(agoWords(LIVE.liveAt) || "just now")
-      : "Off &mdash; nobody can find you, and Oma keeps no trail";
+      : "Getting your position&hellip;";
     return `
-      <button data-a="track-toggle">
+      <div class="r">
         <span class="ic">${I.pin(on)}</span>
         <span style="flex:1;min-width:0">${label(note)}</span>
-        <span class="switch${LIVE.on ? " on" : ""}" role="switch"
-              aria-checked="${LIVE.on ? "true" : "false"}"><i></i></span></button>`;
+      </div>`;
   }
 
   // A customer is never on the map, and the browser has no API to revoke a
@@ -9581,16 +9585,22 @@ function vChat(bookingId) {
     // The same rule chat.sql enforces, said here so the box is not offered and
     // then refused.
     // Kamsy, 23 Sep 2026: "after an appointment is finished let nobody be
-    // able to message each other anymore" — a released booking (job done,
+    // able to message each other anymore" — this used to stay "open" for a
+    // full 30 DAYS after the appointment's start time no matter what, which
+    // is why a booking from days ago could still be messaged even once the
+    // job was obviously over. Two fixes: a released booking (job done,
     // money paid out) now closes the thread the same way a cancelled,
-    // expired or refunded one already did. This is the client-side half —
-    // it hides the composer here — but chat.sql needs the matching change
-    // server-side (its own copy of this same status check) or a determined
-    // person could still call the send API directly on a released booking.
-    // I don't have chat.sql's current contents to edit myself; paste its
-    // send-message function here and I'll add 'released' to it too.
+    // expired or refunded one already did, AND the time window is now a few
+    // hours past the appointment's start rather than a month — long enough
+    // to say "running late" or "on my way", not long enough to still be
+    // chatting a week later. This is the client-side half — it hides the
+    // composer here — but chat.sql needs the matching change server-side
+    // (its own copy of this same check) or a determined person could still
+    // call the send API directly. I don't have chat.sql's current contents
+    // to edit myself; paste its send-message function here and I'll fix it
+    // there too.
     const open = !["cancelled", "expired", "refunded", "released"].includes(b.status) &&
-                 at > Date.now() - 30 * 864e5;
+                 at > Date.now() - 6 * 3600e3;
 
     fillHost(`
       <div class="chathead">
@@ -10695,9 +10705,16 @@ async function autoLiveCheck() {
   const p = (await loadPresence()) || {};
   if (p.has_salon) return;                            // a shop does not move
   const within = inHoursWindow(p.opens, p.closes);
-  if (within === null) return;                         // no hours set — nothing to automate yet
-  if (within && !LIVE.on) return liveStart();
-  if (!within && LIVE.on) return liveStop();
+  // Kamsy, 23 Sep 2026: "techs should not have the toggle to turn off
+  // 'track location' — it should not be an option at all, they shall
+  // always be tracked." within === null used to mean "no hours set yet,
+  // nothing to automate" and left her on a manual switch. Now it means
+  // "no hours to gate by, so always on" — hours (once set) still gate WHEN
+  // she's tracked; with none set she is simply tracked continuously
+  // whenever the app is open and she is signed in. No opt-out either way.
+  const shouldBeOn = within === null ? true : within;
+  if (shouldBeOn && !LIVE.on) return liveStart();
+  if (!shouldBeOn && LIVE.on) return liveStop();
   if (ROUTE.v === "more") paint();
 }
 
@@ -10715,20 +10732,10 @@ async function liveResume() {
   LIVE.liveAt = p.live_at || null;
   PRESENCE = p;                                  // autoLiveCheck()/paint() reuse this
 
-  if (inHoursWindow(p.opens, p.closes) !== null) {
-    // Hours are set: fully automatic from here on. Her opens/closes IS the
-    // switch now, so there is no manual flag to pick back up.
-    return autoLiveStart();
-  }
-
-  // No hours set yet — nothing to gate the automatic version on, so fall
-  // back to the original manual switch until she sets them.
-  let wanted = false;
-  try { wanted = localStorage.getItem(LIVE_KEY) === "1"; } catch (e) { /* private */ }
-  // Fresh on the server counts as working even if this phone forgot — she may
-  // have switched device, and the map already has her.
-  if (wanted || p.visible) return liveStart();
-  paintWorking();
+  // Kamsy, 23 Sep 2026: no manual switch for a travelling tech any more,
+  // set hours or not — autoLiveCheck()'s own rule now covers both cases
+  // (gated by hours when she has them, always on when she doesn't).
+  return autoLiveStart();
 }
 
 /* ── what she sees ──────────────────────────────────────────────────── */
@@ -10744,12 +10751,13 @@ function workingCard() {
   const seen = agoWords(LIVE.liveAt);
   const on = LIVE.on && !!LIVE.liveAt && !LIVE.err;
 
-  // Kamsy, 23 Sep 2026: a travelling tech with hours set has no toggle any
-  // more — her opens/closes IS the switch, so this card only ever reports
-  // what Oma is already doing for her, automatically.
-  const auto = PRESENCE && PRESENCE.has_salon === false
-    && inHoursWindow(PRESENCE.opens, PRESENCE.closes) !== null;
-  if (auto) {
+  // Kamsy, 23 Sep 2026: "techs should not have the toggle to turn off
+  // track location — it should not be an option at all, they shall
+  // always be tracked." No switch here any more, set hours or not — this
+  // card only ever reports what Oma is already doing for her.
+  const hasHours = PRESENCE && inHoursWindow(PRESENCE.opens, PRESENCE.closes) !== null;
+
+  if (hasHours) {
     const o = String(PRESENCE.opens).slice(0, 5), c = String(PRESENCE.closes).slice(0, 5);
     return `<div class="card work${on ? " on" : ""}" id="workCard">
       <div style="font-weight:800;letter-spacing:-.02em">
@@ -10758,34 +10766,25 @@ function workingCard() {
         ${LIVE.err ? esc(LIVE.err)
           : on ? `Your position updated ${esc(seen || "just now")}. Oma tracks
                   you automatically during your hours (${esc(o)}–${esc(c)}) and
-                  stops the moment they end — nothing to switch.`
-               : `Oma will start showing you automatically at ${esc(o)}. Change
-                  your hours any time from your listing.`}</div>
+                  stops the moment they end.`
+               : `Oma will start showing you automatically at ${esc(o)}.`}</div>
     </div>`;
   }
 
   return `<div class="card work${on ? " on" : ""}" id="workCard">
-    <div class="rowbetween">
-      <div style="min-width:0">
-        <div style="font-weight:800;letter-spacing:-.02em">
-          ${on ? "Customers can see you" : "You are off the map"}</div>
-        <div class="tiny faint" style="margin-top:3px">
-          ${LIVE.err ? esc(LIVE.err)
-            : on ? `Your position updated ${esc(seen || "just now")}. Oma shows
-                    where you are now, and keeps no record of where you have been.`
-                 : `Turn this on when you start work. Nobody can find you while
-                    it is off, and Oma is not watching you. Set your opening
-                    hours in your listing and Oma will do this for you
-                    automatically instead.`}</div>
-      </div>
-      <button class="switch${LIVE.on ? " on" : ""}" data-a="work-toggle"
-              role="switch" aria-checked="${LIVE.on ? "true" : "false"}"
-              aria-label="Working now"><i></i></button>
-    </div>
-    ${LIVE.on && !LIVE.native ? `<div class="tiny faint" style="margin-top:9px">
-      Keep Oma open while you work. A website cannot follow you once the device
-      is locked — the Oma app from the App Store will, and this switch is what
-      it uses.</div>` : ""}
+    <div style="font-weight:800;letter-spacing:-.02em">
+      ${on ? "Customers can see you" : "Getting your position"}</div>
+    <div class="tiny faint" style="margin-top:3px">
+      ${LIVE.err ? esc(LIVE.err)
+        : on ? `Your position updated ${esc(seen || "just now")}. Oma always
+                tracks you while you have the app open, so customers can
+                find you — updated every 15 minutes, or sooner if you move.`
+             : `Oma is finding your position now. Set your opening hours in
+                your listing so it can also switch off automatically once
+                you close.`}</div>
+    ${!LIVE.native ? `<div class="tiny faint" style="margin-top:9px">
+      Keep Oma open while you work. A website cannot follow you once the
+      device is locked — the Oma app from the App Store will.</div>` : ""}
   </div>`;
 }
 
@@ -13070,6 +13069,26 @@ function pullProfile() {
     DB.biz = b; dbSave(); return paint();
   }
   if (a === "saveBiz") {
+    // Kamsy, 23 Sep 2026: "do not let techs fill the listing form without
+    // verifying their kyc first." Checked here, at the one place the form
+    // actually gets published, rather than only hinted at on the More
+    // screen — a tech who is not signed in yet has nothing to check against,
+    // so this only blocks once there is an identity to ask about. The click
+    // handler this sits in is not async, so the check runs as its own
+    // promise and the rest of saveBiz waits behind it instead of behind
+    // `await`.
+    if (API.signedIn()) {
+      return loadIdentity().then((id) => {
+        if (!id || id.kyc !== "verified") {
+          toast("Verify your identity before you can publish your listing.");
+          return nav("kyc");
+        }
+        return finishSaveBiz();
+      });
+    }
+    return finishSaveBiz();
+  }
+  function finishSaveBiz() {
     const b = Object.assign({ services: [] }, DB.biz, readBiz());
     if (!b.name) return toast("Your business needs a name.");
     // There WAS a check here demanding a WhatsApp number. The field it guarded
