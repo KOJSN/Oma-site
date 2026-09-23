@@ -902,9 +902,45 @@ function drawMischief(data, errMsg) {
       <td>${esc(r.accused)}</td>
       <td style="max-width:280px;white-space:normal">${esc(r.body || "—")}</td>
       <td><span class="chip ${r.status === "reviewed" ? "ok" : "warn"}">${esc(r.status || "open")}</span></td>
-      <td>${r.has_video ? '<span class="tiny sub">video attached</span>' : ""}</td>
+      <td>${r.has_video
+        ? `<button class="btn sm plain" data-watch="${esc(r.id)}" type="button">Watch</button>`
+        : ""}</td>
     </tr>`).join("")}</tbody></table>`).join("");
 }
+
+// 23 Sep 2026: "if theres a video i need to see it on the dashboard." The
+// incident bucket has no read policy for anyone, by design (see
+// incident-bucket.sql) — so this doesn't fetch storage directly, it asks the
+// incident-video Edge Function for a short-lived signed URL (it holds the
+// service-role key that can actually read a private bucket, and checks this
+// same admin token before it will). Opens in a new tab rather than an inline
+// player, so a slow signed fetch doesn't freeze the Mischief page itself.
+document.getElementById("mischief").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-watch]");
+  if (!btn) return;
+  const t = token();
+  if (!t) return lockOut();
+  const c = cfg();
+  if (!c) return alert("This page is not connected to Oma's database yet.");
+  btn.disabled = true;
+  const was = btn.textContent;
+  btn.textContent = "Loading…";
+  try {
+    const r = await fetch(c.url.replace(/\/$/, "") + "/functions/v1/incident-video", {
+      method: "POST",
+      headers: { apikey: c.anon, "Content-Type": "application/json" },
+      body: JSON.stringify({ token: t, id: btn.dataset.watch }),
+    });
+    const out = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(out.error || "That video could not be opened.");
+    window.open(out.url, "_blank", "noopener");
+  } catch (err) {
+    alert(err.message || "That video could not be opened.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = was;
+  }
+});
 
 async function loadMischief() {
   const t = token();
