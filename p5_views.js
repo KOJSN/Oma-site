@@ -621,13 +621,19 @@ function vSetup(edit) {
                the shop, tap it, and it looks up the address for you so you
                are not guessing what to type. "Pin me" (right) is the actual
                pin: it takes its own fresh GPS fix and saves it, independent
-               of whatever the text box says. A travelling tech gets this
-               too — she starts from somewhere, even if the live on/off
-               switch below (trackRow, p7_views3.js) is what says whether
-               she is working right now. -->
-          <span class="act" data-a="biz-locate" aria-label="Use current location" title="Use current location">${I.pin()}</span>
+               of whatever the text box says.
+
+               Kamsy, 23 Sep 2026: "techs without shops should not have this
+               pin me feature anymore since they already move around" —
+               taken away for a travelling tech. p20_live.js now tracks her
+               automatically during her set hours the moment she opens the
+               app, which supersedes a one-time manual pin; keeping the
+               button around would just be a stale coordinate she could
+               tap and forget. A shop still pins itself here — it does not
+               move, so its one manual fix is the whole story. -->
+          ${shop ? `<span class="act" data-a="biz-locate" aria-label="Use current location" title="Use current location">${I.pin()}</span>` : ""}
           <input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
-          <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>
+          ${shop ? `<span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>` : ""}
         </span></label>
       <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
         <span class="inp"><select id="bState">
