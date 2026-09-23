@@ -755,13 +755,16 @@ function drawBookings(data) {
   const rows = data.bookings || [];
   el.innerHTML = rows.length
     ? `<table><thead><tr>
-        <th>When</th><th>Customer</th><th>Tech</th><th>Amount</th><th>Status</th>
+        <th>When</th><th>Customer</th><th>Tech</th><th>Amount</th><th>Status</th><th></th>
       </tr></thead><tbody>${rows.map((b) => `<tr>
         <td>${esc(ago(b.created_at))}${b.at_home ? " · at home" : ""}</td>
         <td>${esc(b.customer)}</td>
         <td>${esc(b.tech)}</td>
         <td class="tnum">${naira(b.total_kobo)}</td>
         <td>${bkChip(b.status)}</td>
+        <td>${b.status === "disputed"
+          ? `<button class="btn sm plain" data-refund="${esc(b.id)}" type="button">Refund customer</button>`
+          : ""}</td>
       </tr>`).join("")}</tbody></table>`
     : `<div class="empty">No bookings match.</div>`;
   const total = data.total || 0;
@@ -804,6 +807,27 @@ document.getElementById("bkPrev").addEventListener("click", () => {
 document.getElementById("bkNext").addEventListener("click", () => {
   BK_OFFSET += BK_LIMIT;
   loadBookings();
+});
+
+// Refund a disputed booking — 23 Sep 2026. Only ever pays the customer
+// back (there's no function yet to pay the tech instead); see
+// admin-refund.sql for why. Reuses api_admin_bookings' own id column.
+document.getElementById("bookings").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-refund]");
+  if (!btn) return;
+  const reason = prompt("Reason for the refund (the customer may see this):", "");
+  if (reason === null) return;
+  btn.disabled = true;
+  try {
+    const t = token();
+    if (!t) return lockOut();
+    await rpc("api_admin_refund_booking", { p_token: t, p_booking: btn.dataset.refund, p_reason: reason });
+    loadBookings();
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    alert(e2.message || "That refund did not go through.");
+    btn.disabled = false;
+  }
 });
 
 /* ══ backend control, 22 Sep 2026 ═════════════════════════════════════
