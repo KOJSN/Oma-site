@@ -80,16 +80,22 @@ function vChat(bookingId) {
     // The same rule chat.sql enforces, said here so the box is not offered and
     // then refused.
     // Kamsy, 23 Sep 2026: "after an appointment is finished let nobody be
-    // able to message each other anymore" — a released booking (job done,
+    // able to message each other anymore" — this used to stay "open" for a
+    // full 30 DAYS after the appointment's start time no matter what, which
+    // is why a booking from days ago could still be messaged even once the
+    // job was obviously over. Two fixes: a released booking (job done,
     // money paid out) now closes the thread the same way a cancelled,
-    // expired or refunded one already did. This is the client-side half —
-    // it hides the composer here — but chat.sql needs the matching change
-    // server-side (its own copy of this same status check) or a determined
-    // person could still call the send API directly on a released booking.
-    // I don't have chat.sql's current contents to edit myself; paste its
-    // send-message function here and I'll add 'released' to it too.
+    // expired or refunded one already did, AND the time window is now a few
+    // hours past the appointment's start rather than a month — long enough
+    // to say "running late" or "on my way", not long enough to still be
+    // chatting a week later. This is the client-side half — it hides the
+    // composer here — but chat.sql needs the matching change server-side
+    // (its own copy of this same check) or a determined person could still
+    // call the send API directly. I don't have chat.sql's current contents
+    // to edit myself; paste its send-message function here and I'll fix it
+    // there too.
     const open = !["cancelled", "expired", "refunded", "released"].includes(b.status) &&
-                 at > Date.now() - 30 * 864e5;
+                 at > Date.now() - 6 * 3600e3;
 
     fillHost(`
       <div class="chathead">

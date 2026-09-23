@@ -924,6 +924,26 @@ function pullProfile() {
     DB.biz = b; dbSave(); return paint();
   }
   if (a === "saveBiz") {
+    // Kamsy, 23 Sep 2026: "do not let techs fill the listing form without
+    // verifying their kyc first." Checked here, at the one place the form
+    // actually gets published, rather than only hinted at on the More
+    // screen — a tech who is not signed in yet has nothing to check against,
+    // so this only blocks once there is an identity to ask about. The click
+    // handler this sits in is not async, so the check runs as its own
+    // promise and the rest of saveBiz waits behind it instead of behind
+    // `await`.
+    if (API.signedIn()) {
+      return loadIdentity().then((id) => {
+        if (!id || id.kyc !== "verified") {
+          toast("Verify your identity before you can publish your listing.");
+          return nav("kyc");
+        }
+        return finishSaveBiz();
+      });
+    }
+    return finishSaveBiz();
+  }
+  function finishSaveBiz() {
     const b = Object.assign({ services: [] }, DB.biz, readBiz());
     if (!b.name) return toast("Your business needs a name.");
     // There WAS a check here demanding a WhatsApp number. The field it guarded

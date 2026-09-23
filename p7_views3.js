@@ -33,17 +33,21 @@ function trackRow() {
         <span style="flex:1;min-width:0">${label(
           "Your shop has an address, so it does not move")}</span>
         ${I.chev()}</button>`;
+    // Kamsy, 23 Sep 2026: "techs should not have the toggle to turn off
+    // track location — it should not be an option at all, they shall
+    // always be tracked." No switch any more — a status row only, same
+    // shape as every other row here so it doesn't look broken, just not
+    // tappable into anything.
     const on = LIVE.on && !!LIVE.liveAt && !LIVE.err;
     const note = LIVE.err ? esc(LIVE.err)
       : on ? "Customers can see you &middot; updated "
              + esc(agoWords(LIVE.liveAt) || "just now")
-      : "Off &mdash; nobody can find you, and Oma keeps no trail";
+      : "Getting your position&hellip;";
     return `
-      <button data-a="track-toggle">
+      <div class="r">
         <span class="ic">${I.pin(on)}</span>
         <span style="flex:1;min-width:0">${label(note)}</span>
-        <span class="switch${LIVE.on ? " on" : ""}" role="switch"
-              aria-checked="${LIVE.on ? "true" : "false"}"><i></i></span></button>`;
+      </div>`;
   }
 
   // A customer is never on the map, and the browser has no API to revoke a

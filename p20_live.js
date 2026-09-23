@@ -266,9 +266,16 @@ async function autoLiveCheck() {
   const p = (await loadPresence()) || {};
   if (p.has_salon) return;                            // a shop does not move
   const within = inHoursWindow(p.opens, p.closes);
-  if (within === null) return;                         // no hours set — nothing to automate yet
-  if (within && !LIVE.on) return liveStart();
-  if (!within && LIVE.on) return liveStop();
+  // Kamsy, 23 Sep 2026: "techs should not have the toggle to turn off
+  // 'track location' — it should not be an option at all, they shall
+  // always be tracked." within === null used to mean "no hours set yet,
+  // nothing to automate" and left her on a manual switch. Now it means
+  // "no hours to gate by, so always on" — hours (once set) still gate WHEN
+  // she's tracked; with none set she is simply tracked continuously
+  // whenever the app is open and she is signed in. No opt-out either way.
+  const shouldBeOn = within === null ? true : within;
+  if (shouldBeOn && !LIVE.on) return liveStart();
+  if (!shouldBeOn && LIVE.on) return liveStop();
   if (ROUTE.v === "more") paint();
 }
 
@@ -286,20 +293,10 @@ async function liveResume() {
   LIVE.liveAt = p.live_at || null;
   PRESENCE = p;                                  // autoLiveCheck()/paint() reuse this
 
-  if (inHoursWindow(p.opens, p.closes) !== null) {
-    // Hours are set: fully automatic from here on. Her opens/closes IS the
-    // switch now, so there is no manual flag to pick back up.
-    return autoLiveStart();
-  }
-
-  // No hours set yet — nothing to gate the automatic version on, so fall
-  // back to the original manual switch until she sets them.
-  let wanted = false;
-  try { wanted = localStorage.getItem(LIVE_KEY) === "1"; } catch (e) { /* private */ }
-  // Fresh on the server counts as working even if this phone forgot — she may
-  // have switched device, and the map already has her.
-  if (wanted || p.visible) return liveStart();
-  paintWorking();
+  // Kamsy, 23 Sep 2026: no manual switch for a travelling tech any more,
+  // set hours or not — autoLiveCheck()'s own rule now covers both cases
+  // (gated by hours when she has them, always on when she doesn't).
+  return autoLiveStart();
 }
 
 /* ── what she sees ──────────────────────────────────────────────────── */
@@ -315,12 +312,13 @@ function workingCard() {
   const seen = agoWords(LIVE.liveAt);
   const on = LIVE.on && !!LIVE.liveAt && !LIVE.err;
 
-  // Kamsy, 23 Sep 2026: a travelling tech with hours set has no toggle any
-  // more — her opens/closes IS the switch, so this card only ever reports
-  // what Oma is already doing for her, automatically.
-  const auto = PRESENCE && PRESENCE.has_salon === false
-    && inHoursWindow(PRESENCE.opens, PRESENCE.closes) !== null;
-  if (auto) {
+  // Kamsy, 23 Sep 2026: "techs should not have the toggle to turn off
+  // track location — it should not be an option at all, they shall
+  // always be tracked." No switch here any more, set hours or not — this
+  // card only ever reports what Oma is already doing for her.
+  const hasHours = PRESENCE && inHoursWindow(PRESENCE.opens, PRESENCE.closes) !== null;
+
+  if (hasHours) {
     const o = String(PRESENCE.opens).slice(0, 5), c = String(PRESENCE.closes).slice(0, 5);
     return `<div class="card work${on ? " on" : ""}" id="workCard">
       <div style="font-weight:800;letter-spacing:-.02em">
@@ -329,34 +327,25 @@ function workingCard() {
         ${LIVE.err ? esc(LIVE.err)
           : on ? `Your position updated ${esc(seen || "just now")}. Oma tracks
                   you automatically during your hours (${esc(o)}–${esc(c)}) and
-                  stops the moment they end — nothing to switch.`
-               : `Oma will start showing you automatically at ${esc(o)}. Change
-                  your hours any time from your listing.`}</div>
+                  stops the moment they end.`
+               : `Oma will start showing you automatically at ${esc(o)}.`}</div>
     </div>`;
   }
 
   return `<div class="card work${on ? " on" : ""}" id="workCard">
-    <div class="rowbetween">
-      <div style="min-width:0">
-        <div style="font-weight:800;letter-spacing:-.02em">
-          ${on ? "Customers can see you" : "You are off the map"}</div>
-        <div class="tiny faint" style="margin-top:3px">
-          ${LIVE.err ? esc(LIVE.err)
-            : on ? `Your position updated ${esc(seen || "just now")}. Oma shows
-                    where you are now, and keeps no record of where you have been.`
-                 : `Turn this on when you start work. Nobody can find you while
-                    it is off, and Oma is not watching you. Set your opening
-                    hours in your listing and Oma will do this for you
-                    automatically instead.`}</div>
-      </div>
-      <button class="switch${LIVE.on ? " on" : ""}" data-a="work-toggle"
-              role="switch" aria-checked="${LIVE.on ? "true" : "false"}"
-              aria-label="Working now"><i></i></button>
-    </div>
-    ${LIVE.on && !LIVE.native ? `<div class="tiny faint" style="margin-top:9px">
-      Keep Oma open while you work. A website cannot follow you once the device
-      is locked — the Oma app from the App Store will, and this switch is what
-      it uses.</div>` : ""}
+    <div style="font-weight:800;letter-spacing:-.02em">
+      ${on ? "Customers can see you" : "Getting your position"}</div>
+    <div class="tiny faint" style="margin-top:3px">
+      ${LIVE.err ? esc(LIVE.err)
+        : on ? `Your position updated ${esc(seen || "just now")}. Oma always
+                tracks you while you have the app open, so customers can
+                find you — updated every 15 minutes, or sooner if you move.`
+             : `Oma is finding your position now. Set your opening hours in
+                your listing so it can also switch off automatically once
+                you close.`}</div>
+    ${!LIVE.native ? `<div class="tiny faint" style="margin-top:9px">
+      Keep Oma open while you work. A website cannot follow you once the
+      device is locked — the Oma app from the App Store will.</div>` : ""}
   </div>`;
 }
 
