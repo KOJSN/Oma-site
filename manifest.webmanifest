@@ -1,9 +1,10 @@
 {
+  "id": "/app.html",
   "name": "Oma — nail scan & booking",
   "short_name": "Oma",
   "description": "Find a nail tech, scan your hands, book and pay in the app.",
   "start_url": "/app.html",
-  "scope": "/",
+  "scope": "/app.html",
   "display": "standalone",
   "background_color": "#120e17",
   "theme_color": "#120e17",

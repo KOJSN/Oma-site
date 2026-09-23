@@ -1,9 +1,10 @@
 {
+  "id": "/techapp.html",
   "name": "Oma for nail techs",
   "short_name": "Oma tech",
   "description": "Manage your listing, bookings and earnings on Oma.",
   "start_url": "/techapp.html",
-  "scope": "/",
+  "scope": "/techapp.html",
   "display": "standalone",
   "background_color": "#120e17",
   "theme_color": "#120e17",
