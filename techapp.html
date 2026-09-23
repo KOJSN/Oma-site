@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /techapp-manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as 23e682614b/tech. -->
+     (start_url /techapp.html) — same fix shape as 92e8dce1fe/tech. -->
 <link rel="manifest" href="/techapp-manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1395,7 +1395,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "23e682614b";
+const BUILD_ID = "92e8dce1fe";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -9149,17 +9149,49 @@ function drawMap(pos, list) {
     interactive: false, keyboard: false,
   }).addTo(MAP);
 
-  PINS = list.map((t) => {
-    // This pin is the centre of her hexagon, not her address — see hex.sql.
-    // The hexagon itself is deliberately NOT drawn: the customer sees an
-    // ordinary pin and does not need a lesson in how the rounding works. The
-    // rounding still happens, in the database, where it cannot be undone.
-    const m = L.marker([+t.lat, +t.lng], { icon: pinIcon(t, false), title: t.business_name })
-      .addTo(MAP);
-    // Leaflet stops marker clicks from reaching the page, so these cannot go
-    // through the one delegated handler like everything else does.
-    m.on("click", () => choosePin(t.id));
-    return { id: t.id, m, t };
+  // This pin is the centre of her hexagon, not her address — see hex.sql.
+  // The hexagon itself is deliberately NOT drawn: the customer sees an
+  // ordinary pin and does not need a lesson in how the rounding works. The
+  // rounding still happens, in the database, where it cannot be undone.
+  //
+  // Kamsy, 23 Sep 2026, from a screenshot: Ayo studio (10 m away, no shop)
+  // was right there in the list under the sheet but never showed on the map
+  // at all — only Emma studio's (37 m away) pin did. Nothing was wrong with
+  // Ayo's data. hex.sql's "shown" grid rounds a published position to
+  // roughly a 600 m cell on purpose, for privacy (a room in someone's house
+  // must never be pinpointed) — so any two techs that close land on the
+  // EXACT same published point, not just a nearby one. Two markers on the
+  // identical pixel is one marker, and whichever got added to the map last
+  // simply sits on top of the other, hiding it completely. This has nothing
+  // to do with having a shop or not; it will happen to any two techs inside
+  // the same rounding cell. Group the list by that shared point and nudge
+  // duplicates into a small ring around it — a purely visual spread, not a
+  // change to the coordinate the privacy rounding produced — so every tech
+  // in a crowded cell gets her own visible, tappable pin.
+  const groups = new Map();
+  list.forEach((t) => {
+    const key = (+t.lat).toFixed(5) + "," + (+t.lng).toFixed(5);
+    (groups.get(key) || groups.set(key, []).get(key)).push(t);
+  });
+  PINS = [];
+  groups.forEach((group) => {
+    group.forEach((t, i) => {
+      let lat = +t.lat, lng = +t.lng;
+      if (group.length > 1) {
+        // An 18 m ring — enough to separate a 36px pin from its neighbours
+        // at any zoom the map opens at, still well inside the 600 m cell
+        // they were already rounded to.
+        const ang = (2 * Math.PI * i) / group.length;
+        lat += (18 * Math.cos(ang)) / 111320;
+        lng += (18 * Math.sin(ang)) / (111320 * Math.cos(lat * Math.PI / 180));
+      }
+      const m = L.marker([lat, lng], { icon: pinIcon(t, false), title: t.business_name })
+        .addTo(MAP);
+      // Leaflet stops marker clicks from reaching the page, so these cannot go
+      // through the one delegated handler like everything else does.
+      m.on("click", () => choosePin(t.id));
+      PINS.push({ id: t.id, m, t });
+    });
   });
 
   // Open on her and the five nearest rather than on the whole city. The extra
