@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as 1d39ffbeff/customer. -->
+     (start_url /techapp.html) — same fix shape as f77fa76389/customer. -->
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1395,7 +1395,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "1d39ffbeff";
+const BUILD_ID = "f77fa76389";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -9580,7 +9580,16 @@ function vChat(bookingId) {
     const at = new Date(b.starts_at).getTime();
     // The same rule chat.sql enforces, said here so the box is not offered and
     // then refused.
-    const open = !["cancelled", "expired", "refunded"].includes(b.status) &&
+    // Kamsy, 23 Sep 2026: "after an appointment is finished let nobody be
+    // able to message each other anymore" — a released booking (job done,
+    // money paid out) now closes the thread the same way a cancelled,
+    // expired or refunded one already did. This is the client-side half —
+    // it hides the composer here — but chat.sql needs the matching change
+    // server-side (its own copy of this same status check) or a determined
+    // person could still call the send API directly on a released booking.
+    // I don't have chat.sql's current contents to edit myself; paste its
+    // send-message function here and I'll add 'released' to it too.
+    const open = !["cancelled", "expired", "refunded", "released"].includes(b.status) &&
                  at > Date.now() - 30 * 864e5;
 
     fillHost(`
