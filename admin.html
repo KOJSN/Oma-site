@@ -343,13 +343,30 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
         </div>
 
         <div class="page" data-page="users">
-          <!-- Everyone. The globe on Reports can only draw somebody Oma holds
-               a coordinate for, and it holds one for very few — location is
-               recorded only when a signed-in person opens Oma having ALREADY
-               granted it, and Oma never prompts. This is the list the count
-               in "People" was standing in for. It says per row who is not on
-               the map, so the gap is explained where it is noticed. See
-               people.sql. -->
+          <!-- The globe. Moved here from Reports, 23 Sep 2026, so people —
+               the list and the map of where they joined from — live in one
+               place. It can only draw somebody Oma holds a coordinate for,
+               and it holds one for very few — location is recorded only
+               when a signed-in person opens Oma having ALREADY granted it,
+               and Oma never prompts. The caption below says how many of the
+               people it is actually drawing, so it never quietly implies it
+               is showing everybody, and it says the dots are good to about
+               11 km however far you zoom — which is a property of the
+               column, not of this page. See globe.sql. -->
+          <section>
+            <div class="lbl">Where people joined from</div>
+            <div class="card" style="padding:0;overflow:hidden">
+              <div id="globe" style="height:440px;display:flex;align-items:center;
+                   justify-content:center;background:var(--card)"></div>
+              <div id="globeWho" style="display:none;padding:14px 16px;border-top:1px solid var(--line)"></div>
+              <div id="globeCap" class="sub"
+                   style="font-size:12.5px;padding:12px 16px;border-top:1px solid var(--line)"></div>
+            </div>
+          </section>
+
+          <!-- Everyone. This is the list the count in "People" was standing
+               in for. It says per row who is not on the map, so the gap is
+               explained where it is noticed. See people.sql. -->
           <section>
             <div class="lbl">Everyone who has signed up</div>
             <div class="card scroll" id="folk"></div>
@@ -409,22 +426,6 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
         </div>
 
         <div class="page" data-page="reports">
-          <!-- The globe. The caption says how many of the people it is
-               actually drawing, so it never quietly implies it is showing
-               everybody, and it says the dots are good to about 11 km
-               however far you zoom — which is a property of the column,
-               not of this page. See globe.sql. -->
-          <section>
-            <div class="lbl">Where people joined from</div>
-            <div class="card" style="padding:0;overflow:hidden">
-              <div id="globe" style="height:440px;display:flex;align-items:center;
-                   justify-content:center;background:var(--card)"></div>
-              <div id="globeWho" style="display:none;padding:14px 16px;border-top:1px solid var(--line)"></div>
-              <div id="globeCap" class="sub"
-                   style="font-size:12.5px;padding:12px 16px;border-top:1px solid var(--line)"></div>
-            </div>
-          </section>
-
           <section>
             <div class="lbl">The last 30 days</div>
             <div class="grid g2">
@@ -689,19 +690,34 @@ document.querySelectorAll(".navbtn").forEach((b) => {
     const p = b.dataset.page;
     document.querySelectorAll(".navbtn").forEach((x) => x.classList.toggle("on", x === b));
     document.querySelectorAll(".page").forEach((x) => x.classList.toggle("on", x.dataset.page === p));
-    if (p === "bookings") loadBookings();
+    // 23 Sep 2026: "let it already be showing me all then i can also
+    // search" — opening the tab used to call loadBookings() with whatever
+    // status/search were left over from last time, so the FIRST thing she
+    // saw after a filtered look could be an empty "No bookings match"
+    // rather than everything. The status and search box are reset here, so
+    // every fresh visit to the tab starts from the full list — searching
+    // afterward still narrows it exactly as before.
+    if (p === "bookings") {
+      document.getElementById("bkStatus").value = "";
+      document.getElementById("bkSearch").value = "";
+      loadBookings(true);
+    }
     // 22 Sep 2026: the globe spilled out of its card, wider than the page
     // itself. drawGlobe() sizes it once with slot.clientWidth/clientHeight
-    // — but the dashboard loads every section at once, including Reports,
-    // while Reports still sits behind .page{display:none}. A hidden element
-    // has no box, so that first fit measured a 0×0 slot and globe.gl fell
-    // back to its own default size instead, which is where the overflow
-    // came from. Nothing resized it afterward — the ONLY other trigger is
-    // the browser's own resize event, and switching tabs isn't one. Now
-    // opening Reports re-measures the real, now-visible card and fits the
-    // globe to it, exactly the way GLOBE's own window-resize handler
-    // already does.
-    if (p === "reports" && typeof GLOBE !== "undefined" && GLOBE) {
+    // — but the dashboard loads every section at once, while the tab it
+    // lives on still sits behind .page{display:none}. A hidden element has
+    // no box, so that first fit measured a 0×0 slot and globe.gl fell back
+    // to its own default size instead, which is where the overflow came
+    // from. Nothing resized it afterward — the ONLY other trigger is the
+    // browser's own resize event, and switching tabs isn't one. Now
+    // opening the globe's tab re-measures the real, now-visible card and
+    // fits the globe to it, exactly the way GLOBE's own window-resize
+    // handler already does.
+    // 23 Sep 2026: the globe itself moved from Reports to Users — "let the
+    // globe be in the users tab" — so this now fires on "users", not
+    // "reports". Kept as its own check rather than folded into the ids
+    // list above since it does real work, not just a load() call.
+    if (p === "users" && typeof GLOBE !== "undefined" && GLOBE) {
       const slot = document.getElementById("globe");
       if (slot) GLOBE.width(slot.clientWidth).height(slot.clientHeight);
     }
