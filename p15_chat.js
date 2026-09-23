@@ -79,7 +79,16 @@ function vChat(bookingId) {
     const at = new Date(b.starts_at).getTime();
     // The same rule chat.sql enforces, said here so the box is not offered and
     // then refused.
-    const open = !["cancelled", "expired", "refunded"].includes(b.status) &&
+    // Kamsy, 23 Sep 2026: "after an appointment is finished let nobody be
+    // able to message each other anymore" — a released booking (job done,
+    // money paid out) now closes the thread the same way a cancelled,
+    // expired or refunded one already did. This is the client-side half —
+    // it hides the composer here — but chat.sql needs the matching change
+    // server-side (its own copy of this same status check) or a determined
+    // person could still call the send API directly on a released booking.
+    // I don't have chat.sql's current contents to edit myself; paste its
+    // send-message function here and I'll add 'released' to it too.
+    const open = !["cancelled", "expired", "refunded", "released"].includes(b.status) &&
                  at > Date.now() - 30 * 864e5;
 
     fillHost(`
