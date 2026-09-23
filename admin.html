@@ -895,7 +895,7 @@ function drawMischief(data, errMsg) {
   el.innerHTML = MISCHIEF_KIND_ORDER.filter((k) => groups[k] && groups[k].length).map((k) => `
     <div class="lbl" style="margin-top:18px">${esc(MISCHIEF_KIND_LABEL[k])} · ${groups[k].length}</div>
     <table><thead><tr>
-      <th>When</th><th>Reporter</th><th>Accused</th><th>Says</th><th>Status</th><th></th>
+      <th>When</th><th>Reporter</th><th>Accused</th><th>Says</th><th>Status</th><th>Attached</th>
     </tr></thead><tbody>${groups[k].map((r) => `<tr>
       <td>${esc(ago(r.created_at))}</td>
       <td>${esc(r.reporter)}</td>
@@ -903,44 +903,49 @@ function drawMischief(data, errMsg) {
       <td style="max-width:280px;white-space:normal">${esc(r.body || "—")}</td>
       <td><span class="chip ${r.status === "reviewed" ? "ok" : "warn"}">${esc(r.status || "open")}</span></td>
       <td>${r.has_video
-        ? `<button class="btn sm plain" data-watch="${esc(r.id)}" type="button">Watch</button>`
+        ? `<div class="mischiefMedia" data-media="${esc(r.id)}">
+             <span class="tiny sub">loading…</span></div>`
         : ""}</td>
     </tr>`).join("")}</tbody></table>`).join("");
 }
 
-// 23 Sep 2026: "if theres a video i need to see it on the dashboard." The
-// incident bucket has no read policy for anyone, by design (see
-// incident-bucket.sql) — so this doesn't fetch storage directly, it asks the
-// incident-video Edge Function for a short-lived signed URL (it holds the
-// service-role key that can actually read a private bucket, and checks this
-// same admin token before it will). Opens in a new tab rather than an inline
-// player, so a slow signed fetch doesn't freeze the Mischief page itself.
-document.getElementById("mischief").addEventListener("click", async (e) => {
-  const btn = e.target.closest("[data-watch]");
-  if (!btn) return;
+// 23 Sep 2026: "let the video or picture just be there" — no click, no
+// button, it just loads in. The incident bucket has no read policy for
+// anyone (see incident-bucket.sql), so this can't just point an <img>/
+// <video> tag at the file directly — it asks the incident-video Edge
+// Function for a short-lived signed URL (it holds the service-role key that
+// can actually read a private bucket, and checks this same admin token
+// before it will), one report at a time, and drops the player/image straight
+// into that report's row as each answer comes back.
+async function loadMischiefMedia(rows) {
   const t = token();
-  if (!t) return lockOut();
   const c = cfg();
-  if (!c) return alert("This page is not connected to Oma's database yet.");
-  btn.disabled = true;
-  const was = btn.textContent;
-  btn.textContent = "Loading…";
-  try {
-    const r = await fetch(c.url.replace(/\/$/, "") + "/functions/v1/incident-video", {
-      method: "POST",
-      headers: { apikey: c.anon, "Content-Type": "application/json" },
-      body: JSON.stringify({ token: t, id: btn.dataset.watch }),
-    });
-    const out = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(out.error || "That video could not be opened.");
-    window.open(out.url, "_blank", "noopener");
-  } catch (err) {
-    alert(err.message || "That video could not be opened.");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = was;
-  }
-});
+  if (!t || !c) return;
+  const base = c.url.replace(/\/$/, "") + "/functions/v1/incident-video";
+  const withVideo = (rows || []).filter((r) => r.has_video);
+  await Promise.all(withVideo.map(async (r) => {
+    const slot = document.querySelector(`[data-media="${CSS.escape(String(r.id))}"]`);
+    if (!slot) return;
+    try {
+      const res = await fetch(base, {
+        method: "POST",
+        headers: { apikey: c.anon, "Content-Type": "application/json" },
+        body: JSON.stringify({ token: t, id: r.id }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || "unavailable");
+      const path = new URL(out.url).pathname.toLowerCase();
+      const isImage = /\.(jpe?g|png|gif|webp|heic)$/.test(path);
+      slot.innerHTML = isImage
+        ? `<img src="${esc(out.url)}" alt="Attached photo"
+             style="max-width:160px;max-height:120px;border-radius:8px;display:block">`
+        : `<video src="${esc(out.url)}" controls preload="metadata"
+             style="max-width:220px;max-height:140px;border-radius:8px;display:block"></video>`;
+    } catch (e) {
+      slot.innerHTML = `<span class="tiny sub">could not load</span>`;
+    }
+  }));
+}
 
 async function loadMischief() {
   const t = token();
@@ -949,6 +954,7 @@ async function loadMischief() {
   try {
     const data = await rpc("api_admin_reports", { p_token: t, p_limit: 200 });
     drawMischief(data);
+    loadMischiefMedia(data && data.reports);
   } catch (e) {
     if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
     drawMischief(null, e && e.message);
