@@ -16,6 +16,17 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#f0518d">
+<!-- 23 Sep 2026: Kamsy — "i tried adding techapp to my home screen and
+     instead it added app to homescreen". Chrome does not use the page you
+     tapped "Add to Home Screen" from — it reads THIS manifest's start_url
+     and launches that, always, on every install, from either page. One
+     shared manifest.webmanifest hard-coded start_url to /app.html, so
+     "Add to Home Screen" from techapp.html was never going to open
+     techapp.html; it was reading the customer manifest and being told,
+     correctly by its own rules, to launch the customer app. /manifest.webmanifest
+     is stamped per build below — customer gets manifest.webmanifest
+     (start_url /app.html), tech gets techapp-manifest.webmanifest
+     (start_url /techapp.html) — same fix shape as 98ba86840e/customer. -->
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1380,7 +1391,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "a377852bfa";
+const BUILD_ID = "98ba86840e";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"

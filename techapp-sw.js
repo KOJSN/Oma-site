@@ -1,4 +1,4 @@
-/* Oma service worker — build 22a7242b13
+/* Oma service worker — build 1da33ce5b6
    Lives at the root of omanails.com, next to app.html.
 
    This is NOT the pwa/ one. That worker was written for a folder whose shell
@@ -14,12 +14,15 @@
    the next launch is current — nobody is ever more than one launch behind, and
    nobody is ever stuck. */
 
-const CACHE = "omatech-22a7242b13";
+const CACHE = "omatech-1da33ce5b6";
 const SHELL = "/techapp.html";
 /* "/" is in here so the landing page survives offline too. It could be left
    out and the site would still work online — but a worker that caches the app
-   and not the page people actually arrive on is a strange thing to ship. */
-const CORE = [SHELL, "/", "/manifest.webmanifest",
+   and not the page people actually arrive on is a strange thing to ship.
+   /techapp-manifest.webmanifest is stamped per build (build.py) so this worker caches the
+   SAME manifest its own html links to — customer's own manifest.webmanifest,
+   tech's own techapp-manifest.webmanifest — not always the customer one. */
+const CORE = [SHELL, "/", "/techapp-manifest.webmanifest",
               "/icons/icon-192.png", "/icons/icon-512.png",
               "/icons/maskable-512.png", "/icons/icon-180.png"];
 
