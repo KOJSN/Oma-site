@@ -60,13 +60,20 @@ const LIVE = {
   native: false,    // a wrapper answered when we asked
 };
 
-// A fix is worth sending when she has moved 25 m, or when four minutes have
-// passed and the freshness itself needs renewing. Both are well inside
-// live.sql's 45-minute window, so a missed send is never a disappearance.
+// A fix is worth sending when she has moved 25 m, or when fifteen minutes
+// have passed and the freshness itself needs renewing. Kamsy, 23 Sep 2026:
+// "let their location be automatically updated every 15 minutes." Both are
+// well inside live.sql's 45-minute window, so a missed send is never a
+// disappearance.
 const LIVE_MOVE_M = 25;
-const LIVE_RENEW_MS = 240000;
+const LIVE_RENEW_MS = 900000;
 const LIVE_MIN_GAP_MS = 20000;      // never more than three sends a minute
 const LIVE_KEY = "oma-working";     // she was working when the app last closed
+
+// How often the automatic open/close check re-runs while the app stays
+// open. Same 15 minutes as the position renewal — one cadence for "is it
+// still worth being on" the same as "send a fresh fix."
+const AUTO_CHECK_MS = 900000;
 
 function metresApart(a, b) {
   if (!a || !b) return Infinity;
@@ -225,16 +232,68 @@ function toggleWorking() {
   return LIVE.on ? liveStop() : liveStart();
 }
 
-/* Called once by boot(), and again whenever she signs in. Picks the working
-   switch back up where she left it — but only after ASKING THE SERVER whether
-   she is actually a travelling tech, because a salon must never start
-   broadcasting. */
+/* ══ automatic tracking, tied to her own hours ═══════════════════════════
+   Kamsy, 23 Sep 2026: "let their location be automatically update every 15
+   minutes so oma begins to track their location from when they open and
+   stops when they close, meaning that techs with out shops will not have
+   the 'track location' toggle anymore."
+
+   Mirrors tech_visible() in always-visible-hours.sql exactly — same
+   Africa/Lagos time-of-day window, same non-wrapping comparison — so the
+   client's idea of "should I be sending my position right now" never
+   disagrees with the server's idea of "is she visible right now." */
+function lagosTimeNow() {
+  // en-GB with hour12:false gives "HH:MM:SS" in the target zone without a
+  // date library — the one piece of Intl old Android WebViews reliably have.
+  return new Date().toLocaleTimeString("en-GB", { timeZone: "Africa/Lagos", hour12: false });
+}
+
+/* true/false once she has set hours, null when she hasn't — null is not the
+   same as false: it means there is nothing yet to automate her by. */
+function inHoursWindow(opens, closes) {
+  if (!opens || !closes) return null;
+  const now = lagosTimeNow();
+  return now >= String(opens).slice(0, 8) && now <= String(closes).slice(0, 8);
+}
+
+let AUTO_TICK = null;
+
+/* The one place that decides whether she should be broadcasting right now.
+   Safe to call as often as we like — it only ever flips LIVE.on when the
+   answer actually changed. */
+async function autoLiveCheck() {
+  if (DB.role !== "tech" || !API.signedIn()) return;
+  const p = (await loadPresence()) || {};
+  if (p.has_salon) return;                            // a shop does not move
+  const within = inHoursWindow(p.opens, p.closes);
+  if (within === null) return;                         // no hours set — nothing to automate yet
+  if (within && !LIVE.on) return liveStart();
+  if (!within && LIVE.on) return liveStop();
+  if (ROUTE.v === "more") paint();
+}
+
+function autoLiveStart() {
+  autoLiveCheck();
+  if (!AUTO_TICK) AUTO_TICK = setInterval(autoLiveCheck, AUTO_CHECK_MS);
+}
+
+/* Called once by boot(), and again whenever she signs in. */
 async function liveResume() {
   if (!API.signedIn()) return;
   let p;
   try { p = (await API.myPresence())[0]; } catch (e) { return; }
   if (!p || p.has_salon) return;                 // a shop does not move
   LIVE.liveAt = p.live_at || null;
+  PRESENCE = p;                                  // autoLiveCheck()/paint() reuse this
+
+  if (inHoursWindow(p.opens, p.closes) !== null) {
+    // Hours are set: fully automatic from here on. Her opens/closes IS the
+    // switch now, so there is no manual flag to pick back up.
+    return autoLiveStart();
+  }
+
+  // No hours set yet — nothing to gate the automatic version on, so fall
+  // back to the original manual switch until she sets them.
   let wanted = false;
   try { wanted = localStorage.getItem(LIVE_KEY) === "1"; } catch (e) { /* private */ }
   // Fresh on the server counts as working even if this phone forgot — she may
@@ -255,6 +314,27 @@ function agoWords(iso) {
 function workingCard() {
   const seen = agoWords(LIVE.liveAt);
   const on = LIVE.on && !!LIVE.liveAt && !LIVE.err;
+
+  // Kamsy, 23 Sep 2026: a travelling tech with hours set has no toggle any
+  // more — her opens/closes IS the switch, so this card only ever reports
+  // what Oma is already doing for her, automatically.
+  const auto = PRESENCE && PRESENCE.has_salon === false
+    && inHoursWindow(PRESENCE.opens, PRESENCE.closes) !== null;
+  if (auto) {
+    const o = String(PRESENCE.opens).slice(0, 5), c = String(PRESENCE.closes).slice(0, 5);
+    return `<div class="card work${on ? " on" : ""}" id="workCard">
+      <div style="font-weight:800;letter-spacing:-.02em">
+        ${on ? "Customers can see you" : "Outside your hours"}</div>
+      <div class="tiny faint" style="margin-top:3px">
+        ${LIVE.err ? esc(LIVE.err)
+          : on ? `Your position updated ${esc(seen || "just now")}. Oma tracks
+                  you automatically during your hours (${esc(o)}–${esc(c)}) and
+                  stops the moment they end — nothing to switch.`
+               : `Oma will start showing you automatically at ${esc(o)}. Change
+                  your hours any time from your listing.`}</div>
+    </div>`;
+  }
+
   return `<div class="card work${on ? " on" : ""}" id="workCard">
     <div class="rowbetween">
       <div style="min-width:0">
@@ -265,7 +345,9 @@ function workingCard() {
             : on ? `Your position updated ${esc(seen || "just now")}. Oma shows
                     where you are now, and keeps no record of where you have been.`
                  : `Turn this on when you start work. Nobody can find you while
-                    it is off, and Oma is not watching you.`}</div>
+                    it is off, and Oma is not watching you. Set your opening
+                    hours in your listing and Oma will do this for you
+                    automatically instead.`}</div>
       </div>
       <button class="switch${LIVE.on ? " on" : ""}" data-a="work-toggle"
               role="switch" aria-checked="${LIVE.on ? "true" : "false"}"
@@ -292,7 +374,13 @@ function paintWorking() {
    suspended. Ask again the moment she comes back, so her first look at the
    screen is not a stale "updated 40 min ago". */
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState !== "visible" || !LIVE.on) return;
+  if (document.visibilityState !== "visible") return;
+  // Coming back to an automatic tab: re-check the hours boundary right away
+  // rather than waiting for the next 15-minute tick, so reopening Oma after
+  // closing time takes her off the map at once, and reopening during hours
+  // puts her back on it at once.
+  autoLiveCheck();
+  if (!LIVE.on) return;
   whereAmI().then((p) => { if (!p.guessed) liveSend(p.lat, p.lng, p.acc, LIVE.src); });
 });
 
@@ -381,6 +469,7 @@ async function trackToggle() {
   }
   const p = (await loadPresence()) || {};
   if (p.has_salon) return;                  // a shop does not move
+  if (inHoursWindow(p.opens, p.closes) !== null) return;  // automatic now — nothing to tap
   await toggleWorking();
   PRESENCE = null; loadPresence();
   paint();

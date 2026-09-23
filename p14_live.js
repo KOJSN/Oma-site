@@ -427,14 +427,23 @@ function vHomeLive() {
    leave the 'other states' below". */
 
 /* One pin. The initials rather than a dot, so a map of six techs is readable
-   without tapping any of them. */
+   without tapping any of them.
+
+   Kamsy, 23 Sep 2026: "let the techs without shops have circle pins on the
+   map since they are not solid on the app anymore" — a shop is a fixed
+   point, so it gets the squircle-with-a-corner pin, pointing at the exact
+   spot. A travelling tech's pin is her hexagon's centre already (see
+   hex.sql), not a fixed address, and now she is meant to be moving through
+   her whole working window automatically (p20_live.js) rather than sitting
+   still — a plain circle, with no corner pretending to point at one place. */
 function pinIcon(t, on) {
   const n = on ? 44 : 36;
+  const circle = t.has_salon === false;
   return L.divIcon({
     className: "",
-    html: `<div class="tpin${on ? " on" : ""}"><b><span>${esc(initials(t.business_name))}</span></b></div>`,
+    html: `<div class="tpin${on ? " on" : ""}${circle ? " circle" : ""}"><b><span>${esc(initials(t.business_name))}</span></b></div>`,
     iconSize: [n, n],
-    iconAnchor: [n / 2, n],
+    iconAnchor: circle ? [n / 2, n / 2] : [n / 2, n],
   });
 }
 

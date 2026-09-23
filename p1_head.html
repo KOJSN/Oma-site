@@ -251,6 +251,10 @@ a{color:var(--pink);text-decoration:none}
 .tpin b span{transform:rotate(45deg);letter-spacing:-.02em}
 .tpin.on b{width:44px;height:44px;font-size:13px;
   box-shadow:0 10px 22px -5px rgba(240,81,141,.95)}
+/* Kamsy, 23 Sep 2026: a travelling tech (no shop) gets a round pin instead
+   of the squircle-with-a-corner — she has no one fixed spot to point at. */
+.tpin.circle b{border-radius:50%;transform:none}
+.tpin.circle b span{transform:none}
 /* and this one is her */
 .mepin{width:16px;height:16px;border-radius:50%;background:#2f7cf6;
   border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,124,246,.2)}
