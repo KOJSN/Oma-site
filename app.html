@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as 39cd93775c/customer. -->
+     (start_url /techapp.html) — same fix shape as a771d30d22/customer. -->
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1395,7 +1395,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "39cd93775c";
+const BUILD_ID = "a771d30d22";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -7403,8 +7403,27 @@ function vEditMe() {
            current location." Typing a neighbourhood by hand is gone; the
            only way this row is set is the same location-icon pattern as
            the home-service address field, so what lands here is a real fix
-           on the map, not a word she typed. -->
-      ${line(`<div style="display:flex;align-items:center;gap:12px">
+           on the map, not a word she typed.
+
+           Kamsy, 23 Sep 2026: "in tech profiles they should not update
+           location normally anymore, it should be automated every 15
+           minutes" — a tech tapping "Update" here was a second, manual way
+           of doing what p20_live.js's autoLiveCheck() already does for her
+           on its own, every 15 minutes, the whole time she has the app
+           open (see the "Track my location" row on More, and trackRow()'s
+           notes in this file for why a tech no longer gets a manual switch
+           there either). Keeping a button here would have re-opened exactly
+           the door that was closed. A customer still gets the editable row
+           — she is never auto-tracked, so this is the only way her
+           location is ever set. -->
+      ${tech ? line(`
+          ${label("Location")}
+          <span class="tiny sub" style="display:block;margin-top:3px;font-weight:600">Automatic
+            &mdash; updated every 15 minutes while you're working</span>
+          <span class="tiny faint" style="display:block;margin-top:3px">Oma tracks where you
+            are the same way it does for customers looking for you. There is nothing to set
+            here any more.</span>`)
+        : line(`<div style="display:flex;align-items:center;gap:12px">
         <span style="flex:1;min-width:0">
           ${label("Location")}
           ${value((m.area || "").trim(), "Add your location")}
