@@ -306,6 +306,9 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
       <button class="navbtn" type="button" data-page="finances">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.4-1.3-2.5-3-2.5s-3 1-3 2.3c0 3 6 1.4 6 4.4 0 1.4-1.3 2.3-3 2.3s-3-1-3-2.3"/></svg>
         Finances</button>
+      <button class="navbtn" type="button" data-page="mischief">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+        Mischief</button>
       <button class="navbtn" type="button" data-page="control">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M12 8v4l3 2"/></svg>
         Control</button>
@@ -466,6 +469,22 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
           <section>
             <div class="lbl">Where they are</div>
             <div class="card" id="states"></div>
+          </section>
+        </div>
+
+        <!-- Mischief, 23 Sep 2026 — "i realized i can not even view the
+             reports so create a new sidebar and name it mischief where i
+             view all the reports and group them too based on kind of
+             report." Nothing before this ever read the incident table
+             (the "Report a problem" screen has been writing to it since
+             it shipped) — see admin-mischief.sql. Grouped by kind here,
+             client-side; the RPC just hands back every report. -->
+        <div class="page" data-page="mischief">
+          <section>
+            <div class="lbl">Reports, by kind</div>
+            <div class="card" id="mischief">
+              <div class="empty">Loading…</div>
+            </div>
           </section>
         </div>
 
@@ -721,6 +740,10 @@ document.querySelectorAll(".navbtn").forEach((b) => {
       const slot = document.getElementById("globe");
       if (slot) GLOBE.width(slot.clientWidth).height(slot.clientHeight);
     }
+    // 23 Sep 2026: Mischief — load fresh every time the tab is opened,
+    // same reasoning as Bookings above (nothing to reset, there's no
+    // filter on this page yet).
+    if (p === "mischief") loadMischief();
   });
 });
 
@@ -835,6 +858,66 @@ document.getElementById("bookings").addEventListener("click", async (e) => {
     btn.disabled = false;
   }
 });
+
+/* ══ mischief, 23 Sep 2026 ════════════════════════════════════════════
+   "i can not even view the reports so create a new sidebar named
+   mischief where i view all the reports and group them too based on
+   kind of report." One RPC, api_admin_reports (admin-mischief.sql),
+   returns every report; grouping by kind happens right here. */
+const MISCHIEF_KIND_LABEL = {
+  safety: "I felt unsafe",
+  harassment: "Harassment",
+  theft: "Something was taken",
+  no_show: "Did not turn up",
+  other: "Something else",
+};
+const MISCHIEF_KIND_ORDER = ["safety", "harassment", "theft", "no_show", "other"];
+
+function drawMischief(data, errMsg) {
+  const el = document.getElementById("mischief");
+  if (data === null) {
+    el.innerHTML = errMsg
+      ? `<div class="empty">Reports did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Reports are not loaded yet —
+      run <b>admin-mischief.sql</b> in Supabase.</div>`;
+    return;
+  }
+  const rows = data.reports || [];
+  if (!rows.length) {
+    el.innerHTML = `<div class="empty">No reports filed. Long may that last.</div>`;
+    return;
+  }
+  const groups = {};
+  rows.forEach((r) => {
+    const k = MISCHIEF_KIND_LABEL[r.kind] ? r.kind : "other";
+    (groups[k] = groups[k] || []).push(r);
+  });
+  el.innerHTML = MISCHIEF_KIND_ORDER.filter((k) => groups[k] && groups[k].length).map((k) => `
+    <div class="lbl" style="margin-top:18px">${esc(MISCHIEF_KIND_LABEL[k])} · ${groups[k].length}</div>
+    <table><thead><tr>
+      <th>When</th><th>Reporter</th><th>Accused</th><th>Says</th><th>Status</th><th></th>
+    </tr></thead><tbody>${groups[k].map((r) => `<tr>
+      <td>${esc(ago(r.created_at))}</td>
+      <td>${esc(r.reporter)}</td>
+      <td>${esc(r.accused)}</td>
+      <td style="max-width:280px;white-space:normal">${esc(r.body || "—")}</td>
+      <td><span class="chip ${r.status === "reviewed" ? "ok" : "warn"}">${esc(r.status || "open")}</span></td>
+      <td>${r.has_video ? '<span class="tiny sub">video attached</span>' : ""}</td>
+    </tr>`).join("")}</tbody></table>`).join("");
+}
+
+async function loadMischief() {
+  const t = token();
+  if (!t) return lockOut();
+  document.getElementById("mischief").innerHTML = `<div class="empty">Loading…</div>`;
+  try {
+    const data = await rpc("api_admin_reports", { p_token: t, p_limit: 200 });
+    drawMischief(data);
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawMischief(null, e && e.message);
+  }
+}
 
 /* ══ backend control, 22 Sep 2026 ═════════════════════════════════════
    A tech's listed/KYC flag. Nothing here moves money or touches a
