@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as a771d30d22/customer. -->
+     (start_url /techapp.html) — same fix shape as 2bcc226b0e/customer. -->
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1395,7 +1395,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "a771d30d22";
+const BUILD_ID = "2bcc226b0e";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -11926,7 +11926,7 @@ function vPoints() {
 /* Public by design and ships in the app — it is the half of the VAPID pair
    that identifies the sender, and it is worthless without the private half,
    which lives only in Supabase's secrets. build2.py substitutes it. */
-let PUSH_PUBLIC_KEY = "BPXrpPfNAAGjOVPjDuMnXjIhJVcedu-3erpAYW9io90wBXs4HhD4mgcb-OAgq5jbV6McT92MY5YOg2Aw8l10KEs";
+let PUSH_PUBLIC_KEY = "__VAPID_PUBLIC__";
 const havePushKey = () =>
   typeof PUSH_PUBLIC_KEY === "string" && PUSH_PUBLIC_KEY.length > 20 &&
   PUSH_PUBLIC_KEY.indexOf("VAPID") === -1;
