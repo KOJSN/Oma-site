@@ -1,124 +1,47 @@
 <!doctype html>
-<!-- en-NG, not plain en. It is a small signal and it is free: it tells a
-     crawler which country's results this page belongs in. -->
 <html lang="en-NG">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-<!-- ══ what a search engine and a shared link see ══════════════════════
-     Kamsy, 8 Sep 2026: searching the old domain, omaa.com.ng, showed a
-     Nigerian energy company instead. Two causes, both since fixed. There was
-     NOTHING at the root to index — the app lives at /app.html, and a crawler
-     that finds no page at / has no title, no description and nothing to show.
-     And the name itself was the problem: "omaa" belonged to somebody else's
-     search results before Oma existed.
-
-     10 Sep 2026: moved to omanails.com, which says what the business is in
-     the name. omaa.com.ng is kept and forwarded here — anyone who added Oma
-     to their home screen is pinned to that origin, with their data in that
-     origin's storage, and letting it lapse would kill their app.
-
-     Everything in this block exists to fix that half. The other half is
-     manual and only Kamsy can do it: add the site to Google Search Console
-     and submit /sitemap.xml. Nothing here makes that happen on its own.
-
-     THE DOMAIN IS WRITTEN ONCE, in the canonical and og:url below and in
-     sitemap.xml. If it ever changes, those are the only places to edit. -->
-<!-- The word "nails" is in the title on purpose. "Oma" alone competes with
-     omaa.com, a real energy company with years of history, and that fight is
-     not winnable. "Oma nails" and "nail tech near me Nigeria" are. -->
-<title>Oma Nails — find a nail tech near you in Nigeria</title>
-<meta name="description" content="Oma helps women in Nigeria find a nail tech nearby — Lagos, Abuja, anywhere she has signed up — see her prices before booking, and pay into escrow, so the money only reaches her when the appointment actually happens.">
-<link rel="canonical" href="https://omanails.com/">
+<title>List yourself as a nail tech on Oma — free, paid when you scan</title>
+<meta name="description" content="Join Oma as a nail tech in Nigeria. Listing yourself is free, set your own prices, and get paid the moment you scan a customer in. No monthly fee.">
+<link rel="canonical" href="https://omanails.com/techs.html">
 <meta name="theme-color" content="#f0518d">
 <meta name="robots" content="index,follow,max-image-preview:large">
 
-<!-- GOOGLE SEARCH CONSOLE goes on the line below.
-     search.google.com/search-console → Add property → URL prefix →
-     https://omanails.com → verify with the HTML TAG method. Google gives you
-     one <meta name="google-site-verification" ...> line: delete this comment,
-     paste that line in its place, commit, then press Verify.
-     Nothing else on this page needs to change for it. -->
-
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Oma">
-<meta property="og:url" content="https://omanails.com/">
-<meta property="og:title" content="Oma Nails — find a nail tech near you in Nigeria">
-<meta property="og:description" content="Find a nail tech nearby, see her prices before booking, and pay into escrow. The money only reaches her when the appointment actually happens.">
+<meta property="og:url" content="https://omanails.com/techs.html">
+<meta property="og:title" content="List yourself as a nail tech on Oma">
+<meta property="og:description" content="Free to list. Set your own prices. Get paid the moment you scan a customer in.">
 <meta property="og:image" content="https://omanails.com/icons/icon-512.png">
-<meta property="og:image:alt" content="Oma — book a nail tech in Nigeria">
+<meta property="og:image:alt" content="Oma — list yourself as a nail tech in Nigeria">
 <meta property="og:locale" content="en_NG">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Oma Nails — find a nail tech near you in Nigeria">
-<meta name="twitter:description" content="Find a nail tech nearby, see her prices before booking, and pay into escrow.">
+<meta name="twitter:title" content="List yourself as a nail tech on Oma">
+<meta name="twitter:description" content="Free to list. Set your own prices. Get paid the moment you scan a customer in.">
 
-<!-- ── the favicon, and why there are four lines of it ──────────────────
-     Google was showing a grey globe beside this result instead of the mark.
-     It fetches a site's favicon on its own schedule, separately from the
-     page, and falls back to the globe whenever it cannot get one it is happy
-     with. Its stated rules: square, a multiple of 48px, at a stable URL that
-     robots.txt allows — and it takes the icon from the site ROOT and uses it
-     for every result on the host, so this page is the one that decides it.
-
-     One <link> was doing all of that work. Now:
-       /favicon.ico    the file every crawler and every old browser asks for
-                       by default, whether or not a page links to it. If the
-                       linked PNG is ever missing or moved, this still answers.
-       48, 96, 192     the sized PNGs Google's own documentation asks for —
-                       square, every one a multiple of 48 — with explicit
-                       sizes= so nothing has to guess by downloading. 48 and 96
-                       sit at the ROOT beside favicon.ico rather than in
-                       /icons/, because everything in the upload folder lands
-                       at the root and a path that depends on remembering to
-                       drop two files into a subfolder is a path that breaks.
-       apple-touch     the home-screen icon on iOS, unchanged.
-     A few hundred bytes for three more fallbacks is not a trade worth
-     thinking about.
-
-     IF THE GLOBE PERSISTS: open https://omanails.com/favicon.ico directly.
-     A 404 means the file is not deployed and no markup will fix it. If it
-     loads, the remaining answer is time — Google refreshes favicons on a
-     cycle of days to weeks, and Search Console → URL Inspection → Request
-     Indexing on the homepage is what nudges it. -->
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" type="image/png" sizes="48x48" href="/icon-48.png">
 <link rel="icon" type="image/png" sizes="96x96" href="/icon-96.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
-
-<!-- Kamsy, 19 Sep 2026: the pink-on-black mark, for a browser in dark mode.
-     media= is a browser hint, not something Google's crawler is known to
-     honour reliably — worth watching Search Console after this ships in
-     case it ever confuses which icon gets indexed, for the same reason the
-     block above exists. Nothing here replaces those tags; it only adds a
-     preference on top for the browsers that support it. -->
 <link rel="icon" type="image/png" sizes="48x48" href="/icon-48-dark.png" media="(prefers-color-scheme: dark)">
 <link rel="icon" type="image/png" sizes="96x96" href="/icon-96-dark.png" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 
-<!-- Structured data. It is what lets Google show a name and a logo rather
-     than a bare URL, and it is the cheapest thing on this page. -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "Oma",
-  "alternateName": ["Oma Nails", "Oma nail tech"],
-  "url": "https://omanails.com/",
+  "@type": "WebPage",
+  "name": "List yourself as a nail tech on Oma",
+  "url": "https://omanails.com/techs.html",
   "inLanguage": "en-NG",
-  "description": "Find a nail tech near you in Nigeria, book, and pay safely into escrow.",
-  "publisher": {
-    "@type": "Organization",
-    "name": "Oma",
-    "alternateName": "Oma Nails",
-    "url": "https://omanails.com/",
-    "logo": "https://omanails.com/icons/icon-512.png",
-    "founder": { "@type": "Person", "name": "Oduagu Samben-Nwosu" },
-    "areaServed": { "@type": "Country", "name": "Nigeria" }
-  }
+  "description": "Join Oma as a nail tech in Nigeria. Free to list, set your own prices, paid when you scan.",
+  "isPartOf": { "@type": "WebSite", "name": "Oma", "url": "https://omanails.com/" }
 }
 </script>
 
@@ -447,244 +370,82 @@ footer a:hover{color:var(--pink)}
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
     <nav class="navlinks" id="nav">
-      <a href="#how">How it works</a>
-      <a href="#safe">Paying safely</a>
-      <a href="#about">About</a>
-      <a href="#get">Get the app</a>
-      <a href="#contact">Contact</a>
+      <a href="/#how">How it works</a>
+      <a href="/#safe">Paying safely</a>
+      <a href="/#about">About</a>
+      <a href="/">I'm looking for a nail tech</a>
+      <a href="/#contact">Contact</a>
     </nav>
-    <a class="btn" href="/app.html">Open Oma</a>
+    <a class="btn" href="/techapp.html">List yourself on Oma</a>
   </div>
 </header>
 
 <main id="main">
 
-<!-- ══ hero ═══════════════════════════════════════════════════════════ -->
+<!-- ══ tech hero ══════════════════════════════════════════════════════ -->
 <section class="hero">
-  <div class="wrap">
+  <div class="wrap" style="grid-template-columns:1fr;max-width:760px">
     <div>
-      <span class="eyebrow">🇳🇬 Built in Nigeria &nbsp;·&nbsp; <b>Free to use</b></span>
-      <h1>Find a nail&nbsp;tech.<br>Book her. Pay safely.</h1>
-      <p class="lede">Oma shows you the nail techs near you, what they charge, and
-        what other women thought — then holds your money until the appointment
-        actually happens.</p>
+      <span class="eyebrow">🇳🇬 Built in Nigeria &nbsp;·&nbsp; <b>Free to list</b></span>
+      <h1>Listing yourself is free.<br>You're paid when you scan.</h1>
+      <p class="lede">No monthly fee and nothing to pay to be found. Oma takes a
+        small amount from each completed service — and nothing at all if an
+        appointment is refunded, because then it never happened.</p>
       <div class="ctas">
-        <a class="btn big onhero" href="/app.html">Open Oma in your browser</a>
-        <a class="btn big ghost" href="/techs.html">I'm a nail tech</a>
+        <a class="btn big onhero" href="/techapp.html">List yourself on Oma</a>
+        <a class="btn big ghost" href="/">I'm looking for a nail tech</a>
       </div>
       <div class="trust">
-        <span>💳 Your money is held until you're done</span>
-        <span>📍 Sorted by how far away she really is</span>
-      </div>
-    </div>
-
-    <!-- Drawn, not a screenshot. There is no photograph of a real booking yet
-         and a mocked-up one presented as real is a small lie to open with. -->
-    <div class="phone" aria-hidden="true">
-      <div class="screen">
-        <div class="k">Nail techs near you</div>
-        <div class="row"><div class="av">TN</div>
-          <div><div class="nm">Tola Nails</div><div class="sub">Lekki Phase 1 · 1.2 km</div></div>
-          <div class="amt">from ₦5,500</div></div>
-        <div class="row"><div class="av">GL</div>
-          <div><div class="nm">Glossy Lagos</div><div class="sub">Victoria Island · 3.4 km</div></div>
-          <div class="amt">from ₦7,000</div></div>
-        <div class="row"><div class="av">AS</div>
-          <div><div class="nm">Ada's Studio</div><div class="sub">Comes to you · 5.1 km</div></div>
-          <div class="amt">from ₦9,000</div></div>
-        <div class="pill">🔒 Held until you scan at the appointment</div>
+        <span>💰 You set your own prices</span>
+        <span>📍 Turn Working on and off whenever you like</span>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ══ how it works ═══════════════════════════════════════════════════ -->
-<section id="how">
-  <div class="wrap">
-    <div class="head">
-      <div class="tag">How it works</div>
-      <h2>Four steps, and nobody has to trust a stranger.</h2>
-      <p>The hard part of booking a nail tech you have never met is not finding
-        her. It is knowing the money is safe and that she will turn up.</p>
-    </div>
-
-    <div class="tabs" role="tablist" aria-label="Who are you">
-      <button role="tab" id="tab-cust" aria-controls="panel-cust" aria-selected="true">For customers</button>
-      <button role="tab" id="tab-tech" aria-controls="panel-tech" aria-selected="false">For nail techs</button>
-    </div>
-
-    <div class="grid g4" id="panel-cust" role="tabpanel" aria-labelledby="tab-cust">
-      <div class="card"><div class="n">1</div>
-        <h3>Scan your hands</h3>
-        <p>Oma measures your nail beds from a photo, on your phone, and tells you
-          which shapes actually suit them. The photo never leaves the device.</p></div>
-      <div class="card"><div class="n">2</div>
-        <h3>Find someone near you</h3>
-        <p>See who is close, what they charge, and what other women said. Or let
-          her come to you — the price for that is shown before you book.</p></div>
-      <div class="card"><div class="n">3</div>
-        <h3>Book and pay</h3>
-        <p>You pay into an account for that one appointment. She cannot touch it
-          yet, and neither can we.</p></div>
-      <div class="card"><div class="n">4</div>
-        <h3>Show your code</h3>
-        <p>When your nails are done, she scans the code on your phone. That is
-          what releases the money — and it is the only thing that does.</p></div>
-    </div>
-
-    <div class="grid g4" id="panel-tech" role="tabpanel" aria-labelledby="tab-tech" hidden>
-      <div class="card"><div class="n">1</div>
-        <h3>List yourself</h3>
-        <p>Your name, your area, your own prices and how long each service takes.
-          Shop or no shop — if you travel, Oma shows where you are while you work.</p></div>
-      <div class="card"><div class="n">2</div>
-        <h3>Pass the ID check</h3>
-        <p>One check, so a customer paying a stranger knows who she is paying.
-          Your ID number is never stored — only the fact that it passed.</p></div>
-      <div class="card"><div class="n">3</div>
-        <h3>Take bookings</h3>
-        <p>Requests arrive in the app with the services, the time, and whether
-          she is coming to you or you to her.</p></div>
-      <div class="card"><div class="n">4</div>
-        <h3>Scan, and get paid</h3>
-        <p>Scan her code when you finish. The money moves to your balance, with
-          every deduction set out line by line.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ escrow ═════════════════════════════════════════════════════════ -->
-<section class="alt" id="safe">
-  <div class="wrap safe">
-    <div>
-      <div class="tag">Paying safely</div>
-      <h2>Your money doesn't move until your nails are done.</h2>
-      <p style="color:var(--sub);margin-top:16px;font-size:17px">
-        Paying a stranger up front is the reason most people never book online.
-        Oma's answer is not a promise — it is where the money physically sits.</p>
-      <p style="color:var(--sub);margin-top:14px;font-size:17px">
-        If she never scans your code, the appointment never completed, and the
-        money goes back to you.</p>
-    </div>
-    <div class="flow">
-      <div class="step"><div class="dot"></div>
-        <div><b>You pay into an account for that appointment</b>
-        <span>Made for your booking, closed after it.</span></div></div>
-      <div class="step"><div class="dot"></div>
-        <div><b>It sits there. Nobody can spend it</b>
-        <span>Not her, not you, not Oma.</span></div></div>
-      <div class="step"><div class="dot"></div>
-        <div><b>She does your nails</b>
-        <span>You show the code on your phone. She scans it.</span></div></div>
-      <div class="step"><div class="dot"></div>
-        <div><b>That scan releases the money</b>
-        <span>It is the only thing that does.</span></div></div>
-      <div class="step"><div class="dot"></div>
-        <div><b>No scan, no payment</b>
-        <span>If the appointment never happened, you get it back.</span></div></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ about ══════════════════════════════════════════════════════════ -->
-<section id="about">
-  <div class="wrap">
-    <div class="head">
-      <div class="tag">About us</div>
-      <h2>Oma is for the first appointment.</h2>
-      <p>Finding a good nail tech in Nigeria happens by word of mouth, and word
-        of mouth stops at the edge of who you already know. If you move to a new
-        area, or your usual tech stops answering, you are back to guessing from
-        photos and hoping.</p>
-    </div>
-    <div class="grid g3">
-      <div class="card">
-        <h3>Real prices, before you book</h3>
-        <p>Every tech sets her own. You see the number, and what it would cost
-          for her to come to you, before you commit to anything.</p></div>
-      <div class="card">
-        <h3>Distance you can trust</h3>
-        <p>Oma asks your phone where you are each time you look, so "1.2 km" is
-          from where you are standing, not where you were last week.</p></div>
-      <div class="card">
-        <h3>Reviews that had to be earned</h3>
-        <p>Only someone who paid for and completed an appointment can leave one.
-          A tech cannot rate herself and a rival cannot rate her down.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ founder ════════════════════════════════════════════════════════ -->
+<!-- ══ why list on oma ════════════════════════════════════════════════ -->
 <section class="alt">
   <div class="wrap">
-    <div class="head"><div class="tag">Founder</div></div>
-    <div class="founder">
-      <div class="fi" aria-hidden="true">OS</div>
-      <div>
-        <h2 style="font-size:clamp(24px,3.2vw,32px)">Oduagu Samben-Nwosu</h2>
-        <p style="color:var(--sub);margin-top:10px;max-width:56ch;font-size:16.5px">
-          Oma was founded and built to make booking a nail tech in Nigeria
-          something you can do without knowing her already.</p>
-      </div>
+    <div class="head">
+      <div class="tag">For nail techs</div>
+      <h2>Everything stays yours.</h2>
+      <p>Oma is a place customers find you — not a shop that tells you what to
+        charge or when to work.</p>
     </div>
+    <div class="grid g3">
+      <div class="card"><h3>Your prices are yours</h3>
+        <p>Set what you charge for every service, and a different price for
+          going to a customer if you want one.</p></div>
+      <div class="card"><h3>Nothing taken from your travel</h3>
+        <p>If you travel to a client, the call-out and the transport are yours.
+          Oma's fee is on your service prices only.</p></div>
+      <div class="card"><h3>No shop? Still findable</h3>
+        <p>Turn on <b>Working</b> when you start your day and customers see
+          where you are. Turn it off and you are off the map.</p></div>
+    </div>
+    <div style="margin-top:30px"><a class="btn big" href="/techapp.html">List yourself on Oma</a></div>
   </div>
 </section>
 
 <!-- ══ get the app ════════════════════════════════════════════════════ -->
-<section id="get">
+<section>
   <div class="wrap">
     <div class="head">
-      <div class="tag">Get the app</div>
-      <h2>It already works in your browser.</h2>
-      <p>Open Oma and add it to your home screen — it behaves like an installed
-        app, works offline, and needs no store. The store versions are coming;
-        nothing is waiting on them.</p>
+      <div class="tag">Prefer the app?</div>
+      <h2>Oma for nail techs is on its way.</h2>
+      <p>The web page above works today on any phone, right now, with nothing
+        to install. A dedicated app is coming soon.</p>
     </div>
-    <a class="btn big" href="/app.html">Open Oma</a>
     <div class="badges">
       <div class="badge"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 12.7c0-2.2 1.8-3.3 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.4.8-.7 0-1.8-.8-2.9-.8-1.5 0-2.9.9-3.6 2.2-1.6 2.7-.4 6.7 1.1 8.9.7 1.1 1.6 2.3 2.8 2.2 1.1 0 1.5-.7 2.9-.7s1.7.7 2.9.7c1.2 0 2-1.1 2.7-2.2.8-1.2 1.2-2.4 1.2-2.5 0 0-2.3-.9-2.4-3.6zM14.3 5.5c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 2-.5 2.6-1.2z"/></svg>
         <div><div class="bs">Coming soon on the</div><div class="bb">App Store</div></div>
-        <span class="soon">Soon</span></div>
+        <span class="soon">Soon</span>
+      </div>
       <div class="badge"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.6 2.3c-.2.3-.3.6-.3 1v17.4c0 .4.1.8.3 1l9.2-9.7L3.6 2.3zm10.6 8.2l2.6-2.8-9-5.1c-.3-.2-.6-.2-.9-.2l7.3 8.1zm0 3l-7.3 8.2c.3 0 .6 0 .9-.2l9-5.2-2.6-2.8zm5.6-3.4l-2.1-1.2-2.8 3 2.8 3 2.1-1.2c.9-.5.9-2.1 0-2.6z"/></svg>
         <div><div class="bs">Coming soon on</div><div class="bb">Google Play</div></div>
-        <span class="soon">Soon</span></div>
+        <span class="soon">Soon</span>
+      </div>
     </div>
-  </div>
-</section>
-
-<!-- ══ contact ════════════════════════════════════════════════════════ -->
-<section id="contact">
-  <div class="wrap">
-    <div class="head">
-      <div class="tag">Contact us</div>
-      <h2>Say hello.</h2>
-      <p>A question, a nail tech who wants to join, or something that went
-        wrong — this reaches Kamsy directly.</p>
-    </div>
-    <form id="contactForm" novalidate>
-      <div>
-        <label for="cName">Your name</label>
-        <input id="cName" name="name" autocomplete="name" maxlength="80" required>
-      </div>
-      <div>
-        <label for="cEmail">Your email</label>
-        <input id="cEmail" name="email" type="email" autocomplete="email"
-               maxlength="200" required>
-      </div>
-      <div>
-        <label for="cBody">Message</label>
-        <textarea id="cBody" name="body" maxlength="4000" required></textarea>
-      </div>
-      <!-- The bot trap. A person never sees this and never fills it; anything
-           that does is thanked and thrown away, in the database. Named
-           innocently, because "honeypot" in the markup is a hint. -->
-      <div class="hp" aria-hidden="true">
-        <label for="cCompany">Company</label>
-        <input id="cCompany" name="company" tabindex="-1" autocomplete="off">
-      </div>
-      <div><button class="btn big" type="submit" id="cSend">Send it</button></div>
-      <div id="cNote" role="status" aria-live="polite"></div>
-    </form>
   </div>
 </section>
 
@@ -700,24 +461,11 @@ footer a:hover{color:var(--pink)}
     <span style="margin-left:auto">© <span id="yr">2026</span> Oma</span>
     <a href="/app.html">Open the app</a>
     <a href="/privacy.html">Privacy</a>
-    <a href="#contact">Contact</a>
+    <a href="/#contact">Contact</a>
   </div>
 </footer>
 
-<script src="/oma-config.js"></script>
-
 <script>
-/* ── light or dark, her choice ────────────────────────────────────────
-   The palette already followed the phone. What it did not have was a way to
-   disagree with the phone — Kamsy, 9 Sep 2026: "add a light mode to the
-   website", looking at it on a phone that was set to dark.
-
-   Three states, not two, and that is the whole subtlety. No stored choice
-   means FOLLOW THE PHONE, which is the default and is not the same as
-   "light": the tokens are structured so the bare :root is light, a media
-   query darkens it, and an explicit stamp beats both in either direction.
-   Storing "light" the moment somebody lands would silently opt them out of
-   their own phone's setting for ever. */
 (function () {
   const KEY = "oma-theme";
   const root = document.documentElement;
@@ -734,8 +482,6 @@ footer a:hover{color:var(--pink)}
     const d = dark();
     btn.setAttribute("aria-label", d ? "Switch to light mode" : "Switch to dark mode");
     btn.setAttribute("title", btn.getAttribute("aria-label"));
-    // One glyph, showing what a tap will GIVE you rather than where you are —
-    // a sun when it is dark, a moon when it is light.
     btn.innerHTML = d
       ? '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2M12 19.8v2M2.2 12h2M19.8 12h2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19"/></svg>'
       : '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8.2 8.2 0 0 1 10.5 4a8.2 8.2 0 1 0 9.5 9.5Z"/></svg>';
@@ -746,46 +492,16 @@ footer a:hover{color:var(--pink)}
     try { localStorage.setItem(KEY, next); } catch (e) { /* private mode */ }
     label();
   });
-  // Follow the phone while she has not chosen, including if she changes it
-  // in Settings with this page still open.
   matchMedia("(prefers-color-scheme: dark)")
     .addEventListener("change", () => { if (!root.hasAttribute("data-theme")) label(); });
   label();
 })();
 
-/* ══ what connects this page to the database ═══════════════════════════
-   The two lines live in oma-config.js, which loads just above this script.
-   Leave them empty and the page still works: the contact form says it is
-   not connected yet rather than pretending to send.
-
-   There is a second, weaker source — the settings the app stores in this
-   browser. That one is deliberately NOT trusted for the contact form,
-   because it exists only on the machine that opened the app. Trusting it
-   would let Kamsy test the form on her own laptop, see it succeed, and
-   ship a site where nobody else's message goes anywhere. */
-function siteCfg() {
-  const c = window.OMA_CFG || {};
-  return c.url && c.anon ? { url: c.url, anon: c.anon } : null;
-}
-
-function localCfg() {
-  try {
-    const c = JSON.parse(localStorage.getItem("oma-cfg") || "{}");
-    if (c.url && c.anon) return c;
-  } catch (e) { /* private mode, or nothing stored */ }
-  return null;
-}
-
-// Everything on the public site uses this one.
-function cfg() { return siteCfg(); }
-
-/* ── the bar gets a line under it once you scroll ── */
 const bar = document.getElementById("bar");
 const onScroll = () => bar.classList.toggle("stuck", window.scrollY > 8);
 addEventListener("scroll", onScroll, { passive: true });
 onScroll();
 
-/* ── the menu, on a phone ── */
 const burger = document.getElementById("burger"), nav = document.getElementById("nav");
 burger.addEventListener("click", () => {
   const open = nav.classList.toggle("open");
@@ -798,84 +514,7 @@ nav.addEventListener("click", (e) => {
   }
 });
 
-/* ── customers / nail techs ── */
-const tabs = { "tab-cust": "panel-cust", "tab-tech": "panel-tech" };
-Object.keys(tabs).forEach((id) => {
-  document.getElementById(id).addEventListener("click", () => {
-    Object.entries(tabs).forEach(([t, p]) => {
-      const on = t === id;
-      document.getElementById(t).setAttribute("aria-selected", on ? "true" : "false");
-      document.getElementById(p).hidden = !on;
-    });
-  });
-});
-
 document.getElementById("yr").textContent = new Date().getFullYear();
-
-/* ── the contact form ──────────────────────────────────────────────────
-   Everything it sends is checked again in the database — the length caps,
-   the rate limits and the bot trap all live in contact.sql, because a check
-   that only exists in a page is a check anybody can skip. */
-const form = document.getElementById("contactForm");
-const note = document.getElementById("cNote");
-const sendBtn = document.getElementById("cSend");
-
-function say(kind, words) {
-  note.className = "note " + kind;
-  note.textContent = words;
-}
-
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const c = cfg();
-  const name = document.getElementById("cName").value.trim();
-  const email = document.getElementById("cEmail").value.trim();
-  const body = document.getElementById("cBody").value.trim();
-  const company = document.getElementById("cCompany").value;
-
-  if (!name)  return say("bad", "What should we call you?");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))
-    return say("bad", "That does not look like an email address.");
-  if (!body)  return say("bad", "The message is empty.");
-
-  if (!c) {
-    // Honest rather than a fake success. A form that swallows messages is
-    // worse than a form that admits it is not wired up. And if the settings
-    // are in THIS browser but not in the file that ships, say exactly that —
-    // it is the one failure that would otherwise look like success to Kamsy
-    // and like silence to everybody else.
-    return say("bad", localCfg()
-      ? "Not connected: this browser has the settings but oma-config.js does not. "
-        + "Fill in the two lines in oma-config.js."
-      : "The form is not connected yet. Please try again later.");
-  }
-
-  sendBtn.disabled = true;
-  say("", "Sending…");
-  try {
-    const r = await fetch(c.url.replace(/\/$/, "") + "/rest/v1/rpc/api_contact_send", {
-      method: "POST",
-      headers: { apikey: c.anon, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        p_name: name, p_email: email, p_body: body,
-        p_page: location.pathname, p_company: company,
-      }),
-    });
-    const text = await r.text();
-    if (!r.ok) {
-      let msg = "Could not send that.";
-      try { msg = (JSON.parse(text) || {}).message || msg; } catch (e) { /* not json */ }
-      say("bad", msg);
-    } else {
-      form.reset();
-      say("ok", "Sent. Kamsy will get back to you.");
-    }
-  } catch (err) {
-    say("bad", "Could not reach Oma. Check your connection and try again.");
-  } finally {
-    sendBtn.disabled = false;
-  }
-});
 </script>
 </body>
 </html>
