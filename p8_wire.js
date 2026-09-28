@@ -126,6 +126,11 @@ document.getElementById("shell").addEventListener("click", e => {
   /* the marketplace ---------------------------------------------------- */
   if (a === "reload") return paint();
 
+  // Kamsy, 27 Sep 2026: the "Sign in" button hostError() shows when a screen
+  // needed an account and did not have one. Same route change signin-mode
+  // already uses elsewhere, just reachable from any dead-ended screen.
+  if (a === "goto-signin") { ROUTE = { v: "signin", a: null }; return paint(); }
+
   if (a === "signout") {
     // Only the session goes. The backend settings stay, so the next person to
     // sign in on this device does not have to be handed the anon key again —

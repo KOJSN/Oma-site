@@ -39,10 +39,40 @@ function fillHost(html) {
   const h = document.getElementById("ahost");
   if (h) h.innerHTML = html;
 }
+/* Kamsy, 27 Sep 2026: "when its offline or needs sign in it shows something
+   like api_wallet — i want it to show offline or sign in depending on
+   situation". Two specific causes were both landing here as a raw Postgres
+   or fetch message:
+     - offline: fetch() itself never got a response. That always throws a
+       native TypeError, which is the one kind of error here that never
+       carries a .status — every error call() throws does, because it only
+       throws after reading a real HTTP response.
+     - not signed in: call() reached Supabase and got refused — 401/403, or
+       Postgres's "permission denied for function api_wallet" when the anon
+       role has no grant on a function only a signed-in user may call. Real,
+       but not something to show verbatim; API.signedIn() confirms it is
+       actually a sign-in problem and not some other 403. */
 function hostError(e) {
+  const msg = (e && e.message) || String(e);
+  const offline = !!(e && e.name === "TypeError" && e.status === undefined);
+  const needsAuth = !offline && !API.signedIn() &&
+    ((e && (e.status === 401 || e.status === 403)) || /permission denied/i.test(msg));
+
+  if (offline) {
+    return fillHost(`<div class="pad"><div class="note warn">
+      <span style="flex:none">${I.warn ? I.warn(16) : "!"}</span>
+      <div>You're offline. Check your connection and try again.</div></div>
+      <button class="btn ghost mt16" data-a="reload">Try again</button></div>`);
+  }
+  if (needsAuth) {
+    return fillHost(`<div class="pad"><div class="note warn">
+      <span style="flex:none">${I.warn ? I.warn(16) : "!"}</span>
+      <div>Sign in to see this.</div></div>
+      <button class="btn mt16" data-a="goto-signin">Sign in</button></div>`);
+  }
   fillHost(`<div class="pad"><div class="note warn">
     <span style="flex:none">${I.warn ? I.warn(16) : "!"}</span>
-    <div>${esc(e && e.message ? e.message : String(e))}</div></div>
+    <div>${esc(msg)}</div></div>
     <button class="btn ghost mt16" data-a="reload">Try again</button></div>`);
 }
 /** Wrap a loader so a thrown error lands on the screen instead of the console. */
