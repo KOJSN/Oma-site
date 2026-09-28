@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /techapp-manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as a650cd85f7/tech. -->
+     (start_url /techapp.html) — same fix shape as 7d9747a4c0/tech. -->
 <link rel="manifest" href="/techapp-manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -947,8 +947,21 @@ h3{font-size:16px}
 /* the photo you tap on */
 .stagewrap{position:relative;margin-top:14px;border-radius:24px;overflow:hidden;
   border:1px solid var(--sc-line);background:var(--sc-stage);touch-action:none}
-.stagewrap img{display:block;width:100%;height:auto}
+.stagewrap img{display:block;width:100%;height:auto;transition:filter .3s ease}
 .stagewrap svg{position:absolute;inset:0;width:100%;height:100%}
+
+/* the scanning effect — pink light sweeping the photo while it's auto-read */
+.scanline{position:absolute;left:0;right:0;height:3px;top:3%;opacity:0;pointer-events:none;
+  background:linear-gradient(90deg,transparent,var(--pink) 20%,var(--pink2) 50%,var(--pink) 80%,transparent);
+  box-shadow:0 0 16px 3px var(--pink),0 0 32px 8px rgba(240,81,141,.4)}
+#stage3.scanning img{filter:blur(6px) saturate(1.05)}
+#stage3.scanning .scanline{opacity:1;animation:scango 1.7s ease-in-out infinite}
+@keyframes scango{0%{top:3%}50%{top:95%}100%{top:3%}}
+.scanwait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .25s}
+#stage3.scanning .scanwait{opacity:1}
+.scanwait span{background:rgba(0,0,0,.55);color:#fff;font-weight:700;font-size:13px;
+  padding:8px 18px;border-radius:99px}
 .bx{fill:rgba(255,127,174,.16);stroke:#ff7fae;stroke-width:.35%;vector-effect:non-scaling-stroke}
 .bx.ghosted{fill:rgba(255,255,255,.06);stroke:rgba(255,255,255,.42)}
 .bx.unread{fill:rgba(224,169,68,.14);stroke:#e0a944;stroke-dasharray:6 5}
@@ -1263,6 +1276,8 @@ h3{font-size:16px}
       <div class="stagewrap" id="stage3">
         <img id="photo3" alt="Your hand">
         <svg id="ov3" preserveAspectRatio="none"></svg>
+        <div class="scanline"></div>
+        <div class="scanwait"><span>Please wait…</span></div>
       </div>
       <div class="glass" id="autoWork">
         <div class="rowbetween">
@@ -1395,7 +1410,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "a650cd85f7";
+const BUILD_ID = "7d9747a4c0";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -1553,6 +1568,7 @@ function resetScan() {
   showErr(""); setBusy("");
   document.getElementById("camIn").value = "";
   document.getElementById("fileIn").value = "";
+  document.getElementById("stage3").classList.remove("scanning");
   go(0);
 }
 document.getElementById("scanClose").addEventListener("click", () => {
@@ -2242,6 +2258,7 @@ async function runAuto() {
   document.getElementById("autoFoot").className = "hidden";
   document.getElementById("autoWork").className = "";
   document.getElementById("autoTiming").className = "hidden";
+  document.getElementById("stage3").classList.add("scanning");
   MPT.find = 0; MPT.nails = 0;
   autoBar(0.05);
   drawAuto();
@@ -2263,6 +2280,7 @@ async function runAuto() {
 
   autoBar(1);
   document.getElementById("autoWork").className = "hidden";
+  document.getElementById("stage3").classList.remove("scanning");
 
   showTiming(res);
 
