@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.omanails.nailtechs",
+        "sha256_cert_fingerprints": ["2D:F0:76:2E:08:24:37:7E:C0:B3:BF:89:BF:61:AD:81:6E:90:6C:CE:27:0F:62:5F:0A:77:2F:92:4F:00:B4:C7"]
+      }
+    }]
