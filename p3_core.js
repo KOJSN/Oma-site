@@ -162,6 +162,7 @@ function resetScan() {
   showErr(""); setBusy("");
   document.getElementById("camIn").value = "";
   document.getElementById("fileIn").value = "";
+  document.getElementById("stage3").classList.remove("scanning");
   go(0);
 }
 document.getElementById("scanClose").addEventListener("click", () => {

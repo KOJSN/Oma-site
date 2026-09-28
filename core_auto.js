@@ -338,6 +338,7 @@ async function runAuto() {
   document.getElementById("autoFoot").className = "hidden";
   document.getElementById("autoWork").className = "";
   document.getElementById("autoTiming").className = "hidden";
+  document.getElementById("stage3").classList.add("scanning");
   MPT.find = 0; MPT.nails = 0;
   autoBar(0.05);
   drawAuto();
@@ -359,6 +360,7 @@ async function runAuto() {
 
   autoBar(1);
   document.getElementById("autoWork").className = "hidden";
+  document.getElementById("stage3").classList.remove("scanning");
 
   showTiming(res);
 
