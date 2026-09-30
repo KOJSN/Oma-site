@@ -277,7 +277,7 @@ function vNearby() {
 }
 
 /* ── 22 one tech, and her services ────────────────────── */
-let PICKED = { techId: null, name: "", ids: [], at: null, terms: null, mins: 0, busy: [] };
+let PICKED = { techId: null, name: "", ids: [], at: null, terms: null, mins: 0, busy: [], hours: null };
 
 function vTechLive(id) {
   load(async () => {
@@ -293,7 +293,7 @@ function vTechLive(id) {
       API.homeTerms(id).catch(() => null),
     ]);
     const r = (rate || []).find((x) => x.tech_id === id);
-    PICKED = { techId: id, name: PICKED.name, ids: [], at: null, terms, mins: 0, busy: [] };
+    PICKED = { techId: id, name: PICKED.name, ids: [], at: null, terms, mins: 0, busy: [], hours: null };
     resetHome();
     fillHost(`
       <div class="pad stack gap12">
@@ -401,11 +401,33 @@ function busyOverlaps(candidateStartMs, candidateMins, busy) {
   });
 }
 
+// Kamsy, 30 Sep 2026: techs now have working hours, and clients can only
+// book inside them. PICKED.hours is what API.techHours() returned:
+// [{dow, opens_min, closes_min}] for each day she works (dow 0 = Sunday).
+// Empty or missing means she has not set hours yet (an older listing), and the
+// screen falls back to the old 09:00-17:00 grid so nobody loses bookings
+// overnight. A day she does not work shows no times at all.
+function slotStartsFor(dayTs, dur) {
+  const hrs = PICKED.hours;
+  if (!hrs || !hrs.length) return { open: true, hours: [9, 10, 11, 12, 13, 14, 15, 16, 17] };
+  const dow = new Date(dayTs).getDay();
+  const w = hrs.find((r) => Number(r.dow) === dow);
+  if (!w) return { open: false, hours: [] };
+  const out = [];
+  // Whole-hour starts, and the appointment must finish by closing time.
+  for (let m = Math.ceil(Number(w.opens_min) / 60) * 60; m + dur <= Number(w.closes_min); m += 60) {
+    out.push(m / 60);
+  }
+  return { open: true, hours: out };
+}
+
 function slotGridHtml(dayTs) {
-  const slots = [9, 10, 11, 12, 13, 14, 15, 16, 17];
   const dur = PICKED.mins || 60;
   const now = Date.now();
-  return slots.map((h) => {
+  const plan = slotStartsFor(dayTs, dur);
+  if (!plan.open) return `<div class="note" style="grid-column:1/-1"><div>She does not work this day. Pick another day.</div></div>`;
+  if (!plan.hours.length) return `<div class="note" style="grid-column:1/-1"><div>No time this day is long enough for what you picked. Try another day.</div></div>`;
+  return plan.hours.map((h) => {
     const at = new Date(dayTs); at.setHours(h, 0, 0, 0);
     const ts = at.getTime();
     const past = ts < now;
@@ -434,6 +456,8 @@ function vTimeLive() {
   load(async () => {
     try { PICKED.busy = await API.techBusy(PICKED.techId); }
     catch (e) { PICKED.busy = []; }    // still bookable — just unable to grey anything out this time
+    try { PICKED.hours = await API.techHours(PICKED.techId); }
+    catch (e) { PICKED.hours = null; } // older database, or no answer: the old grid
     paintSlotGrid(days[0].getTime());
   });
   return `

@@ -521,6 +521,11 @@ const API = (() => {
     // not after — see no-overlap.sql, which is what actually enforces this.
     // Just start times and lengths, nothing about who they belong to.
     techBusy:      (techId)                 => live() ? rpc("api_tech_busy", { p_tech: techId }) : MOCK.techBusy(techId),
+    // The days and hours she works: [{dow, opens_min, closes_min}] in Nigerian
+    // time (dow 0 = Sunday). Empty until she has set them. The database
+    // refuses a booking outside them; this is what lets the time screen show
+    // only the times that can actually be booked.
+    techHours:     (techId)                 => live() ? rpc("api_tech_hours", { p_tech: techId }) : MOCK.techHours(techId),
     book:          (techId, startsAt, ids, note, shape) => live() ? rpc("api_book", { p_tech: techId, p_starts: new Date(startsAt).toISOString(), p_service_ids: ids, p_note: note, p_shape: shape }) : MOCK.book(techId, startsAt, ids, note, shape),
     bookings:      (past)                   => live() ? rpc("api_my_bookings", { p_past: !!past }) : MOCK.bookings(!!past),
     codes:         (bookingId)              => live() ? rpc("api_booking_codes", { p_booking: bookingId }) : MOCK.codes(bookingId),
@@ -1526,6 +1531,7 @@ const API = (() => {
         s.bookings.push(b); save();
         return b;
       },
+      techHours: async () => [],
       techBusy: async (techId) => {
         const s = load(); expire();
         return s.bookings
