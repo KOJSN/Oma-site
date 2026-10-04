@@ -416,6 +416,32 @@ textarea{min-height:130px;resize:vertical}
   :root:not([data-theme="light"]) .note.bad{color:#e0a944}
 }
 
+/* ── customer care chat ──────────────────────────────── */
+.care{max-width:560px}
+.care-top{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;font-weight:800}
+#careState{font-size:13px;font-weight:600;color:var(--faint)}
+.care-log{border:1.5px solid var(--line);background:var(--card);border-radius:18px;
+  padding:16px;height:min(52vh,380px);overflow-y:auto;overscroll-behavior:contain;
+  display:flex;flex-direction:column;gap:10px}
+.care-hint{margin:auto;text-align:center;color:var(--faint);font-size:14px;
+  max-width:36ch;line-height:1.5}
+.cm{display:flex;flex-direction:column;max-width:84%}
+.cm.me{align-self:flex-end;align-items:flex-end}
+.cm.them{align-self:flex-start;align-items:flex-start}
+.cb{padding:10px 14px;border-radius:18px;font-size:15.5px;line-height:1.45;
+  white-space:pre-wrap;overflow-wrap:anywhere}
+.cm.me .cb{background:var(--grad);color:#fff;border-bottom-right-radius:6px}
+.cm.them .cb{background:var(--tint);color:var(--ink);border-bottom-left-radius:6px}
+.ct{font-size:11.5px;color:var(--faint);margin-top:3px}
+#careSend{display:flex;gap:10px;align-items:flex-end;margin-top:12px;max-width:none}
+#careSend textarea{flex:1;min-height:50px;height:50px;max-height:140px;resize:none}
+#careSend .btn{flex:none;padding:14px 22px}
+#careNote{margin-top:10px}
+#careNote:empty,#careStartNote:empty{display:none}
+.care-new{margin-top:14px;background:none;border:0;padding:0;color:var(--faint);
+  font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;text-decoration:underline}
+.care-new:hover{color:var(--pink)}
+
 footer{border-top:1px solid var(--line);padding:44px 0;color:var(--faint);
   font-size:14px}
 footer .wrap{display:flex;gap:20px;flex-wrap:wrap;align-items:center}
@@ -445,7 +471,7 @@ footer a:hover{color:var(--pink)}
       <a href="#safe">Paying safely</a>
       <a href="#about">About</a>
       <a href="#get">Get the app</a>
-      <a href="#contact">Contact</a>
+      <a href="#contact">Customer care</a>
     </nav>
     <a class="btn" href="/app.html">Open Oma</a>
   </div>
@@ -630,39 +656,56 @@ footer a:hover{color:var(--pink)}
   </div>
 </section>
 
-<!-- ══ contact ════════════════════════════════════════════════════════ -->
+<!-- ══ customer care ══════════════════════════════════════════════════ -->
 <section id="contact">
   <div class="wrap">
     <div class="head">
-      <div class="tag">Contact us</div>
-      <h2>Say hello.</h2>
+      <div class="tag">Customer care</div>
+      <h2>Talk to us.</h2>
       <p>A question, a nail tech who wants to join, or something that went
-        wrong — this reaches Kamsy directly.</p>
+        wrong — write here and Kamsy replies in this chat. No sign-in needed.</p>
     </div>
-    <form id="contactForm" novalidate>
-      <div>
-        <label for="cName">Your name</label>
-        <input id="cName" name="name" autocomplete="name" maxlength="80" required>
+
+    <div class="care">
+      <form id="careStart" novalidate>
+        <div>
+          <label for="careName">Your name</label>
+          <input id="careName" name="name" autocomplete="name" maxlength="80" required>
+        </div>
+        <div>
+          <label for="careContact">Email or phone <span style="font-weight:500">(optional)</span></label>
+          <input id="careContact" name="contact" autocomplete="email" maxlength="200"
+                 placeholder="So we can reach you if you leave this page">
+        </div>
+        <div>
+          <label for="careFirst">Message</label>
+          <textarea id="careFirst" name="body" maxlength="2000" required></textarea>
+        </div>
+        <!-- The bot trap. A person never sees this and never fills it; anything
+             that does is thanked and thrown away, in the database. -->
+        <div class="hp" aria-hidden="true">
+          <label for="careCompany">Company</label>
+          <input id="careCompany" name="company" tabindex="-1" autocomplete="off">
+        </div>
+        <div><button class="btn big" type="submit" id="careGo">Start chat</button></div>
+        <div id="careStartNote" role="status" aria-live="polite"></div>
+      </form>
+
+      <div id="careChat" hidden>
+        <div class="care-top">
+          <span>Chat with Oma</span>
+          <span id="careState"></span>
+        </div>
+        <div class="care-log" id="careLog" role="log" aria-live="polite"></div>
+        <form id="careSend" novalidate>
+          <textarea id="careMsg" maxlength="2000" rows="1" placeholder="Write a message…"
+                    aria-label="Your message"></textarea>
+          <button class="btn" type="submit" id="careSendBtn">Send</button>
+        </form>
+        <div id="careNote" role="status" aria-live="polite"></div>
+        <button class="care-new" type="button" id="careNew">Start a new chat</button>
       </div>
-      <div>
-        <label for="cEmail">Your email</label>
-        <input id="cEmail" name="email" type="email" autocomplete="email"
-               maxlength="200" required>
-      </div>
-      <div>
-        <label for="cBody">Message</label>
-        <textarea id="cBody" name="body" maxlength="4000" required></textarea>
-      </div>
-      <!-- The bot trap. A person never sees this and never fills it; anything
-           that does is thanked and thrown away, in the database. Named
-           innocently, because "honeypot" in the markup is a hint. -->
-      <div class="hp" aria-hidden="true">
-        <label for="cCompany">Company</label>
-        <input id="cCompany" name="company" tabindex="-1" autocomplete="off">
-      </div>
-      <div><button class="btn big" type="submit" id="cSend">Send it</button></div>
-      <div id="cNote" role="status" aria-live="polite"></div>
-    </form>
+    </div>
   </div>
 </section>
 
@@ -679,7 +722,7 @@ footer a:hover{color:var(--pink)}
     <a href="/app.html">Open the app</a>
     <a href="/founder">Founder</a>
     <a href="/privacy.html">Privacy</a>
-    <a href="#contact">Contact</a>
+    <a href="#contact">Customer care</a>
   </div>
 </footer>
 
@@ -791,70 +834,251 @@ Object.keys(tabs).forEach((id) => {
 
 document.getElementById("yr").textContent = new Date().getFullYear();
 
-/* ── the contact form ──────────────────────────────────────────────────
-   Everything it sends is checked again in the database — the length caps,
-   the rate limits and the bot trap all live in contact.sql, because a check
-   that only exists in a page is a check anybody can skip. */
-const form = document.getElementById("contactForm");
-const note = document.getElementById("cNote");
-const sendBtn = document.getElementById("cSend");
+/* ── customer care chat ────────────────────────────────────────────────
+   Replaces the contact form. Anyone can start a chat without signing in:
+   the database hands back a chat id and a secret, the secret is kept in
+   this browser only (and stored hashed on the server), and that pair is the
+   whole of "who is this". Kamsy answers from the admin page.
 
-function say(kind, words) {
-  note.className = "note " + kind;
-  note.textContent = words;
-}
+   Everything checked here is checked again in customer-care.sql — the
+   length caps, the rate limits and the bot trap — because a check that only
+   exists in a page is a check anybody can skip. Messages are put on the
+   page with textContent, never innerHTML, so nothing a stranger types can
+   become markup. */
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const startForm = $("careStart"), chatBox = $("careChat"), log = $("careLog"),
+        sendForm = $("careSend"), msgBox = $("careMsg"), sendBtn = $("careSendBtn"),
+        goBtn = $("careGo"), note = $("careNote"), startNote = $("careStartNote"),
+        stateEl = $("careState");
+  if (!startForm || !chatBox) return;
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const c = cfg();
-  const name = document.getElementById("cName").value.trim();
-  const email = document.getElementById("cEmail").value.trim();
-  const body = document.getElementById("cBody").value.trim();
-  const company = document.getElementById("cCompany").value;
+  const KEY = "oma_care_v1";
+  const baseTitle = document.title;
+  let chat = null;                 // { chat, secret }
+  let after = 0;                   // highest message id the poll has returned
+  const seen = new Set();
+  let timer = null, polling = false, again = false;
+  let lastActive = Date.now(), unseen = 0;
 
-  if (!name)  return say("bad", "What should we call you?");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))
-    return say("bad", "That does not look like an email address.");
-  if (!body)  return say("bad", "The message is empty.");
+  function say(el, kind, words) { el.className = kind ? "note " + kind : ""; el.textContent = words; }
 
-  if (!c) {
-    // Honest rather than a fake success. A form that swallows messages is
-    // worse than a form that admits it is not wired up. And if the settings
-    // are in THIS browser but not in the file that ships, say exactly that —
-    // it is the one failure that would otherwise look like success to Kamsy
-    // and like silence to everybody else.
-    return say("bad", localCfg()
-      ? "Not connected: this browser has the settings but oma-config.js does not. "
-        + "Fill in the two lines in oma-config.js."
-      : "The form is not connected yet. Please try again later.");
+  // The chat has to keep working when storage is blocked (private windows):
+  // it just will not survive a reload.
+  function load() {
+    try {
+      const v = JSON.parse(localStorage.getItem(KEY) || "null");
+      return v && v.chat && v.secret ? v : null;
+    } catch (e) { return null; }
+  }
+  function save(v) {
+    try { v ? localStorage.setItem(KEY, JSON.stringify(v)) : localStorage.removeItem(KEY); }
+    catch (e) { /* private mode */ }
   }
 
-  sendBtn.disabled = true;
-  say("", "Sending…");
-  try {
-    const r = await fetch(c.url.replace(/\/$/, "") + "/rest/v1/rpc/api_contact_send", {
-      method: "POST",
-      headers: { apikey: c.anon, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        p_name: name, p_email: email, p_body: body,
-        p_page: location.pathname, p_company: company,
-      }),
-    });
-    const text = await r.text();
-    if (!r.ok) {
-      let msg = "Could not send that.";
-      try { msg = (JSON.parse(text) || {}).message || msg; } catch (e) { /* not json */ }
-      say("bad", msg);
-    } else {
-      form.reset();
-      say("ok", "Sent. Kamsy will get back to you.");
+  async function rpc(fn, args) {
+    const c = cfg();
+    if (!c) {
+      const e = new Error(localCfg()
+        ? "Not connected: this browser has the settings but oma-config.js does not. "
+          + "Fill in the two lines in oma-config.js."
+        : "Customer care is not connected yet. Please try again later.");
+      e.offline = true;
+      throw e;
     }
-  } catch (err) {
-    say("bad", "Could not reach Oma. Check your connection and try again.");
-  } finally {
-    sendBtn.disabled = false;
+    let r;
+    try {
+      r = await fetch(c.url.replace(/\/$/, "") + "/rest/v1/rpc/" + fn, {
+        method: "POST",
+        headers: { apikey: c.anon, "Content-Type": "application/json" },
+        body: JSON.stringify(args),
+      });
+    } catch (e) {
+      const x = new Error("Could not reach Oma. Check your connection and try again.");
+      x.net = true;
+      throw x;
+    }
+    const text = await r.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (e) { /* not json */ }
+    if (!r.ok) {
+      // The function is not in the database yet (customer-care.sql not run).
+      if (r.status === 404 || /could not find the function/i.test(text)) {
+        const x = new Error("Customer care is not connected yet. Please try again later.");
+        x.offline = true;
+        throw x;
+      }
+      const x = new Error((data && data.message) || "Something went wrong. Please try again.");
+      x.status = r.status;
+      throw x;
+    }
+    return data;
   }
-});
+
+  const fmt = (at) => {
+    try { return new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+    catch (e) { return ""; }
+  };
+
+  function resetLog() {
+    log.textContent = "";
+    const h = document.createElement("p");
+    h.className = "care-hint"; h.id = "careHint";
+    h.textContent = "Kamsy replies here. Keep this page open, or come back to it on this "
+      + "device — your chat will still be here.";
+    log.append(h);
+    seen.clear(); after = 0;
+  }
+
+  function addMsg(m) {
+    if (seen.has(m.id)) return false;
+    seen.add(m.id);
+    const hint = $("careHint");
+    if (hint) hint.remove();
+    const stick = log.scrollHeight - log.scrollTop - log.clientHeight < 90;
+    const row = document.createElement("div");
+    row.className = "cm " + (m.admin ? "them" : "me");
+    const b = document.createElement("div"); b.className = "cb"; b.textContent = m.body;
+    const t = document.createElement("div"); t.className = "ct";
+    t.textContent = (m.admin ? "Kamsy · " : "") + fmt(m.at);
+    row.append(b, t);
+    log.append(row);
+    if (stick || !m.admin) log.scrollTop = log.scrollHeight;
+    return true;
+  }
+
+  function showChat() { startForm.hidden = true; chatBox.hidden = false; }
+  function showStart(words, kind) {
+    chatBox.hidden = true; startForm.hidden = false;
+    say(startNote, words ? (kind || "bad") : "", words || "");
+  }
+
+  function endChat(words) {
+    clearTimeout(timer);
+    chat = null; save(null); resetLog();
+    say(note, "", ""); stateEl.textContent = "";
+    showStart(words);
+  }
+
+  // Quick while a conversation is moving, slower as it goes quiet. A tab in
+  // the background still checks, but only occasionally — enough to put a
+  // number in the tab title when Kamsy has replied.
+  function delay() {
+    const idle = Date.now() - lastActive;
+    if (document.hidden) return idle < 1800000 ? 45000 : 0;
+    return idle < 120000 ? 4000 : idle < 600000 ? 10000 : idle < 1800000 ? 30000 : 60000;
+  }
+  function schedule() {
+    clearTimeout(timer);
+    if (!chat) return;
+    const d = delay();
+    if (d) timer = setTimeout(poll, d);
+  }
+
+  async function poll() {
+    if (!chat) return;
+    if (polling) { again = true; return; }
+    polling = true;
+    try {
+      const p = await rpc("api_support_poll",
+        { p_chat: chat.chat, p_secret: chat.secret, p_after: after });
+      if (!p || p.ok === false) {
+        return endChat("That chat is no longer available. You can start a new one.");
+      }
+      let fresh = 0, fromKamsy = 0;
+      for (const m of p.messages || []) {
+        if (addMsg(m)) { fresh++; if (m.admin) fromKamsy++; }
+        if (m.id > after) after = m.id;
+      }
+      if (fresh) lastActive = Date.now();
+      stateEl.textContent = p.closed ? "Closed — write again to reopen it." : "";
+      if (fromKamsy && document.hidden) {
+        unseen += fromKamsy;
+        document.title = "(" + unseen + ") " + baseTitle;
+      }
+      if (note.dataset.net) { delete note.dataset.net; say(note, "", ""); }
+    } catch (e) {
+      if (e.net) { say(note, "bad", "Reconnecting…"); note.dataset.net = "1"; }
+    } finally {
+      polling = false;
+      if (again) { again = false; poll(); } else schedule();
+    }
+  }
+
+  startForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("careName").value.trim();
+    const contact = $("careContact").value.trim();
+    const body = $("careFirst").value.trim();
+    const company = $("careCompany").value;
+    if (!name) return say(startNote, "bad", "What should we call you?");
+    if (!body) return say(startNote, "bad", "Write your message first.");
+    goBtn.disabled = true;
+    say(startNote, "", "Starting…");
+    try {
+      const r = await rpc("api_support_start", {
+        p_name: name, p_contact: contact, p_body: body,
+        p_page: location.pathname, p_company: company,
+      });
+      chat = { chat: r.chat, secret: r.secret };
+      save(chat); resetLog();
+      startForm.reset(); say(startNote, "", "");
+      lastActive = Date.now();
+      showChat();
+      await poll();
+    } catch (err) {
+      say(startNote, "bad", err.message);
+    } finally {
+      goBtn.disabled = false;
+    }
+  });
+
+  sendForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = msgBox.value.trim();
+    if (!body || !chat) return;
+    sendBtn.disabled = true;
+    say(note, "", "");
+    try {
+      await rpc("api_support_send", { p_chat: chat.chat, p_secret: chat.secret, p_body: body });
+      msgBox.value = "";
+      lastActive = Date.now();
+      await poll();
+    } catch (err) {
+      if (/no longer available/i.test(err.message)) endChat(err.message);
+      else { delete note.dataset.net; say(note, "bad", err.message); }
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+
+  // Enter sends on a computer; on a phone Enter stays a new line, and the
+  // button sends. Shift+Enter is always a new line.
+  msgBox.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing
+        && window.matchMedia("(pointer:fine)").matches) {
+      e.preventDefault();
+      sendBtn.click();
+    }
+  });
+
+  $("careNew").addEventListener("click", () => endChat(""));
+
+  document.addEventListener("visibilitychange", () => {
+    if (!chat) return;
+    if (!document.hidden) {
+      unseen = 0; document.title = baseTitle;
+      lastActive = Date.now();
+      clearTimeout(timer); poll();
+    } else {
+      schedule();
+    }
+  });
+
+  resetLog();
+  const saved = load();
+  if (saved) { chat = saved; showChat(); poll(); }
+})();
 </script>
 </body>
 </html>
