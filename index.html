@@ -663,7 +663,7 @@ footer a:hover{color:var(--pink)}
       <div class="tag">Customer care</div>
       <h2>Talk to us.</h2>
       <p>A question, a nail tech who wants to join, or something that went
-        wrong — write here and Kamsy replies in this chat. No sign-in needed.</p>
+        wrong — write here and we reply in this chat. No sign-in needed.</p>
     </div>
 
     <div class="care">
@@ -924,7 +924,7 @@ document.getElementById("yr").textContent = new Date().getFullYear();
     log.textContent = "";
     const h = document.createElement("p");
     h.className = "care-hint"; h.id = "careHint";
-    h.textContent = "Kamsy replies here. Keep this page open, or come back to it on this "
+    h.textContent = "We reply here. Keep this page open, or come back to it on this "
       + "device — your chat will still be here.";
     log.append(h);
     seen.clear(); after = 0;
@@ -940,7 +940,7 @@ document.getElementById("yr").textContent = new Date().getFullYear();
     row.className = "cm " + (m.admin ? "them" : "me");
     const b = document.createElement("div"); b.className = "cb"; b.textContent = m.body;
     const t = document.createElement("div"); t.className = "ct";
-    t.textContent = (m.admin ? "Kamsy · " : "") + fmt(m.at);
+    t.textContent = (m.admin ? "Oma · " : "") + fmt(m.at);
     row.append(b, t);
     log.append(row);
     if (stick || !m.admin) log.scrollTop = log.scrollHeight;
