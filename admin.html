@@ -517,7 +517,7 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
             <div class="lbl">A tech's listing and verification</div>
             <div class="card">
               <form id="techFindForm" style="display:flex;gap:8px;flex-wrap:wrap">
-                <input id="techFindQ" placeholder="Her email or name"
+                <input id="techFindQ" placeholder="Their email or name"
                        autocomplete="off" spellcheck="false"
                        style="flex:1;min-width:220px">
                 <button class="btn" id="techFindGo" type="submit">Find</button>
@@ -1292,7 +1292,7 @@ function blockerWords(b) {
   if (n("bookings_in_escrow")) out.push(n("bookings_in_escrow") + " booking(s) paid for and not finished");
   if (n("jobs_in_escrow")) out.push(n("jobs_in_escrow") + " job(s) paid for and not finished");
   if (n("disputes")) out.push(n("disputes") + " open dispute(s)");
-  if (n("wallet_kobo")) out.push(naira(n("wallet_kobo")) + " still in her wallet");
+  if (n("wallet_kobo")) out.push(naira(n("wallet_kobo")) + " still in their wallet");
   if (n("payouts_pending")) out.push(n("payouts_pending") + " payout(s) in flight");
   return out;
 }
@@ -2023,7 +2023,7 @@ async function load() {
               <div class="m"><b>${esc(p.tech)}</b>
                 <span>${esc(p.service)} · ${esc(ago(p.created_at))}</span>
                 ${p.why ? `<span style="color:var(--bad)">${esc(p.why)}</span>` : ""}
-                ${p.own_work ? "" : `<span>not declared as her own</span>`}</div>
+                ${p.own_work ? "" : `<span>not declared as their own</span>`}</div>
               <button class="act${p.hidden ? "" : " hide"}"
                       data-hide="${p.hidden ? "0" : "1"}" data-pic="${esc(p.id)}"
                 >${p.hidden ? "Put it back" : "Hide it"}</button>
