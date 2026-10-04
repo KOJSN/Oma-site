@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+<title>Oduagu Samben-Nwosu, founder — Oma Nails</title>
+<meta name="description" content="Oduagu Samben-Nwosu founded Oma to make booking a nail tech in Nigeria something you can do without knowing her already.">
+<link rel="canonical" href="https://omanails.com/founder">
+<meta name="robots" content="index,follow">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+
+<style>
+/* Same tokens as index.html, so this reads as part of the site rather than
+   a legal page bolted onto the side of it. Light first, overridden twice. */
+:root{
+  --bg:#ffffff; --bg2:#f7f5fa; --card:#ffffff; --ink:#181220; --sub:#5f5670;
+  --faint:#8a8296; --line:rgba(24,18,32,.10);
+  --pink:#f0518d; --pinkd:#c22a66; --tint:#fff0f6;
+  --shadow:0 24px 60px -20px rgba(24,18,32,.20),0 6px 16px -6px rgba(24,18,32,.10);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a080d; --bg2:#110d16; --card:#17131e; --ink:#f7f4f9; --sub:#a79db3;
+    --faint:#7b7186; --line:rgba(255,255,255,.10);
+    --pink:#ff5f96; --pinkd:#ffa9c8; --tint:#2a1622;
+    --shadow:0 24px 60px -20px rgba(0,0,0,.72),0 6px 16px -6px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0a080d; --bg2:#110d16; --card:#17131e; --ink:#f7f4f9; --sub:#a79db3;
+  --faint:#7b7186; --line:rgba(255,255,255,.10);
+  --pink:#ff5f96; --pinkd:#ffa9c8; --tint:#2a1622;
+  --shadow:0 24px 60px -20px rgba(0,0,0,.72),0 6px 16px -6px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+.wrap{max-width:740px;margin:0 auto;padding:0 22px}
+header{border-bottom:1px solid var(--line);padding:20px 0}
+header .wrap{display:flex;align-items:center;gap:12px}
+.mark{
+  width:34px;height:34px;border-radius:11px;flex:none;
+  background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:800;font-size:16px;letter-spacing:-.03em;
+}
+header b{font-size:17px;letter-spacing:-.03em}
+header a{margin-left:auto;color:var(--pinkd);text-decoration:none;font-weight:700;font-size:14.5px}
+h1{font-size:clamp(28px,6vw,38px);letter-spacing:-.035em;line-height:1.12;margin:44px 0 10px}
+.lede{font-size:17.5px;color:var(--sub);margin:0 0 8px}
+.when{font-size:13.5px;color:var(--faint);margin:0 0 36px}
+h2{font-size:20px;letter-spacing:-.028em;margin:40px 0 12px}
+h3{font-size:16px;letter-spacing:-.02em;margin:26px 0 6px}
+p,li{color:var(--sub)}
+p{margin:0 0 14px}
+ul{margin:0 0 14px;padding-left:20px}
+li{margin-bottom:7px}
+strong,b{color:var(--ink);font-weight:700}
+a{color:var(--pinkd)}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:18px;
+  padding:20px 22px;margin:0 0 18px;box-shadow:var(--shadow);
+}
+.card.hi{background:var(--tint);border-color:rgba(240,81,141,.22)}
+.card p:last-child,.card ul:last-child{margin-bottom:0}
+table{width:100%;border-collapse:collapse;margin:0 0 18px;font-size:15px}
+th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint);font-weight:700}
+td{color:var(--sub)}
+td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+footer{border-top:1px solid var(--line);margin-top:56px;padding:26px 0 50px}
+footer p{font-size:14px;color:var(--faint);margin:0}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.fwho{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin:44px 0 6px}
+.fwho .fi{width:84px;height:84px;border-radius:26px;flex:none;
+  background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
+  display:grid;place-items:center;color:#fff;font-size:30px;font-weight:800;letter-spacing:-.03em}
+.fwho h1{margin:0}
+.ftag{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--pinkd);font-weight:800;margin:0 0 4px}
+.note{font-size:18px;line-height:1.7}
+.note p{color:var(--ink)}
+.cta{display:inline-block;margin:6px 10px 0 0;padding:12px 20px;border-radius:14px;font-weight:700;text-decoration:none;font-size:15px}
+.cta.p{background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);color:#fff}
+.cta.s{border:1.5px solid var(--line);color:var(--ink)}
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <span class="mark">O</span><b>Oma Nails</b>
+  <a href="/">← Back to Oma</a>
+</div></header>
+
+<main class="wrap">
+
+<div class="fwho">
+  <div class="fi" aria-hidden="true">OS</div>
+  <div>
+    <p class="ftag">Founder</p>
+    <h1>Oduagu <span style="white-space:nowrap">Samben-Nwosu</span></h1>
+  </div>
+</div>
+
+<p class="lede">Oma was founded and built to make booking a nail tech in Nigeria
+something you can do without knowing her already.</p>
+
+<h2>A note from the founder</h2>
+<div class="card hi note">
+  <p>Finding a good nail tech in Nigeria usually depends on who you already
+  know. I built Oma so that you can see who is near you, what she charges and
+  what other women thought of her, and so that your money is held until the
+  appointment actually happens.</p>
+  <p>Nail techs are paid for the work they do. Clients get a fair way to choose.
+  That is what Oma is for.</p>
+</div>
+
+<p style="margin-top:26px">
+  <a class="cta p" href="/app.html">Open Oma</a>
+  <a class="cta s" href="mailto:hello@omanails.com">hello@omanails.com</a>
+</p>
+
+</main>
+
+<footer><div class="wrap">
+  <p>Oma Nails · <a href="/">omanails.com</a> · <a href="/terms.html">Terms</a> ·
+     <a href="/privacy.html">Privacy</a> ·
+     <a href="mailto:hello@omanails.com">hello@omanails.com</a></p>
+</div></footer>
+
+</body>
+</html>
