@@ -459,6 +459,7 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "map-clear") return choosePin(null);
   if (a === "map-me") return recentreMap();
   if (a === "ask-loc") return askLocation();
+  if (a === "place-locate") return placeLocate();
   if (a === "pick-time") return nav("timelive");
   // "day" and "slot" belong to the local booking flow in p6. These two are the
   // marketplace equivalents and must not shadow them.

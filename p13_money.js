@@ -594,6 +594,7 @@ function vTicket(bookingId) {
     fillHost(`
       <div class="pad stack gap12">
         ${ticketFace(b)}
+        <div id="placeSlot"></div>
         <div class="ticket" style="text-align:center">
           <div style="padding:20px" class="stack gap12">
             <div class="tiny sub">Show this when she has finished</div>
@@ -607,6 +608,7 @@ function vTicket(bookingId) {
         <button class="btn ghost sm" data-a="dispute" data-id="${esc(b.id)}">
           Something went wrong with this appointment</button>
       </div>`);
+    fillPlace(b.id);
   });
   return head("Your appointment", "The code that pays her") + host();
 }
@@ -621,6 +623,256 @@ function ticketFace(b) {
     <div class="kv" style="padding-top:12px;border-top:1px solid var(--line)">
       <span class="k">Paid</span><span class="v" style="font-size:19px">${kobo(b.total_kobo)}</span></div>
   </div></div>`;
+}
+
+/* ── where to go ───────────────────────────────────────────────────────
+   Kamsy, 5 Oct 2026: "the customers should see the location of the tech, then
+   on the map she would see directions to the tech and know how far she is from
+   the tech". And, straight after: "the only time the address shows is from 30
+   mins before the appointment".
+
+   So this card has two lives. Before that moment it says only when it opens —
+   the server sends no street and no map point at all, so there is nothing here
+   to leak. From 30 minutes before, it shows the place on a small map, how far
+   she is from it, and a button that hands the trip to her phone's own maps app.
+
+   A tech who has no shop has no address to show. For her the card shows where
+   she is right now (the heartbeat she already sends while working), and keeps
+   asking every minute so the pin follows her.
+
+   The distance is a straight line, and says so. In Lagos the road can be
+   twice that; the maps button is where the real route lives. Road distance and
+   travel time in here need a routing service (a key and a bill) — parked, along
+   with Google Maps, until Kamsy decides.
+
+   Not a data-a screen: the map and the typed-in-nothing state must survive a
+   refresh in place, so refreshes move the pin rather than repaint the card. */
+let PLACE = null;   // { id, pl, me, at, mk, meMk, line } for the ticket on screen
+
+function placeAgo(iso) {
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  return m < 1 ? "just now" : m === 1 ? "1 minute ago" : m + " minutes ago";
+}
+
+function placeDist(m) {
+  if (!isFinite(m)) return "";
+  return m < 950 ? "about " + Math.max(10, Math.round(m / 10) * 10) + " m"
+                 : "about " + (m / 1000).toFixed(1) + " km";
+}
+
+function placeDest(pl) {
+  if (pl.lat != null && pl.lng != null) return pl.lat + "," + pl.lng;
+  if (pl.address) return pl.address + (pl.area ? ", " + pl.area : "");
+  return null;
+}
+
+/* Hand the trip to the phone's own maps app. No key, no account, nothing
+   billed to Oma: these are ordinary links. */
+function placeDirectionsUrl(pl) {
+  const dest = placeDest(pl);
+  if (!dest) return null;
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent)
+           || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return ios
+    ? "https://maps.apple.com/?daddr=" + encodeURIComponent(dest) + "&dirflg=d"
+    : "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(dest)
+      + "&travelmode=driving";
+}
+
+function placeCard(P) {
+  const pl = P.pl;
+  const lock = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>`;
+  const pin = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>`;
+
+  if (!pl.open) {
+    const t = pl.opens_at ? new Date(pl.opens_at).getTime() : null;
+    const day = t && new Date(t).toDateString() !== new Date().toDateString()
+      ? dayLabel(t) + " at " : "";
+    return `<div class="card placecard">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <span style="flex:none;margin-top:1px">${lock}</span>
+        <div>
+          <div style="font-weight:700">Where to go</div>
+          <div class="tiny sub" style="margin-top:3px">${t
+            ? `Her address opens at <b>${esc(day + hhmm(t))}</b>, 30 minutes before your appointment.`
+            : esc(pl.why || "Her address opens 30 minutes before your appointment.")}</div>
+        </div>
+      </div></div>`;
+  }
+
+  const has = pl.lat != null && pl.lng != null;
+  const url = placeDirectionsUrl(pl);
+  const who = pl.live
+    ? `<div style="font-weight:700">${esc(pl.place_name || "Her")} — where she is now</div>
+       <div class="tiny sub" id="plAsOf" style="margin-top:2px">${has && pl.as_of
+         ? "Updated " + esc(placeAgo(pl.as_of)) : ""}</div>`
+    : `<div style="font-weight:700">${esc(pl.place_name || "Her place")}</div>
+       <div style="margin-top:2px">${pl.address
+         ? esc(pl.address) + (pl.area ? `<span class="sub">, ${esc(pl.area)}</span>` : "")
+         : pl.area ? esc(pl.area) : ""}</div>`;
+
+  return `<div class="card placecard">
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <span style="flex:none;margin-top:1px">${pin}</span>
+      <div style="min-width:0;flex:1"><div class="lbl" style="margin:0 0 3px">Where to go</div>${who}</div>
+    </div>
+    ${has ? `<div class="tmap" id="plMap" role="img"
+        aria-label="Map showing ${esc(pl.place_name || "her")} and where you are"></div>` : ""}
+    <div class="tiny sub" id="plDist" style="margin-top:10px">${placeDistLine(P)}</div>
+    ${!has && pl.live ? `<div class="note" style="margin-top:10px"><div>${
+        esc(pl.why || "She is not sharing her position right now. Try again in a few minutes.")}</div></div>` : ""}
+    ${!has && !pl.live && !pl.address ? `<div class="note" style="margin-top:10px"><div>
+        Her address is not on file yet. Ask her in Messages.</div></div>` : ""}
+    <div class="stack gap8" style="margin-top:12px">
+      ${url ? `<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Get directions</a>` : ""}
+      ${has && !P.me ? `<button class="btn ghost sm" data-a="place-locate">How far am I?</button>` : ""}
+    </div>
+    ${url ? `<div class="tiny faint" style="margin-top:8px;text-align:center">
+      Opens the maps app on your phone.</div>` : ""}
+  </div>`;
+}
+
+function placeDistLine(P) {
+  const pl = P.pl;
+  if (pl.lat == null || pl.lng == null) return "";
+  if (!P.me) return "Tap <b>How far am I?</b> to see the distance from where you are.";
+  const m = metresApart({ lat: P.me.lat, lng: P.me.lng }, { lat: +pl.lat, lng: +pl.lng });
+  return `You are ${esc(placeDist(m))} from ${pl.live ? "her" : "here"}, in a straight line. `
+       + `The road is longer — <b>Get directions</b> has the real route.`;
+}
+
+function placeUpdateText() {
+  const P = PLACE; if (!P) return;
+  const d = document.getElementById("plDist"); if (d) d.innerHTML = placeDistLine(P);
+  const a = document.getElementById("plAsOf");
+  if (a && P.pl.as_of) a.textContent = "Updated " + placeAgo(P.pl.as_of);
+}
+
+/* Draw (or redraw) the card and its map. */
+async function placePaint() {
+  const P = PLACE, slot = document.getElementById("placeSlot");
+  if (!P || !slot) return;
+  stopMap(); P.mk = P.meMk = P.line = null;
+  slot.innerHTML = placeCard(P);
+  const el = document.getElementById("plMap");
+  const pl = P.pl;
+  if (!el || pl.lat == null || pl.lng == null) return;
+
+  const Lf = await waitForL(6000);
+  if (PLACE !== P || document.getElementById("plMap") !== el) return;   // she moved on
+  if (!Lf) {
+    el.outerHTML = `<div class="tiny sub" style="margin-top:10px">The map could not load. Get directions still works.</div>`;
+    return;
+  }
+  MAP = Lf.map(el, {
+    zoomControl: false, attributionControl: false, scrollWheelZoom: false,
+    touchZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false,
+    // On a phone a map that takes one-finger drags traps the page: she cannot
+    // scroll past it. Desktop can pan; phones get a still picture.
+    dragging: !Lf.Browser.mobile,
+  });
+  Lf.control.attribution({ position: "bottomright" }).addTo(MAP);
+  Lf.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19, minZoom: 9,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(MAP);
+
+  P.mk = Lf.marker([+pl.lat, +pl.lng], {
+    icon: pinIcon({ business_name: pl.place_name, has_salon: !pl.live }, true),
+    interactive: false, keyboard: false,
+  }).addTo(MAP);
+
+  if (P.me) {
+    P.meMk = Lf.marker([P.me.lat, P.me.lng], {
+      icon: Lf.divIcon({ className: "", html: '<div class="mepin"></div>',
+                         iconSize: [16, 16], iconAnchor: [8, 8] }),
+      interactive: false, keyboard: false,
+    }).addTo(MAP);
+    const pink = (getComputedStyle(document.documentElement).getPropertyValue("--pink") || "").trim() || "#f0518d";
+    P.line = Lf.polyline([[P.me.lat, P.me.lng], [+pl.lat, +pl.lng]],
+      { color: pink, weight: 3, opacity: .85, dashArray: "6 9", interactive: false }).addTo(MAP);
+    MAP.fitBounds([[P.me.lat, P.me.lng], [+pl.lat, +pl.lng]],
+      { padding: [46, 46], maxZoom: 16 });
+  } else {
+    MAP.setView([+pl.lat, +pl.lng], 16);
+  }
+  setTimeout(() => { if (MAP) MAP.invalidateSize(); }, 250);
+}
+
+async function placeMe(ask) {
+  const st = await locState();
+  if (!ask && st !== "granted") return null;      // never prompt on her behalf
+  const p = await whereAmI();
+  return p.guessed ? null : p;
+}
+
+/* Fetch, and either move the pin where it stands or redraw the card. */
+async function placeRefresh() {
+  const P = PLACE; if (!P) return;
+  let pl;
+  try { pl = await API.bookingPlace(P.id); } catch (e) { return; }
+  if (PLACE !== P || !pl || !pl.ok || pl.at_home) return;
+  const was = P.pl;
+  P.pl = pl; P.at = Date.now();
+  if (P.me || was.open) { const me = await placeMe(false); if (me && PLACE === P) P.me = me; }
+  const inPlace = was.open && pl.open && P.mk && pl.lat != null && pl.lng != null
+                  && was.lat != null && was.live === pl.live;
+  if (!inPlace) return placePaint();
+  P.mk.setLatLng([+pl.lat, +pl.lng]);
+  if (P.me) {
+    if (P.meMk) P.meMk.setLatLng([P.me.lat, P.me.lng]);
+    if (P.line) P.line.setLatLngs([[P.me.lat, P.me.lng], [+pl.lat, +pl.lng]]);
+    MAP.fitBounds([[P.me.lat, P.me.lng], [+pl.lat, +pl.lng]], { padding: [46, 46], maxZoom: 16 });
+  }
+  placeUpdateText();
+}
+
+async function fillPlace(bookingId) {
+  const slot = document.getElementById("placeSlot");
+  if (!slot) return;
+  const here = VIEWN;
+  let pl;
+  try { pl = await API.bookingPlace(bookingId); }
+  catch (e) { return; }               // an older server: the ticket works exactly as before
+  if (VIEWN !== here || !pl || !pl.ok || pl.at_home) return;
+  PLACE = { id: bookingId, pl, me: null, at: Date.now(), mk: null, meMk: null, line: null };
+  // If she has already allowed location for Oma, use it; never ask unprompted.
+  if (pl.open && pl.lat != null) {
+    const me = await placeMe(false);
+    if (VIEWN !== here) return;
+    if (me) PLACE.me = me;
+  }
+  await placePaint();
+  if (VIEWN !== here) return;
+  // One timer for both jobs, and the ticket's own: afterPaint() stops it when
+  // she leaves. It opens the card at the 30-minute mark without her doing a
+  // thing, and keeps a tech who has no shop on the map.
+  TICKER = setInterval(() => {
+    const P = PLACE; if (!P) return;
+    const pl = P.pl, age = Date.now() - P.at;
+    const due = !pl.open
+      ? pl.opens_at && Date.now() >= new Date(pl.opens_at).getTime() && age > 8000
+      : pl.live && age > 60000;
+    if (due) placeRefresh();
+  }, 5000);
+}
+
+async function placeLocate() {
+  const P = PLACE; if (!P) return;
+  if (await locState() === "denied") {
+    return toast("Location is blocked for Oma. Turn it back on in your browser's "
+               + "settings for this site, then try again.");
+  }
+  toast("Looking for you…");
+  const p = await whereAmI();
+  if (PLACE !== P) return;
+  if (p.guessed) {
+    return toast(p.why === "opted_out"
+      ? "You turned location off in Oma's settings."
+      : "Could not get a fix. Outdoors, or with Wi-Fi on, usually does it.");
+  }
+  P.me = p;
+  placePaint();
 }
 
 /* ── 26 the scanner ───────────────────────────────────── */

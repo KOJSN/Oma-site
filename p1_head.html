@@ -485,6 +485,12 @@ h3{font-size:16px}
   border-color:transparent}
 
 /* the eye on a password box (p13_money.js passBox) */
+/* the "where to go" map on the ticket (p13_money.js placeCard). Its own
+   stacking context, or Leaflet's panes climb over the bottom tab bar. */
+.tmap{height:210px;margin-top:12px;border-radius:16px;overflow:hidden;position:relative;
+  z-index:0;isolation:isolate;background:var(--fill)}
+a.btn{display:flex;align-items:center;justify-content:center;text-decoration:none}
+
 .pwbox{position:relative}
 .fld .pwbox input{padding-right:48px}
 .pweye{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:44px;height:44px;

@@ -508,6 +508,10 @@ const API = (() => {
     // The customer's street, released to the tech only once the money is in
     // escrow. One function for both sides; the server decides what each sees.
     bookingWhere:  (bookingId)              => live() ? rpc("api_booking_where", { p_booking: bookingId }) : MOCK.bookingWhere(bookingId),
+    // The OTHER direction: where the tech is, for the customer. Her street and
+    // exact position come back only from 30 minutes before the appointment
+    // (Kamsy, 5 Oct 2026), and only to the customer who paid for it.
+    bookingPlace:  (bookingId)              => live() ? rpc("api_booking_place", { p_booking: bookingId }) : MOCK.bookingPlace(bookingId),
     setHomeService:(on, callout, perKm, maxKm) => live() ? rpc("api_set_home_service", { p_on: !!on, p_callout_kobo: callout, p_per_km_kobo: perKm, p_max_km: maxKm }) : MOCK.setHomeService(!!on, callout, perKm, maxKm),
     setServiceHomePrice: (id, kobo)         => live() ? rpc("api_set_service_home_price", { p_service: id, p_home_kobo: kobo }) : MOCK.setServiceHomePrice(id, kobo),
     // A device, not a subscription. The database is deliberately incurious
@@ -1146,6 +1150,41 @@ const API = (() => {
         b.cust_area = area || null; b.cust_lat = lat; b.cust_lng = lng; b.km = q.km;
         save();
         return Object.assign({}, shape(b), { at_home: true, km: q.km, quote: q });
+      },
+
+      /* Same rule as the server (where-is-the-tech.sql): nothing about where
+         the tech is until 30 minutes before the appointment. */
+      bookingPlace: async (bookingId) => {
+        const s = load();
+        const b = s.bookings.find((x) => x.id === bookingId);
+        const mine = (s.user || {}).id;
+        if (!b || b.customer_id !== mine) throw new Error("no such booking");
+        if (b.at_home) return { ok: true, at_home: true };
+        const t = s.techs.find((x) => x.id === b.tech_id) || {};
+        const mobile = t.has_salon === false;
+        const paid = ["paid", "released", "disputed"].includes(b.status);
+        const opensAt = b.starts_at_ms - 30 * 60000;
+        const open = paid && Date.now() >= opensAt;
+        if (!open) {
+          return { ok: true, at_home: false, open: false, place_name: t.business_name,
+                   area: t.area, live: mobile,
+                   opens_at: paid ? new Date(opensAt).toISOString() : null,
+                   why: "Her address and map point appear 30 minutes before your appointment" +
+                        (paid ? "." : ", once it is paid for.") };
+        }
+        if (mobile) {
+          const fresh = t.live_at && Date.now() - new Date(t.live_at).getTime() < 45 * 60000;
+          const inTime = b.status === "paid" && Date.now() <= b.starts_at_ms + 3 * 3600000;
+          const ok = fresh && inTime && t.lat != null && t.lng != null;
+          return { ok: true, at_home: false, open: true, place_name: t.business_name,
+                   area: t.area, live: true, lat: ok ? t.lat : null, lng: ok ? t.lng : null,
+                   as_of: ok ? t.live_at : null,
+                   why: ok ? null : "She is not sharing her position right now. Try again in a few minutes." };
+        }
+        return { ok: true, at_home: false, open: true, place_name: t.business_name,
+                 area: t.area, address: t.address || null,
+                 lat: t.lat != null ? t.lat : null, lng: t.lng != null ? t.lng : null,
+                 live: false, why: null };
       },
 
       bookingWhere: async (bookingId) => {

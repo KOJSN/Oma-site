@@ -678,7 +678,7 @@ function sheetOne(t) {
     </div>
     ${techRowLive(t)}
     <div class="tiny sub" style="margin-top:8px">
-      You get her address once you have booked.</div>
+      You get her address 30 minutes before your appointment.</div>
     <button class="btn mt12" data-a="tech-open" data-id="${esc(t.id)}"
             data-name="${esc(t.business_name)}">See what she does</button>`;
 }

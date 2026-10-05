@@ -161,7 +161,7 @@ function homeInner() {
       <div class="note" style="margin-top:-4px">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></svg>
         <div>She sees your <b>area</b> now and your <b>street only once you have
-          paid</b> — the same way you only get hers after booking.</div></div>
+          paid</b>. You get hers 30 minutes before your appointment.</div></div>
       ${HOME.asking
         ? `<div class="card"><div class="tiny sub">Working out the travel…</div></div>`
         : q ? (q.ok ? homeBill(q) : `<div class="note warn"><div>${esc(q.says
