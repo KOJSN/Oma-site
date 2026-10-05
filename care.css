@@ -1,0 +1,104 @@
+/* Oma customer care chat bubble. One file for every page; care.js builds the
+   markup, so a page only needs the <link> and <script> lines. Colours come from
+   the page's own tokens (--card, --ink, --pink …) so light and dark follow the
+   page; the fallbacks only matter on a page that has no tokens. */
+.oc-fab,.oc-panel{
+  --oc-card:var(--card,#fff);--oc-ink:var(--ink,#181220);--oc-sub:var(--sub,#5f5670);
+  --oc-faint:var(--faint,#8a8296);--oc-line:var(--line,rgba(24,18,32,.12));
+  --oc-pink:var(--pink,#f0518d);--oc-tint:var(--tint,#fff0f6);
+  --oc-grad:var(--grad,linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f));
+  --oc-bad:#b8791b;font-family:inherit;box-sizing:border-box}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .oc-panel{--oc-bad:#e0a944}}
+:root[data-theme="dark"] .oc-panel{--oc-bad:#e0a944}
+.oc-fab *,.oc-panel *{box-sizing:border-box}
+
+.oc-fab{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));
+  z-index:900;width:58px;height:58px;border-radius:50%;border:0;padding:0;cursor:pointer;
+  background:var(--oc-grad);color:#fff;display:grid;place-items:center;
+  box-shadow:0 14px 30px -10px rgba(240,81,141,.85),0 2px 6px rgba(0,0,0,.18);
+  transition:transform .15s ease}
+.oc-fab:hover{transform:translateY(-2px)}
+.oc-fab:focus-visible,.oc-close:focus-visible,.oc-sendbtn:focus-visible{
+  outline:3px solid var(--oc-ink);outline-offset:3px}
+.oc-fab svg{width:26px;height:26px;display:block}
+.oc-fab .oc-x{display:none}
+.oc-fab[aria-expanded="true"] .oc-ic{display:none}
+.oc-fab[aria-expanded="true"] .oc-x{display:block}
+.oc-dot{position:absolute;top:-3px;right:-3px;min-width:21px;height:21px;padding:0 6px;
+  border-radius:99px;background:#e5484d;color:#fff;font-size:11.5px;font-weight:800;
+  line-height:21px;text-align:center;box-shadow:0 0 0 2px var(--oc-card)}
+.oc-dot[hidden]{display:none}
+
+.oc-panel{position:fixed;right:20px;bottom:calc(92px + env(safe-area-inset-bottom,0px));
+  z-index:901;width:min(380px,calc(100vw - 32px));height:min(560px,calc(100dvh - 120px));
+  display:flex;flex-direction:column;background:var(--oc-card);color:var(--oc-ink);
+  border:1px solid var(--oc-line);border-radius:22px;overflow:hidden;
+  box-shadow:0 30px 70px -20px rgba(24,18,32,.45),0 4px 14px rgba(24,18,32,.12);
+  transform-origin:bottom right;animation:oc-in .18s ease-out}
+.oc-panel[hidden]{display:none}
+@keyframes oc-in{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.oc-panel{animation:none}.oc-fab{transition:none}}
+
+.oc-head{background:var(--oc-grad);color:#fff;padding:14px 16px;display:flex;
+  align-items:center;gap:12px;flex:none}
+.oc-t{font-weight:800;font-size:16px;line-height:1.2;letter-spacing:-.01em}
+.oc-sub{font-size:12.5px;opacity:.93;margin-top:2px}
+.oc-sub:empty::before{content:"Write to us. We reply here."}
+.oc-close{margin-left:auto;flex:none;border:0;cursor:pointer;color:#fff;
+  background:rgba(255,255,255,.22);width:34px;height:34px;border-radius:50%;
+  display:grid;place-items:center;padding:0}
+.oc-close svg{width:16px;height:16px;display:block}
+
+.oc-body{flex:1;min-height:0;display:flex;flex-direction:column}
+.oc-start{padding:16px 16px 30px;overflow-y:auto;display:grid;gap:11px;align-content:start}
+.oc-intro{margin:0;color:var(--oc-sub);font-size:14px;line-height:1.5}
+.oc-start label{display:block;font-size:12.5px;font-weight:700;color:var(--oc-sub);margin:0 0 5px}
+.oc-panel input,.oc-panel textarea{width:100%;padding:11px 13px;border-radius:12px;
+  border:1.5px solid var(--oc-line);background:var(--oc-card);color:var(--oc-ink);
+  font:inherit;font-size:16px;margin:0}
+.oc-panel input:focus,.oc-panel textarea:focus{outline:2px solid var(--oc-pink);
+  outline-offset:1px;border-color:transparent}
+.oc-start textarea{min-height:84px;resize:vertical}
+.oc-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.oc-go{border:0;cursor:pointer;color:#fff;background:var(--oc-grad);border-radius:99px;
+  padding:13px 22px;font:inherit;font-size:15.5px;font-weight:700;
+  box-shadow:0 10px 24px -12px rgba(240,81,141,.9)}
+.oc-go[disabled],.oc-sendbtn[disabled]{opacity:.55;cursor:default}
+.oc-note{padding:9px 12px;border-radius:12px;font-size:13px;font-weight:600;
+  background:rgba(184,121,27,.14);color:var(--oc-bad)}
+.oc-note:empty{display:none}
+.oc-start .oc-note{margin:0}
+
+.oc-chat{flex:1;min-height:0;display:flex;flex-direction:column}
+.oc-chat[hidden],.oc-start[hidden]{display:none}
+.oc-log{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px;
+  display:flex;flex-direction:column;gap:9px}
+.oc-hint{margin:auto;text-align:center;color:var(--oc-faint);font-size:13.5px;
+  max-width:30ch;line-height:1.5}
+.oc-m{display:flex;flex-direction:column;max-width:85%}
+.oc-m.me{align-self:flex-end;align-items:flex-end}
+.oc-m.them{align-self:flex-start;align-items:flex-start}
+.oc-b{padding:9px 13px;border-radius:18px;font-size:15px;line-height:1.45;
+  white-space:pre-wrap;overflow-wrap:anywhere}
+.oc-m.me .oc-b{background:var(--oc-grad);color:#fff;border-bottom-right-radius:6px}
+.oc-m.them .oc-b{background:var(--oc-tint);color:var(--oc-ink);border-bottom-left-radius:6px}
+.oc-ts{font-size:11px;color:var(--oc-faint);margin-top:3px}
+.oc-send{display:flex;gap:8px;align-items:flex-end;padding:10px;border-top:1px solid var(--oc-line);flex:none}
+.oc-send textarea{flex:1;min-height:44px;height:44px;max-height:120px;resize:none}
+.oc-sendbtn{flex:none;border:0;cursor:pointer;color:#fff;background:var(--oc-grad);
+  border-radius:99px;padding:12px 18px;font:inherit;font-size:14.5px;font-weight:700}
+.oc-chat .oc-note{margin:0 10px 8px}
+.oc-new{flex:none;align-self:flex-start;margin:0 12px 12px;background:none;border:0;padding:0;
+  color:var(--oc-faint);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
+  text-decoration:underline}
+.oc-new:hover{color:var(--oc-pink)}
+
+/* Phones: the chat takes the whole screen (and follows the keyboard, see care.js). */
+@media (max-width:520px){
+  .oc-panel{left:0;right:0;bottom:auto;top:var(--oc-vvt,0px);width:auto;
+    height:var(--oc-vvh,100dvh);border:0;border-radius:0;box-shadow:none}
+  .oc-head{padding-top:calc(14px + env(safe-area-inset-top,0px))}
+  .oc-open .oc-fab{display:none}
+  html.oc-open,html.oc-open body{overflow:hidden}
+}
