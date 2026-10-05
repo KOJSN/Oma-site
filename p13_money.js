@@ -110,6 +110,48 @@ const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
    her. It stays on the screen until she goes somewhere else. */
 let SIGNIN = { email: "", sent: false, mode: null, reset: false, known: false };
 
+/* ── the eye on a password box ───────────────────────────────────────────
+   Kamsy, 5 Oct 2026: "when creating or sign in keep the eye icon for them to
+   see what they are typing". A phone keyboard makes typing a password blind
+   a common cause of a wrong one, and a wrong one when CREATING an account is
+   worse: the account exists and nobody knows what it is.
+
+   The button is NOT data-a. Every data-a click runs through the shell handler
+   and most of those end in paint(), which would rebuild the screen and wipe
+   what she has typed — the very text she wanted to look at. This one flips the
+   input's type in place and nothing else moves. It is also type="button" so
+   it can never submit anything, and it keeps the cursor where it was. */
+const EYE_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>';
+
+function passBox(id, attrs) {
+  return `<div class="pwbox">
+    <input id="${id}" type="password" ${attrs}>
+    <button type="button" class="pweye" data-eye="${id}" aria-pressed="false"
+            aria-label="Show password" title="Show password">${EYE_ON}</button>
+  </div>`;
+}
+
+(function () {
+  // Pressing the eye must not take the cursor out of the box (on a phone that
+  // would also close the keyboard), so the press itself is not allowed to move focus.
+  document.addEventListener("mousedown", e => {
+    if (e.target.closest && e.target.closest("[data-eye]")) e.preventDefault();
+  });
+  document.addEventListener("click", e => {
+    const b = e.target.closest && e.target.closest("[data-eye]");
+    if (!b) return;
+    const i = document.getElementById(b.dataset.eye);
+    if (!i) return;
+    const show = i.type === "password";
+    i.type = show ? "text" : "password";
+    b.setAttribute("aria-pressed", show ? "true" : "false");
+    b.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    b.setAttribute("title", show ? "Hide password" : "Show password");
+    b.innerHTML = show ? EYE_OFF : EYE_ON;
+  });
+})();
+
 function vSignIn() {
   const s = SIGNIN;
   const up = s.mode === "up";
@@ -128,8 +170,7 @@ function vSignIn() {
         signing in needs no email at all.</div></div>
       <label class="fld">
         <span class="lbl">New password</span>
-        <input id="fPass1" type="password" autocomplete="new-password"
-               placeholder="At least 8 characters">
+        ${passBox("fPass1", 'autocomplete="new-password" placeholder="At least 8 characters"')}
       </label>
       <button class="btn" data-a="pass-set">Save it and continue</button>
 
@@ -202,9 +243,8 @@ function vSignIn() {
       <div>
         <label class="fld">
           <span class="lbl">Password</span>
-          <input id="fSignPass" type="password"
-                 autocomplete="${up ? "new-password" : "current-password"}"
-                 placeholder="${up ? "At least 8 characters" : ""}">
+          ${passBox("fSignPass", `autocomplete="${up ? "new-password" : "current-password"}"
+                 placeholder="${up ? "At least 8 characters" : ""}"`)}
         </label>
         ${up ? "" : `<div style="display:flex;justify-content:flex-end;margin-top:8px">
           <button class="lnk" style="margin-left:0;font-size:12.5px"

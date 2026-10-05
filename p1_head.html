@@ -484,6 +484,16 @@ h3{font-size:16px}
 .fld input:focus,.fld select:focus{outline:2px solid var(--pink);outline-offset:1px;
   border-color:transparent}
 
+/* the eye on a password box (p13_money.js passBox) */
+.pwbox{position:relative}
+.fld .pwbox input{padding-right:48px}
+.pweye{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:44px;height:44px;
+  border:0;background:none;color:var(--sub);display:grid;place-items:center;cursor:pointer;
+  border-radius:12px;padding:0}
+.pweye:hover{color:var(--ink)}
+.pweye:focus-visible{outline:2px solid var(--pink);outline-offset:-2px}
+.pweye svg{width:21px;height:21px;display:block}
+
 .or{display:flex;align-items:center;gap:12px;color:var(--sub);font-size:12px}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 
