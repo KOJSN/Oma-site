@@ -576,10 +576,6 @@ document.getElementById("shell").addEventListener("click", e => {
     }).catch(err => toast(err.message));
   }
   if (a === "go-pay") return nav("pay", id);
-  if (a === "dispute") {
-    return API.dispute(id).then(() => toast("Flagged. Nothing is released while it is open."))
-      .catch(err => toast(err.message));
-  }
 
   if (a === "scan-typed") {
     const which = document.getElementById("fWhich");

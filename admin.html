@@ -936,7 +936,7 @@ function drawBookings(data, errMsg) {
         <td>${esc(b.tech)}</td>
         <td class="tnum">${naira(b.total_kobo)}</td>
         <td>${bkChip(b.status)}</td>
-        <td>${b.status === "disputed"
+        <td>${(b.status === "disputed" || b.status === "paid")
           ? `<button class="btn sm plain" data-refund="${esc(b.id)}" type="button">Refund customer</button>`
           : ""}</td>
       </tr>`).join("")}</tbody></table>`

@@ -605,8 +605,6 @@ function vTicket(bookingId) {
         </div>
         <div class="note pink"><div><b>Do not show this before she has done your
           nails.</b> Scanning it is what pays her, and it only works once.</div></div>
-        <button class="btn ghost sm" data-a="dispute" data-id="${esc(b.id)}">
-          Something went wrong with this appointment</button>
       </div>`);
     fillPlace(b.id);
   });
