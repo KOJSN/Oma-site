@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as a7851466bb/customer. -->
+     (start_url /techapp.html) — same fix shape as 04818a7891/customer. -->
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1426,7 +1426,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "a7851466bb";
+const BUILD_ID = "04818a7891";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -8440,8 +8440,6 @@ function vTicket(bookingId) {
         </div>
         <div class="note pink"><div><b>Do not show this before she has done your
           nails.</b> Scanning it is what pays her, and it only works once.</div></div>
-        <button class="btn ghost sm" data-a="dispute" data-id="${esc(b.id)}">
-          Something went wrong with this appointment</button>
       </div>`);
     fillPlace(b.id);
   });
@@ -13224,10 +13222,6 @@ document.getElementById("shell").addEventListener("click", e => {
     }).catch(err => toast(err.message));
   }
   if (a === "go-pay") return nav("pay", id);
-  if (a === "dispute") {
-    return API.dispute(id).then(() => toast("Flagged. Nothing is released while it is open."))
-      .catch(err => toast(err.message));
-  }
 
   if (a === "scan-typed") {
     const which = document.getElementById("fWhich");
