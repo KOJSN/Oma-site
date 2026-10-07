@@ -562,6 +562,14 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
         </div>
 
         <div class="page" data-page="finances">
+          <!-- 7 Oct 2026, Kamsy: refunds are only ever handled here. Oma pays
+               the customer by hand to the account she saved in the app, then
+               taps "Mark refunded". That tap is the ONLY thing that tells the
+               customer her refund was sent (see refund-admin.sql). -->
+          <section>
+            <div class="lbl">Refunds to pay</div>
+            <div class="card scroll" id="refundsWaiting"></div>
+          </section>
           <!-- payout-worker sends these automatically once a minute. This is
                the "requested" queue, so a row that lingers here for more
                than a minute or two means the worker is not running — not a
@@ -727,6 +735,69 @@ async function hidePhoto(id, hide) {
   }
 }
 
+/* ══ refunds, 7 Oct 2026 ═══════════════════════════════════════════════
+   "refunds should only be in the admin page". A booking that has been
+   refunded (the escrow is reversed) waits here until Oma has paid the
+   customer by hand to the account she saved in the app. "Mark refunded"
+   records it and is the only thing that tells the customer. Backed by
+   api_admin_refunds_waiting / api_admin_mark_refund (refund-admin.sql). */
+function drawRefunds(list, errMsg) {
+  const el = document.getElementById("refundsWaiting");
+  if (!el) return;
+  if (list === null) {
+    el.innerHTML = errMsg
+      ? `<div class="empty">Refunds did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Refunds are not loaded yet &mdash;
+      run <b>Refund held for admin</b> in Supabase.</div>`;
+    return;
+  }
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">No refunds waiting.</div>`;
+    return;
+  }
+  el.innerHTML = `<table><thead><tr>
+      <th>Refunded</th><th>Customer</th><th>Amount</th><th>Pay to</th><th></th>
+    </tr></thead><tbody>${list.map((r) => `<tr>
+      <td>${esc(ago(r.refunded_at))}</td>
+      <td><b>${esc(r.customer_name || "—")}</b><br><span style="opacity:.7">${esc(r.customer_email || "")}</span></td>
+      <td class="tnum">${naira(r.amount_kobo)}</td>
+      <td>${r.account_number
+        ? `${esc(r.bank_name || "")}<br><span style="font-variant-numeric:tabular-nums;letter-spacing:.03em">${esc(r.account_number)}</span> · ${esc(r.account_name || "")}`
+        : `<span class="chip warn">no refund account yet</span>`}
+        ${r.paystack_sent ? `<br><span class="chip ok">Paystack already sent</span>` : ""}</td>
+      <td><button class="btn sm" data-markrefund="${esc(r.booking_id)}" type="button">Mark refunded</button></td>
+    </tr>`).join("")}</tbody></table>`;
+}
+
+async function loadRefunds() {
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    drawRefunds(await rpc("api_admin_refunds_waiting", { p_token: t }));
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawRefunds(null, /could not find|does not exist|schema cache/i.test(e.message || "") ? "" : (e && e.message));
+  }
+}
+
+document.getElementById("refundsWaiting").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-markrefund]");
+  if (!btn) return;
+  const note = prompt("Only tap OK once the money has been sent. Your bank's reference for the transfer (optional):", "");
+  if (note === null) return;
+  btn.disabled = true;
+  try {
+    const t = token();
+    if (!t) return lockOut();
+    await rpc("api_admin_mark_refund", { p_token: t, p_booking: btn.dataset.markrefund, p_note: note });
+    loadRefunds();
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    alert(e2.message || "That did not save.");
+    btn.disabled = false;
+  }
+});
+
 /* payout-worker claims and sends these on its own, once a minute — a row
    normally lives here for only a few seconds. This list is for noticing
    when that ISN'T happening (the worker is down, or a payout is stuck),
@@ -817,6 +888,7 @@ document.querySelectorAll(".navbtn").forEach((b) => {
     // same reasoning as Bookings above (nothing to reset, there's no
     // filter on this page yet).
     if (p === "mischief") loadMischief();
+    if (p === "finances") loadRefunds();
   });
 });
 
