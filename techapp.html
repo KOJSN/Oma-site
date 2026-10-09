@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /techapp-manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as 5c23be4977/tech. -->
+     (start_url /techapp.html) — same fix shape as abd8d97151/tech. -->
 <link rel="manifest" href="/techapp-manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1426,7 +1426,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "5c23be4977";
+const BUILD_ID = "abd8d97151";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -4234,6 +4234,9 @@ const API = (() => {
     checkIn:       (b, lat, lng)            => live() ? rpc("api_booking_checkin", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.checkIn(),
     techNoShow:    (b, lat, lng)            => live() ? rpc("api_tech_noshow", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.techNoShow(),
     cannotMakeIt:  (b, why)                 => live() ? rpc("api_tech_cannot_make_it", { p_booking: b, p_reason: why || null }) : MOCK.cannotMakeIt(),
+    // 9 Oct 2026 ("Visits count" SQL): one call each time a signed-in person
+    // opens Oma. The server counts it once per 30 minutes per person.
+    logVisit:      ()                       => live() ? rpc("api_log_visit") : Promise.resolve({ ok: true, counted: false }),
 
     // Where a withdrawal actually goes. resolveBank is a lookup against
     // Paystack (works today, no business verification needed); setBankDetails
@@ -14439,6 +14442,28 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
   // the first time each of those people opens Oma again. See people.sql.
   pushProfile();
 })();
+
+/* ══ visits ══════════════════════════════════════════════
+   Kamsy, 9 Oct 2026: "total visits in the user section" of the admin page.
+   Each time a signed-in person opens Oma, or comes back to it, the server is
+   told once; it keeps only a count per person per day and counts a person
+   at most once every 30 minutes (visits.sql). Nothing about where, or which
+   page. Not signed in: nothing is sent. Not set up on the server yet: the
+   call fails quietly and nothing else notices. */
+let lastVisitPing = 0;
+function logVisit() {
+  try {
+    if (!API.signedIn() || !API.live()) return;
+    if (Date.now() - lastVisitPing < 10 * 60 * 1000) return;     // the server dedups too
+    lastVisitPing = Date.now();
+    Promise.resolve(API.logVisit()).catch(() => { /* never worth a message */ });
+  } catch (e) { /* storage blocked, anything at all */ }
+}
+// A moment after load, so a sign-in that has just come back from Google has a session.
+setTimeout(logVisit, 1500);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") logVisit();
+});
 
 /* ══ where somebody joined from ══════════════════════
    One dot on the admin globe, and nothing else in Oma reads it. The server
