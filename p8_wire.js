@@ -577,6 +577,27 @@ document.getElementById("shell").addEventListener("click", e => {
   }
   if (a === "go-pay") return nav("pay", id);
 
+  // 9 Oct 2026: the nail tech waited and the client never came.
+  if (a === "noshow") {
+    if (!confirm("Only tap OK if you are at the place and your client has not come. Oma checks that your phone is there.")) return;
+    toast("Checking where you are…");
+    return currentPos().then((p) => {
+      if (!p) return toast("Turn on location so Oma can see you are at the place, then try again.");
+      return API.techNoShow(id, p.lat, p.lng).then((r) => {
+        toast((r && r.message) || "Done.");
+        paint();
+      });
+    }).catch((err) => toast(/could not find|schema cache/i.test(err.message || "") ? "This is not switched on yet." : err.message));
+  }
+  // …and the nail tech who cannot make a paid appointment: the client is refunded at once.
+  if (a === "cantmake") {
+    if (!confirm("Cancel this appointment? The client gets her money back straight away and you are not paid for it.")) return;
+    return API.cannotMakeIt(id).then(() => {
+      toast("Cancelled. The client has been refunded.");
+      nav("requests");
+    }).catch((err) => toast(/could not find|schema cache/i.test(err.message || "") ? "This is not switched on yet." : err.message));
+  }
+
   if (a === "scan-typed") {
     const which = document.getElementById("fWhich");
     const code = document.getElementById("fShort");
@@ -590,8 +611,14 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "payout") {
-    return Promise.all([API.wallet(), API.myBank().catch(() => ({}))]).then(([w, bank]) => {
-      if (w.available <= 0) return toast("Nothing to withdraw yet.");
+    return Promise.all([API.wallet(), API.myBank().catch(() => ({}))]).then(async ([w, bank]) => {
+      // 9 Oct 2026: only what is older than the hold can be withdrawn.
+      const can = w.withdrawable != null ? Number(w.withdrawable) : Number(w.available);
+      if (can <= 0) {
+        return toast(Number(w.available) > 0
+          ? "Not yet: money from a scan can be withdrawn " + (w.hold_hours || 24) + " hours later."
+          : "Nothing to withdraw yet.");
+      }
       // No bank on file: there is nowhere to send this yet, and a "requested"
       // payout with no account attached just sits stuck. Send her to add it
       // first rather than accepting a request that can never be paid.
@@ -599,8 +626,13 @@ document.getElementById("shell").addEventListener("click", e => {
         toast("Add your bank details first.");
         return nav("bank");
       }
-      return API.requestPayout(w.available)
-        .then(() => { toast("Withdrawal requested."); paint(); });
+      let q = null;
+      try { q = await API.payoutQuote(can); } catch (e) { q = null; }
+      return API.requestPayout(can)
+        .then(() => {
+          toast(q && q.receive_kobo ? "Withdrawal requested. You get " + kobo(q.receive_kobo) + "." : "Withdrawal requested.");
+          paint();
+        });
     }).catch(err => toast(err.message));
   }
 

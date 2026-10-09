@@ -554,6 +554,13 @@ const API = (() => {
 
     wallet:        ()                       => live() ? rpc("api_wallet")          : MOCK.wallet(),
     requestPayout: (kobo)                   => live() ? rpc("api_request_payout", { p_amount: kobo }) : MOCK.requestPayout(kobo),
+    // 9 Oct 2026 ("Automatic money (Kuda)" and "Refund rules" SQL). What she
+    // would receive after the bank-transfer fee; the phone checking in near an
+    // appointment; the nail tech's "Client didn't come" and "I can't make it".
+    payoutQuote:   (kobo)                   => live() ? rpc("api_payout_quote", { p_amount: kobo }) : MOCK.payoutQuote(kobo),
+    checkIn:       (b, lat, lng)            => live() ? rpc("api_booking_checkin", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.checkIn(),
+    techNoShow:    (b, lat, lng)            => live() ? rpc("api_tech_noshow", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.techNoShow(),
+    cannotMakeIt:  (b, why)                 => live() ? rpc("api_tech_cannot_make_it", { p_booking: b, p_reason: why || null }) : MOCK.cannotMakeIt(),
 
     // Where a withdrawal actually goes. resolveBank is a lookup against
     // Paystack (works today, no business verification needed); setBankDetails
@@ -1352,6 +1359,11 @@ const API = (() => {
         return { ok: true };
       },
       myReport: async (b) => ((load().reports || {})[b] || null),
+
+      payoutQuote: async (kobo) => ({ amount_kobo: kobo, fee_kobo: 1500, receive_kobo: Math.max(kobo - 1500, 0) }),
+      checkIn: async () => ({ ok: true, counted: false }),
+      techNoShow: async () => ({ ok: true, accepted: false, message: "Practice mode: nothing was sent." }),
+      cannotMakeIt: async () => ({ ok: true }),
 
       placesNearby: async (lat, lng, radius) => {
         const rows = await MOCK.nearby(lat, lng, radius);

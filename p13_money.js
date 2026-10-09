@@ -613,8 +613,10 @@ function vTicket(bookingId) {
         </div>
         <div class="note pink"><div><b>Do not show this before she has done your
           nails.</b> Scanning it is what pays her, and it only works once.</div></div>
+        <div id="checkinSlot"></div>
       </div>`);
     fillPlace(b.id);
+    maybeCheckIn(b);
   });
   return head("Your appointment", "The code that pays her") + host();
 }
@@ -988,15 +990,29 @@ function vWallet() {
       API.myBank().catch(() => ({})),
     ]);
     const hasBank = !!(bank && bank.account_number);
+    // 9 Oct 2026: money from a scan can be withdrawn 24 hours later. Before
+    // the "Automatic money" SQL is run the wallet has no `withdrawable`, and
+    // then all of `available` is withdrawable, as it always was.
+    const can = w.withdrawable != null ? Number(w.withdrawable) : Number(w.available);
+    const locked = Math.max(Number(w.available) - can, 0);
+    let quote = null;
+    if (can > 0 && hasBank) { try { quote = await API.payoutQuote(can); } catch (e) { quote = null; } }
+    const unlockTs = w.unlocks_at ? new Date(w.unlocks_at).getTime() : null;
     fillHost(`
       <div class="pad stack gap12">
         <div class="ticket"><div style="padding:18px" class="stack gap12">
-          <div class="tiny sub">Yours to withdraw</div>
-          <div style="font-size:32px;font-weight:800;letter-spacing:-.03em">${kobo(w.available)}</div>
+          <div class="tiny sub">${w.withdrawable != null ? "Ready to withdraw" : "Yours to withdraw"}</div>
+          <div style="font-size:32px;font-weight:800;letter-spacing:-.03em">${kobo(can)}</div>
+          ${locked > 0 ? `<div class="kv" style="padding-top:12px;border-top:1px solid var(--line)">
+            <span class="k">Coming ${unlockTs ? "(next one " + dayLabel(unlockTs) + " " + hhmm(unlockTs) + ")" : "within " + (w.hold_hours || 24) + " hours"}</span>
+            <span class="v">${kobo(locked)}</span></div>` : ""}
           <div class="kv" style="padding-top:12px;border-top:1px solid var(--line)">
             <span class="k">Held until you scan</span>
             <span class="v">${kobo(w.held)}</span></div>
         </div></div>
+
+        ${locked > 0 ? `<div class="note"><div>Money from a scan can be withdrawn <b>${w.hold_hours || 24} hours</b>
+          later, once the client's card payment has reached Oma.</div></div>` : ""}
 
         ${w.held > 0 ? `<div class="note"><div>Money moves out of <b>held</b> the
           moment you scan a client's code. Until then it is hers, not yours —
@@ -1013,8 +1029,11 @@ function vWallet() {
             ${I.chev()}</button>
         </div>
 
-        <button class="btn" data-a="payout" ${w.available <= 0 ? "disabled" : ""}>
-          Withdraw ${kobo(w.available)}</button>
+        <button class="btn" data-a="payout" ${can <= 0 ? "disabled" : ""}>
+          Withdraw ${kobo(can)}</button>
+        ${quote ? `<div class="tiny sub" style="text-align:center">${quote.fee_kobo > 0
+          ? `Bank transfer fee ${kobo(quote.fee_kobo)} &middot; you get <b>${kobo(quote.receive_kobo)}</b>`
+          : `No transfer fee &middot; you get <b>${kobo(quote.receive_kobo)}</b>`}</div>` : ""}
 
         <div id="paidList"></div>
 

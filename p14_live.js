@@ -186,6 +186,51 @@ function vDiaryLive() {
 }
 
 /* ── one appointment, from whichever side ────────────── */
+/* ── check-in, 9 Oct 2026 ─────────────────────────────────────────────
+   While an appointment screen is open, from 3 hours before to 12 hours after
+   the start, the phone says how far it is from the place. The server keeps
+   only that distance and when, never coordinates, and deletes it 30 days
+   after the appointment. It is what lets a no-show be settled fairly: a nail
+   tech who says "she did not come" is believed only if her phone was at the
+   place, and a client whose phone was at the place cannot be called a
+   no-show. Nothing here ever blocks the screen: no location, no check-in. */
+const CHECKIN_SEEN = {};
+function currentPos() {
+  return new Promise((res) => {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => res({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => res(null),
+      { timeout: 10000, maximumAge: 60000, enableHighAccuracy: true });
+  });
+}
+function checkInWindow(b) {
+  if (!b || b.status !== "paid" || !b.starts_at) return false;
+  const at = new Date(b.starts_at).getTime(), now = Date.now();
+  return now >= at - 3 * 3600e3 && now <= at + 12 * 3600e3;
+}
+/* The first call carries no position: it only finds out whether the server
+   side exists yet (and that this appointment is hers). Only then is the phone
+   asked where it is, and the explanation shown, so nobody is asked for
+   location before the feature is switched on. A call without a position
+   stores nothing and does not use up the 5-minute limit. */
+function maybeCheckIn(b) {
+  try {
+    if (!checkInWindow(b) || !API.signedIn()) return;
+    API.checkIn(b.id, null, null).then(() => {
+      const slot = document.getElementById("checkinSlot");
+      if (slot) slot.innerHTML = CHECKIN_NOTE;
+      const now = Date.now();
+      if (CHECKIN_SEEN[b.id] && now - CHECKIN_SEEN[b.id] < 5 * 60e3) return;
+      CHECKIN_SEEN[b.id] = now;
+      return currentPos().then((p) => { if (p) return API.checkIn(b.id, p.lat, p.lng); });
+    }).catch(() => { /* not switched on yet, or not hers: stay quiet */ });
+  } catch (e) { /* never in the way of the screen */ }
+}
+const CHECKIN_NOTE = `<div class="tiny sub" style="text-align:center">While this screen is open,
+  your phone tells Oma only <b>how far you are from the place</b>, never where you are.
+  It is used to settle a no-show fairly and is deleted after 30 days.</div>`;
+
 function vJob(bookingId) {
   load(async () => {
     if (!API.signedIn()) return askToSignIn("this appointment");
@@ -250,6 +295,14 @@ function vJob(bookingId) {
           ? `<div class="note pink"><div>Do her nails first, then scan her code
                when you are done. Scanning is what pays you.</div></div>
              <button class="btn" data-a="go" data-v="scanner">Open the scanner</button>` : ""}
+        ${asTech && b.status === "paid" && Date.now() >= at + 30 * 60000
+          ? `<div class="note"><div>Waited 30 minutes and she has not come? If you are at the place,
+               tap this and you are paid the whole price. Your phone must be at the place.</div></div>
+             <button class="btn ghost" data-a="noshow" data-id="${esc(b.id)}">Client didn't come</button>` : ""}
+        <div id="checkinSlot"></div>
+        ${asTech && b.status === "paid"
+          ? `<div style="text-align:center"><button class="tag" data-a="cantmake" data-id="${esc(b.id)}"
+               style="color:var(--bad)">I can't make this appointment</button></div>` : ""}
         <!-- No cancel button, deliberately. An unpaid hold expires on its own
              after 30 minutes, and a paid one is escrow's problem: the tech
              scans at the end, and money nobody scanned auto-refunds 12 hours
@@ -291,6 +344,7 @@ function vJob(bookingId) {
         })()}
       </div>`);
     fillWhere(bookingId);
+    maybeCheckIn(b);
   });
   return head("Appointment", "") + host();
 }
