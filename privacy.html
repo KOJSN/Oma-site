@@ -129,6 +129,14 @@ controller for everything described here. The rules for using Oma are in our
   <tr><td>Location, while you are looking</td>
       <td>Only when you ask to see who is nearby, and only while that screen is
           open. You can refuse and search by area instead.</td></tr>
+  <tr><td>Check-in near an appointment</td>
+      <td>Customers and nail techs. While the screen of a paid appointment is open,
+          from 3 hours before it to 12 hours after it was due to start, your phone
+          tells Oma <strong>how far you are from the place</strong>. We keep that
+          distance and the time, not your coordinates, only to settle a case where
+          someone says the other did not come. Deleted 30 days after the
+          appointment. Never when the app is closed. You can refuse in your phone's
+          Settings.</td></tr>
   <tr><td>Location, nail techs</td>
       <td>A nail tech with a shop can pin its address. A nail tech without a
           shop has their position recorded about once a minute during their working
@@ -160,8 +168,12 @@ controller for everything described here. The rules for using Oma are in our
           payment processor. A booking fee of ₦75 is charged on top of the price
           of the appointment; it is Oma's own income and is recorded apart from the
           nail tech's payment.</td></tr>
-  <tr><td>Nail techs: bank details</td>
-      <td>To pay you. Held by Paystack, not by us.</td></tr>
+  <tr><td>Bank account (nail techs and clients)</td>
+      <td>A nail tech gives a bank account so Oma can pay her withdrawals; a client
+          can save a refund account so Oma can refund her. We keep the bank name,
+          account number and account name you give us, only to send you money. Oma
+          sends it from its own bank, Kuda, so Kuda sees that account. We never see
+          or store card details.</td></tr>
   <tr><td>Identity check</td>
       <td>Nigerian law and simple safety: a customer is trusting a stranger with
           money, and a nail tech travelling to a home is trusting one with rather
@@ -226,7 +238,8 @@ The person taking the risk should not be the only person who has been checked.</
   <li>We do not sell your data, and we never will.</li>
   <li>There is no advertising in Oma, and no advertising trackers.</li>
   <li>We do not upload your hand photographs.</li>
-  <li>We do not store card numbers or bank details ourselves.</li>
+  <li>We do not store card numbers. The only bank details we keep are the account
+      you give us so that we can pay you or refund you.</li>
   <li>We do not store your NIN.</li>
   <li>We do not show a customer's full name publicly. On the O points
       leaderboard, customers appear under a shortened name.</li>
@@ -241,6 +254,10 @@ The person taking the risk should not be the only person who has been checked.</
   <li><strong>Paystack</strong> — payments and payouts. They are licensed by
       the Central Bank of Nigeria and have their own privacy policy.</li>
   <li><strong>Supabase</strong> — the database and servers Oma runs on.</li>
+  <li><strong>Kuda Microfinance Bank</strong> — Oma's own bank. When a nail tech
+      withdraws, or a customer is refunded, Oma sends the money from its Kuda
+      account to the bank account the person saved, so Kuda sees that account's
+      number and name.</li>
   <li><strong>Our identity provider</strong> — the vNIN only, at the moment a
       nail tech is verified.</li>
   <li><strong>Our email provider</strong> — to deliver your confirmation and password-reset codes.</li>
@@ -250,7 +267,7 @@ The person taking the risk should not be the only person who has been checked.</
 <h2>How long we keep it</h2>
 <p>Your account details for as long as you have an account. Records of
 completed appointments and payments for longer, because they are financial
-records and both people in a booking have a claim on them. Inspo pictures are kept for 30 days after the appointment. Location positions and other
+records and both people in a booking have a claim on them. Inspo pictures and check-in distances are kept for 30 days after the appointment. Location positions and other
 records are kept only for as long as Oma needs them to run the service, settle
 disputes, keep people safe and meet the law.</p>
 

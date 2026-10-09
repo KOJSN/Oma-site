@@ -95,7 +95,7 @@ footer p{font-size:14px;color:var(--faint);margin:0}
 
 <h1>Terms of Use</h1>
 <p class="lede">The rules for using Oma, in plain words. Please read them before you create an account.</p>
-<p class="when">Last updated 9 October 2026 · Version 2026-09-30.4</p>
+<p class="when">Last updated 9 October 2026 · Version 2026-09-30.5</p>
 
 <div class="card hi">
   <p><strong>The short version.</strong></p>
@@ -178,8 +178,15 @@ removed from Oma from coming back under a new email. The
       booking fee) <strong>12 hours</strong> after the time the appointment was
       due to start. Nail techs should therefore scan on the day.</li>
   <li>The nail tech can withdraw released money to their own Nigerian bank
-      account. Oma checks the account name with the bank first. Money that has
-      not been released cannot be withdrawn.</li>
+      account, <strong>24 hours after the scan</strong>, once the client's card
+      payment has reached Oma. Oma checks the account name with the bank first.
+      Money that has not been released, or was released less than 24 hours ago,
+      cannot be withdrawn yet. The app shows what is ready and when the rest
+      unlocks.</li>
+  <li>Oma sends withdrawals and refunds from its bank account, automatically or
+      by hand. If an automatic payment fails or looks wrong, Oma holds it, looks
+      at it and sends it by hand, or returns a withdrawal to the nail tech's
+      wallet.</li>
 </ol>
 
 <h3>Fees</h3>
@@ -188,7 +195,12 @@ plus <strong>2% of the part of the price above ₦30,000</strong>. It is taken
 when the payment is released. Paystack's card fee is paid by the nail tech too,
 and every job shows what the client paid, Oma's fee, the card fee and what the
 nail tech keeps. Oma takes no fee from the nail tech for a booking that is cancelled, expires
-or is refunded. If we change our fees, the app will tell you before the change starts.
+or is refunded. When a nail tech withdraws, the <strong>bank-transfer
+fee</strong> is taken from the withdrawal, and the app shows &ldquo;you
+get&rdquo; before it is sent. At the moment it is &#8358;15 for a withdrawal
+up to &#8358;10,000, &#8358;12 up to &#8358;100,000, &#8358;10 up to
+&#8358;400,000 and &#8358;9 above that, and nothing for an account at Kuda.
+Oma pays the transfer fee on a refund to a client. If we change our fees, the app will tell you before the change starts.
 A change does not affect a booking that is already paid.</p>
 
 <h3>Booking fee (clients)</h3>
@@ -203,12 +215,34 @@ the booking fee.</p>
 <h3>Cancellations and refunds</h3>
 <p>If you cannot keep an appointment, tell the other person in Messages as soon
 as you can. A client's payment is released to the nail tech only when the nail tech
-scans the client's code at the end of the service. If a booking is cancelled or
+scans the client's code at the end of the service. A client cannot cancel an
+appointment she has paid for; she can drop a booking she has not yet paid for.
+A nail tech who cannot make a paid appointment tells Oma in the app
+(<em>I can't make this appointment</em>) and the client is refunded the price of
+the appointment at once. If a booking is cancelled or
 the service does not happen, the price of the appointment is refunded to the
-client. The ₦75 booking fee is not refunded. If you and
+client, to the refund account she saved in the app. The ₦75 booking fee is not
+refunded. If you and
 the other person do not agree, Oma will look at what happened and decide. If
 there is a problem with a booking, use <em>Report a problem</em> in the app and
 Oma will look at it.</p>
+
+<h3>When a client does not come</h3>
+<p>If the client has not come <strong>30 minutes after the time the appointment
+was due to start</strong>, the nail tech can tap <em>Client didn't come</em> in the
+app. Oma believes the tap only if the nail tech's phone was at the place of the
+appointment when she tapped. If the client's own phone was at the place while her
+app was open, or there is evidence on both sides, or the nail tech's phone was not
+at the place, Oma looks at what happened and decides.</p>
+<p>When it is decided that the client did not come, <strong>the nail tech is paid
+the whole price of the appointment and the client is not refunded the
+price</strong>, because the nail tech kept the time free and could not finish the
+service on time. Oma closes any report the client made on that appointment that
+the nail tech did not come, or about some &ldquo;other&rdquo; problem, and does not
+accept a new one. A report about safety, harassment or theft is never closed this
+way. The &#8358;75 booking fee stays with Oma. If instead the client was at the
+place and the nail tech was not, the price is refunded to the client. Oma can
+always look at a case itself and decide differently.</p>
 
 <h3>Home visits</h3>
 <p>A nail tech who travels to clients can set a call-out fee and a fare per
@@ -243,8 +277,18 @@ appointment</strong>, and when you delete your account.</p>
         not recorded or sent then.</li>
     <li><strong>Working hours.</strong> Every nail tech sets the days and hours
         they work. Clients can only book inside them.</li>
-    <li><strong>Clients.</strong> Oma asks for your location only when you ask to
-        see nail techs near you, and only while that screen is open.</li>
+    <li><strong>Clients.</strong> Oma asks for your location when you ask to
+        see nail techs near you, and while the screen of a paid appointment of
+        yours is open, as described under <em>Check-in</em> below. Only while
+        the app is open.</li>
+    <li><strong>Check-in near an appointment (clients and nail techs).</strong>
+        While the screen of a paid appointment is open, from 3 hours before it
+        to 12 hours after it was due to start, your phone tells Oma
+        <em>how far you are from the place of the appointment</em>. Oma keeps only
+        that distance and the time, not your coordinates. It is used only to
+        decide a case where someone says the other did not come, and it is deleted
+        <strong>30 days after the appointment</strong>. Oma does not follow you on
+        the way and does not check in when the app is closed.</li>
     <li><strong>Records.</strong> Oma keeps a record, with times, of bookings,
         payments, scans, messages and reports, so that disputes can be settled
         and people kept safe.</li>
