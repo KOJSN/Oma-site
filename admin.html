@@ -559,9 +559,27 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
               <div class="empty">Loading…</div>
             </div>
           </section>
+          <!-- 9 Oct 2026: a nail tech can report a customer's inspo picture.
+               Open reports first. "Remove picture" hides it now and the
+               cleanup job deletes the file; "Dismiss" keeps it. Backed by
+               api_admin_inspo_reports / api_admin_inspo_resolve
+               (inspo-care.sql, "Inspo cleanup and reports"). -->
+          <section>
+            <div class="lbl">Reported inspo pictures</div>
+            <div class="card scroll" id="inspoReports">
+              <div class="empty">Loading…</div>
+            </div>
+          </section>
         </div>
 
         <div class="page" data-page="finances">
+          <!-- 9 Oct 2026: the ₦75 booking fee. It is Oma's own income and never
+               touches the escrow or a nail tech's wallet. Backed by
+               api_admin_booking_fees (inspo-care.sql). -->
+          <section>
+            <div class="lbl">Booking fee income (₦75)</div>
+            <div class="card scroll" id="feeIncome"><div class="empty">Loading…</div></div>
+          </section>
           <!-- 7 Oct 2026, Kamsy: refunds are only ever handled here. Oma pays
                the customer by hand to the account she saved in the app, then
                taps "Mark refunded". That tap is the ONLY thing that tells the
@@ -887,8 +905,8 @@ document.querySelectorAll(".navbtn").forEach((b) => {
     // 23 Sep 2026: Mischief — load fresh every time the tab is opened,
     // same reasoning as Bookings above (nothing to reset, there's no
     // filter on this page yet).
-    if (p === "mischief") loadMischief();
-    if (p === "finances") loadRefunds();
+    if (p === "mischief") { loadMischief(); loadInspoReports(); }
+    if (p === "finances") { loadRefunds(); loadFees(); }
   });
 });
 
@@ -1105,6 +1123,101 @@ async function loadMischief() {
     drawMischief(null, e && e.message);
   }
 }
+
+/* ══ booking fee income + reported inspo pictures, 9 Oct 2026 ══════════
+   Both read functions from inspo-care.sql ("Inspo cleanup and reports").
+   Until that query has been run they say so instead of failing. */
+const inspoSrc = (path) => {
+  const c = cfg();
+  return c ? c.url.replace(/\/$/, "") + "/storage/v1/object/public/inspo/" + path : "";
+};
+const sqlMissing = (e) => /could not find|does not exist|schema cache/i.test((e && e.message) || "");
+
+async function loadFees() {
+  const el = document.getElementById("feeIncome");
+  if (!el) return;
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    const d = await rpc("api_admin_booking_fees", { p_token: t });
+    // Paystack's share is a few kobo a booking, so show naira and kobo here.
+    const n2 = (k) => "₦" + ((Number(k) || 0) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const row = (label, x) => `<tr><td>${label}</td><td class="tnum">${Number(x.count) || 0}</td>
+      <td class="tnum">${n2(x.fee_kobo)}</td><td class="tnum">${n2(x.paystack_kobo)}</td>
+      <td class="tnum"><b>${n2((Number(x.fee_kobo) || 0) - (Number(x.paystack_kobo) || 0))}</b></td></tr>`;
+    el.innerHTML = `<table><thead><tr><th></th><th>Bookings</th><th>Fees charged</th>
+      <th>Paystack's share</th><th>Oma keeps</th></tr></thead><tbody>
+      ${row("Today", d.today || {})}${row("Last 30 days", d.last30 || {})}${row("All time", d.all || {})}
+      </tbody></table>
+      <div class="faint" style="padding:10px 14px;font-size:12.5px">The booking fee is not refundable and
+      never goes into a nail tech's wallet. Paystack's share is the part of its card fee that falls on the fee.</div>`;
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    el.innerHTML = sqlMissing(e)
+      ? `<div class="empty">Not loaded yet &mdash; run <b>Inspo cleanup and reports</b> in Supabase.</div>`
+      : `<div class="empty">Did not load: <b>${esc(e.message)}</b></div>`;
+  }
+}
+
+function drawInspoReports(list, errMsg) {
+  const el = document.getElementById("inspoReports");
+  if (!el) return;
+  if (list === null) {
+    el.innerHTML = errMsg
+      ? `<div class="empty">Did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Not loaded yet &mdash; run <b>Inspo cleanup and reports</b> in Supabase.</div>`;
+    return;
+  }
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">No reported pictures.</div>`;
+    return;
+  }
+  el.innerHTML = `<table><thead><tr><th>Picture</th><th>Reported</th><th>By</th><th>Why</th><th></th></tr></thead>
+    <tbody>${list.map((r) => `<tr>
+      <td>${r.gone
+        ? `<span class="chip">picture gone</span>`
+        : `<a href="${esc(inspoSrc(r.path))}" target="_blank" rel="noopener"><img src="${esc(inspoSrc(r.path))}"
+             alt="Reported inspo picture" style="width:84px;height:84px;object-fit:cover;border-radius:10px"></a>`}</td>
+      <td>${esc(ago(r.created_at))}</td>
+      <td><b>${esc(r.tech_name || "a nail tech")}</b><br><span class="faint" style="font-size:12px">booking ${esc(String(r.booking_id || "").slice(0, 8))}</span></td>
+      <td>${esc(r.reason || "—")}</td>
+      <td>${r.status === "open"
+        ? `<button class="btn sm" data-inspo-remove="${esc(r.id)}" type="button">Remove picture</button>
+           <button class="btn sm plain" data-inspo-dismiss="${esc(r.id)}" type="button">Dismiss</button>`
+        : `<span class="chip ${r.status === "removed" ? "warn" : "ok"}">${r.status === "removed" ? "Removed" : "Dismissed"}</span>`}</td>
+    </tr>`).join("")}</tbody></table>`;
+}
+
+async function loadInspoReports() {
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    drawInspoReports(await rpc("api_admin_inspo_reports", { p_token: t, p_limit: 60 }));
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawInspoReports(null, sqlMissing(e) ? "" : (e && e.message));
+  }
+}
+
+document.getElementById("inspoReports").addEventListener("click", async (e) => {
+  const rm = e.target.closest("[data-inspo-remove]");
+  const dm = e.target.closest("[data-inspo-dismiss]");
+  const btn = rm || dm;
+  if (!btn) return;
+  if (rm && !confirm("Remove this picture? The nail tech stops seeing it now and the file is deleted soon after.")) return;
+  btn.disabled = true;
+  try {
+    const t = token();
+    if (!t) return lockOut();
+    await rpc("api_admin_inspo_resolve", {
+      p_token: t, p_report: Number((rm || dm).dataset[rm ? "inspoRemove" : "inspoDismiss"]), p_remove: !!rm });
+    loadInspoReports();
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    alert(e2.message || "That did not save.");
+    btn.disabled = false;
+  }
+});
 
 /* ══ backend control, 22 Sep 2026 ═════════════════════════════════════
    A tech's listed/KYC flag. Nothing here moves money or touches a

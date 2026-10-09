@@ -412,7 +412,7 @@ function wireServicePicker() {
     // needs this to grey out a slot that would run into a booking this tech
     // already has, not just the exact minute someone else already took.
     PICKED.mins = m;
-    total.textContent = on.length ? `${kobo(k)} + ${kobo(BOOKING_FEE_KOBO)} booking fee · about ${mins(m)}` : "";
+    total.textContent = on.length ? `${kobo(k)} + ${kobo(BOOKING_FEE_KOBO)} booking fee (not refundable) · about ${mins(m)}` : "";
     go.disabled = !on.length;
   };
   boxes.forEach((b) => b.addEventListener("change", update));
@@ -515,7 +515,7 @@ function vTimeLive() {
     <div class="grid3 mt16" id="slotGrid">${slotGridHtml(days[0].getTime())}</div>
     <div class="note mt16"><div>You will have <b>30 minutes</b> to pay into an
       account we show you next. The slot is held for you until then. A
-      <b>${kobo(BOOKING_FEE_KOBO)} booking fee</b> is added at checkout.</div></div>
+      <b>${kobo(BOOKING_FEE_KOBO)} booking fee</b> is added at checkout. It is not refundable.</div></div>
   </div>`;
 }
 
@@ -537,7 +537,7 @@ function vPay(bookingId) {
           <div style="font-size:30px;font-weight:800;letter-spacing:-.03em">${kobo(pay.amount_kobo)}</div>
           ${Number(pay.fee_kobo) > 0 ? `
           <div class="kv"><span class="k">Appointment</span><span class="v">${kobo(Number(pay.amount_kobo) - Number(pay.fee_kobo))}</span></div>
-          <div class="kv"><span class="k">Booking fee</span><span class="v">${kobo(pay.fee_kobo)}</span></div>` : ""}
+          <div class="kv"><span class="k">Booking fee (not refundable)</span><span class="v">${kobo(pay.fee_kobo)}</span></div>` : ""}
           <div class="kv"><span class="k">Bank</span><span class="v">${esc(pay.bank || "")}</span></div>
           <div class="kv"><span class="k">Account number</span>
             <span class="v" style="font-size:20px;letter-spacing:.06em">${esc(pay.account_number)}</span></div>
@@ -629,7 +629,7 @@ function ticketFace(b) {
     ${b.status === "awaiting_payment" ? `
     <div class="kv" style="padding-top:12px;border-top:1px solid var(--line)">
       <span class="k">Appointment</span><span class="v">${kobo(b.total_kobo)}</span></div>
-    <div class="kv"><span class="k">Booking fee</span><span class="v">${kobo(BOOKING_FEE_KOBO)}</span></div>
+    <div class="kv"><span class="k">Booking fee (not refundable)</span><span class="v">${kobo(BOOKING_FEE_KOBO)}</span></div>
     <div class="kv"><span class="k">To pay</span><span class="v" style="font-size:19px">${kobo(Number(b.total_kobo) + BOOKING_FEE_KOBO)}</span></div>` : `
     <div class="kv" style="padding-top:12px;border-top:1px solid var(--line)">
       <span class="k">Appointment</span><span class="v" style="font-size:19px">${kobo(b.total_kobo)}</span></div>`}
