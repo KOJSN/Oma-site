@@ -173,6 +173,12 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
   font-weight:700}
 .chip.ok{background:var(--goodbg);color:var(--good)}
 .chip.no{background:var(--warnbg);color:var(--warn)}
+.faint{color:var(--faint)}
+.swrow{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;padding:12px 14px;border-top:1px solid var(--line)}
+.swrow:first-child{border-top:0}
+.swt{flex:1;min-width:0}
+.swa{display:flex;gap:8px;align-items:center;flex:none}
+@media (max-width:560px){.swrow{flex-direction:column;gap:10px}}
 /* Photographs, reported first. Small: this is a page for deciding, not for
    admiring, and forty thumbnails at 96px load faster than eight at 300. */
 .pix{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:12px}
@@ -573,6 +579,18 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
         </div>
 
         <div class="page" data-page="finances">
+          <!-- 9 Oct 2026: the switches that let Kuda pay withdrawals and refunds
+               by itself, and the no-show cases the refund rules could not or
+               would not settle alone. Backed by "Automatic money (Kuda)" and
+               "Refund rules". All start OFF. -->
+          <section>
+            <div class="lbl">Automatic money</div>
+            <div class="card" id="moneySwitches"><div class="empty">Loading…</div></div>
+          </section>
+          <section>
+            <div class="lbl">No-show cases</div>
+            <div class="card scroll" id="rulings"><div class="empty">Loading…</div></div>
+          </section>
           <!-- 9 Oct 2026: the ₦75 booking fee. It is Oma's own income and never
                touches the escrow or a nail tech's wallet. Backed by
                api_admin_booking_fees (inspo-care.sql). -->
@@ -588,14 +606,12 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
             <div class="lbl">Refunds to pay</div>
             <div class="card scroll" id="refundsWaiting"></div>
           </section>
-          <!-- payout-worker sends these automatically once a minute. This is
-               the "requested" queue, so a row that lingers here for more
-               than a minute or two means the worker is not running — not a
-               normal waiting state. "Mark as paid" is a manual override for
-               a payout truly stuck (no resolvable bank account, say), not
-               the everyday path. -->
+          <!-- 9 Oct 2026: withdrawals. Until the Kuda function is switched on
+               you send each one by hand (the "Send her" amount) and tap
+               "Mark as paid". With it on they go by themselves and this list
+               holds the ones that need you, with the reason on the row. -->
           <section>
-            <div class="lbl">Payouts still waiting on the worker</div>
+            <div class="lbl">Withdrawals waiting</div>
             <div class="card scroll" id="payouts"></div>
           </section>
         </div>
@@ -753,12 +769,24 @@ async function hidePhoto(id, hide) {
   }
 }
 
-/* ══ refunds, 7 Oct 2026 ═══════════════════════════════════════════════
+/* ══ refunds, 7 Oct 2026 (updated 9 Oct) ═══════════════════════════════
    "refunds should only be in the admin page". A booking that has been
-   refunded (the escrow is reversed) waits here until Oma has paid the
-   customer by hand to the account she saved in the app. "Mark refunded"
-   records it and is the only thing that tells the customer. Backed by
-   api_admin_refunds_waiting / api_admin_mark_refund (refund-admin.sql). */
+   refunded (the escrow is reversed) waits here until the customer has been
+   paid, by you by hand, or by Kuda once the automatic job is on.
+   "Mark refunded" records it and is what tells the customer.
+   Backed by api_admin_refunds_waiting / api_admin_mark_refund
+   (refund-admin.sql, now replaced by "Automatic money (Kuda)"). */
+function autoRefundCell(r) {
+  const s = r.auto_status;
+  const why = r.auto_hold
+    ? `<br><span class="faint" style="font-size:12px">${esc(r.auto_hold)}</span>` : "";
+  if (!s) return `<span class="faint">by hand</span>`;
+  if (s === "processing") return `<span class="chip ok">Kuda is sending</span>${why}`;
+  if (s === "failed") return `<span class="chip bad">failed</span>${why}`;
+  if (r.auto_hold) return `<span class="chip warn">needs you</span>${why}`;
+  return `<span class="chip">queued for Kuda</span>`;
+}
+
 function drawRefunds(list, errMsg) {
   const el = document.getElementById("refundsWaiting");
   if (!el) return;
@@ -773,8 +801,9 @@ function drawRefunds(list, errMsg) {
     el.innerHTML = `<div class="empty">No refunds waiting.</div>`;
     return;
   }
+  const autoOn = !!(moneyState.switches && moneyState.switches.auto_refunds);
   el.innerHTML = `<table><thead><tr>
-      <th>Refunded</th><th>Customer</th><th>Amount</th><th>Pay to</th><th></th>
+      <th>Refunded</th><th>Customer</th><th>Amount</th><th>Pay to</th><th>Automatic</th><th></th>
     </tr></thead><tbody>${list.map((r) => `<tr>
       <td>${esc(ago(r.refunded_at))}</td>
       <td><b>${esc(r.customer_name || "—")}</b><br><span style="opacity:.7">${esc(r.customer_email || "")}</span></td>
@@ -783,7 +812,13 @@ function drawRefunds(list, errMsg) {
         ? `${esc(r.bank_name || "")}<br><span style="font-variant-numeric:tabular-nums;letter-spacing:.03em">${esc(r.account_number)}</span> · ${esc(r.account_name || "")}`
         : `<span class="chip warn">no refund account yet</span>`}
         ${r.paystack_sent ? `<br><span class="chip ok">Paystack already sent</span>` : ""}</td>
-      <td><button class="btn sm" data-markrefund="${esc(r.booking_id)}" type="button">Mark refunded</button></td>
+      <td>${autoRefundCell(r)}</td>
+      <td style="white-space:nowrap">
+        ${r.auto_job_id && (r.auto_hold || r.auto_status === "failed")
+          ? `<button class="btn sm plain" data-retry-refund="${esc(r.auto_job_id)}" type="button">Try again</button> ` : ""}
+        ${!r.auto_status && autoOn && r.account_number
+          ? `<button class="btn sm plain" data-queue-refund="${esc(r.booking_id)}" type="button">Send by Kuda</button> ` : ""}
+        <button class="btn sm" data-markrefund="${esc(r.booking_id)}" type="button">Mark refunded</button></td>
     </tr>`).join("")}</tbody></table>`;
 }
 
@@ -816,51 +851,271 @@ document.getElementById("refundsWaiting").addEventListener("click", async (e) =>
   }
 });
 
-/* payout-worker claims and sends these on its own, once a minute — a row
-   normally lives here for only a few seconds. This list is for noticing
-   when that ISN'T happening (the worker is down, or a payout is stuck),
-   not for sending anything yourself. Sorted oldest-first by
-   api_admin_payouts, so a genuinely stuck one is always the top row. */
+/* Withdrawals. Until the Kuda function is switched on you send each one
+   yourself: send her the "Send her" amount (what she asked for, less the
+   transfer fee she pays), then tap "Mark as paid". With the automatic job on
+   they go by themselves and this list is for the ones that need you: the
+   reason is written on the row. */
 function drawPayouts(list) {
   const el = document.getElementById("payouts");
   if (list === null) {
-    el.innerHTML = `<div class="empty">Payouts are not loaded yet —
+    el.innerHTML = `<div class="empty">Withdrawals are not loaded yet —
       run <b>payout-bank.sql</b> in Supabase.</div>`;
     return;
   }
   if (!list.length) {
-    el.innerHTML = `<div class="empty">Nothing waiting — the worker is keeping up.</div>`;
+    el.innerHTML = `<div class="empty">No withdrawals waiting.</div>`;
     return;
   }
   el.innerHTML = `<table><thead><tr>
-      <th>Tech</th><th>Amount</th><th>Bank</th><th>Account</th><th>Requested</th><th></th>
-    </tr></thead><tbody>${list.map((p) => `<tr>
+      <th>Tech</th><th>Send her</th><th>Bank</th><th>Account</th><th>Asked</th><th>Status</th><th></th>
+    </tr></thead><tbody>${list.map((p) => {
+      const fee = Number(p.fee_kobo) || 0;
+      const sending = p.status === "processing" && !p.hold_reason;
+      const status = sending
+        ? `<span class="chip ok">Kuda is sending</span>`
+        : p.hold_reason
+          ? `<span class="chip warn">needs you</span><br><span class="faint" style="font-size:12px">${esc(p.hold_reason)}</span>`
+          : p.last_error
+            ? `<span class="chip">waiting</span><br><span class="faint" style="font-size:12px">${esc(p.last_error)}</span>`
+            : `<span class="faint">by hand</span>`;
+      return `<tr>
       <td><b>${esc(p.business || "—")}</b></td>
-      <td class="tnum">${naira(p.amount_kobo)}</td>
+      <td class="tnum"><b>${naira((Number(p.amount_kobo) || 0) - fee)}</b>${fee
+        ? `<br><span class="faint" style="font-size:12px">she asked ${naira(p.amount_kobo)}, fee ${naira(fee)} kept</span>` : ""}</td>
       <td>${esc(p.bank_name || "—")}</td>
       <td>${p.account_number
         ? `<span style="font-variant-numeric:tabular-nums;letter-spacing:.03em">${esc(p.account_number)}</span> · ${esc(p.account_name || "not confirmed")}`
         : `<span class="chip no">no bank on file</span>`}</td>
       <td>${esc(ago(p.requested_at))}</td>
-      <td>${p.account_number
-        ? `<button class="btn sm" data-payout="${p.id}">Mark as paid</button>`
-        : ""}</td>
-    </tr>`).join("")}</tbody></table>`;
+      <td>${status}</td>
+      <td style="white-space:nowrap">${p.account_number
+        ? `<button class="btn sm" data-payout="${p.id}" type="button">Mark as paid</button>` : ""}
+        ${p.hold_reason && p.status === "requested"
+          ? ` <button class="btn sm plain" data-retry-payout="${p.id}" type="button">Try again</button>` : ""}
+        ${moneyState.ready
+          ? `<button class="btn sm plain" data-fail-payout="${p.id}" type="button">Return to wallet</button>` : ""}</td>
+    </tr>`;
+    }).join("")}</tbody></table>`;
+}
+
+/* Both the "asked" and the "Kuda is sending" lists, oldest first. */
+async function loadPayouts() {
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    const a = await rpc("api_admin_payouts", { p_token: t, p_status: "requested" });
+    const b = await rpc("api_admin_payouts", { p_token: t, p_status: "processing" }).catch(() => []);
+    drawPayouts((a || []).concat(b || []));
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawPayouts(null);
+  }
 }
 
 async function markPayoutPaid(id) {
   const t = token();
   if (!t) return lockOut();
-  const ref = prompt("Your bank's reference for this transfer (optional, but worth keeping):", "");
+  const ref = prompt("Only tap OK once the money has been sent. Your bank's reference for this transfer (optional, but worth keeping):", "");
   if (ref === null) return;   // she cancelled
   try {
     await rpc("api_admin_mark_payout_sent", { p_token: t, p_payout_id: Number(id), p_reference: ref });
-    load();
+    loadPayouts();
   } catch (e) {
     if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
     alert(e.message);
   }
 }
+
+/* ══ automatic money and no-show cases, 9 Oct 2026 ═════════════════════
+   Backed by "Automatic money (Kuda)" (the switches, the hold reasons, try
+   again / return to wallet) and "Refund rules" (the no-show cases). Until
+   those are run each card says so instead of failing. Nothing here moves
+   money by itself: the switches start OFF. */
+let moneyState = { switches: {}, ready: false };
+
+const SWITCH_TEXT = {
+  auto_payouts: ["Send withdrawals automatically",
+    "A nail tech's withdrawal is sent from your Kuda account by itself, 24 hours after her scan. Off: you send each one by hand and tap Mark as paid.",
+    "Turn ON automatic withdrawals?\n\nNail techs' withdrawals will be sent from your Kuda account without you. Only turn this on after the Kuda connection has been tested."],
+  auto_refunds: ["Send refunds automatically",
+    "A refund the rules or the 12-hour rule approved is sent from your Kuda account to the client's refund account. Off: you pay each one by hand and tap Mark refunded.",
+    "Turn ON automatic refunds?\n\nApproved refunds will be sent from your Kuda account without you. Only turn this on after the Kuda connection has been tested."],
+  auto_rules: ["Let the no-show rules decide",
+    "Off: the rules only suggest, and you approve each case below with one tap. On: clear cases (the nail tech was at the place and the client never came, or the client came and the nail tech never did) are decided straight away and both people are told.",
+    "Turn ON the no-show rules?\n\nClear no-show cases will be paid to the nail tech or refunded to the client straight away, without you."],
+};
+
+function drawSwitches(d, errMsg) {
+  const el = document.getElementById("moneySwitches");
+  if (!el) return;
+  if (!d) {
+    el.innerHTML = errMsg
+      ? `<div class="empty">Did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Not loaded yet &mdash; run <b>Automatic money (Kuda)</b> in Supabase.</div>`;
+    return;
+  }
+  const cap = (d.settings || []).find((s) => s.name === "auto_daily_cap_kobo");
+  const rows = (d.switches || []).filter((s) => SWITCH_TEXT[s.name]).map((s) => `
+    <div class="swrow"><div class="swt"><b>${esc(SWITCH_TEXT[s.name][0])}</b>
+      <div class="faint" style="font-size:12.5px;margin-top:3px">${esc(SWITCH_TEXT[s.name][1])}</div></div>
+      <div class="swa"><span class="chip ${s.is_on ? "ok" : ""}">${s.is_on ? "ON" : "OFF"}</span>
+      <button class="btn sm ${s.is_on ? "plain" : ""}" data-switch="${esc(s.name)}" data-on="${s.is_on ? 0 : 1}" type="button">${s.is_on ? "Turn off" : "Turn on"}</button></div></div>`).join("");
+  el.innerHTML = rows + `<div class="faint" style="padding:10px 14px;font-size:12.5px">
+    Sent automatically in the last 24 hours: <b>${naira(d.sent_24h_kobo)}</b>${cap ? ` of ${naira(cap.value)} allowed` : ""}.
+    Waiting: ${Number(d.waiting_payouts) || 0} withdrawal(s), ${Number(d.waiting_refunds) || 0} refund(s).
+    The two sending switches need the Kuda connection, which has to be set up and tested first; turning one on before that sends nothing.
+    Turning any switch off stops it at once.</div>`;
+}
+
+const RULE_WORDS = {
+  pay_tech: "pay the nail tech the whole price",
+  refund: "refund the client",
+  admin: "decide",
+};
+
+function factsLine(f) {
+  if (!f) return "";
+  const bits = [];
+  if (f.minutes_past_start != null) bits.push(Math.round(f.minutes_past_start) + " min past the start");
+  bits.push(f.tech_tap ? "nail tech tapped “Client didn’t come” (" + (f.tech_tap === "accepted" ? "believed" : "not believed") + ")" : "no tap");
+  bits.push("nail tech " + (f.tech_nearest_m != null ? "seen " + f.tech_nearest_m + " m from the place" : "never seen at the place"));
+  bits.push("client " + (f.client_nearest_m != null ? "seen " + f.client_nearest_m + " m from the place" : "never seen at the place"));
+  if (f.client_reported_no_show) bits.push("client reported a no-show");
+  return bits.join(" · ");
+}
+
+function drawRulings(open, done, errMsg) {
+  const el = document.getElementById("rulings");
+  if (!el) return;
+  if (open === null) {
+    el.innerHTML = errMsg
+      ? `<div class="empty">Did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Not loaded yet &mdash; run <b>Refund rules</b> in Supabase.</div>`;
+    return;
+  }
+  const when = (s) => s ? new Date(s).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+  const openHtml = open.length
+    ? `<table><thead><tr><th>Appointment</th><th>Case</th><th></th></tr></thead><tbody>${open.map((g) => `<tr>
+        <td><b>${esc(g.tech || "—")}</b> with <b>${esc(g.customer || "—")}</b><br>
+          <span class="faint" style="font-size:12px">${esc(when(g.starts_at))} · ${naira(g.price_kobo)}</span></td>
+        <td><span class="chip warn">rule ${esc(g.rule)}</span> ${esc(g.reason)}
+          ${g.suggestion ? `<br><i>${esc(g.suggestion)}</i>` : ""}
+          <br><span class="faint" style="font-size:12px">${esc(factsLine(g.facts))}</span></td>
+        <td style="white-space:nowrap">
+          ${g.outcome !== "admin"
+            ? `<button class="btn sm" data-rule-id="${esc(g.id)}" data-rule-act="apply" type="button">${g.outcome === "pay_tech" ? "Pay the nail tech" : "Refund the client"}</button> ` : ""}
+          ${g.outcome !== "refund" ? `<button class="btn sm plain" data-rule-id="${esc(g.id)}" data-rule-act="refund" type="button">Refund client</button> ` : ""}
+          ${g.outcome !== "pay_tech" ? `<button class="btn sm plain" data-rule-id="${esc(g.id)}" data-rule-act="pay_tech" type="button">Pay nail tech</button> ` : ""}
+          <button class="btn sm plain" data-rule-id="${esc(g.id)}" data-rule-act="dismiss" type="button">Leave it</button></td>
+      </tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No no-show cases waiting.</div>`;
+  const doneHtml = (done && done.length)
+    ? `<div class="faint" style="padding:12px 14px 4px;font-size:12px;letter-spacing:.07em;text-transform:uppercase;font-weight:800">Decided</div>
+      <table><tbody>${done.slice(0, 15).map((g) => `<tr>
+        <td class="faint">${esc(when(g.created_at))}</td>
+        <td>${esc(g.tech || "—")} / ${esc(g.customer || "—")} · ${naira(g.price_kobo)}</td>
+        <td><span class="chip ${g.outcome === "refund" ? "" : "ok"}">${g.outcome === "refund" ? "refunded" : "nail tech paid"}</span>
+          <span class="faint" style="font-size:12px"> rule ${esc(g.rule)}, by ${esc(g.decided_by)}</span></td>
+      </tr>`).join("")}</tbody></table>` : "";
+  el.innerHTML = openHtml + doneHtml;
+}
+
+async function loadMoney() {
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    const d = await rpc("api_admin_money_switches", { p_token: t });
+    moneyState.switches = {};
+    (d.switches || []).forEach((s) => { moneyState.switches[s.name] = !!s.is_on; });
+    moneyState.ready = true;
+    drawSwitches(d);
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawSwitches(null, sqlMissing(e) ? "" : (e && e.message));
+  }
+  try {
+    const open = await rpc("api_admin_rulings", { p_token: t, p_status: "open" });
+    const done = await rpc("api_admin_rulings", { p_token: t, p_status: "done" }).catch(() => []);
+    drawRulings(open, done);
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawRulings(null, null, sqlMissing(e) ? "" : (e && e.message));
+  }
+}
+
+function reloadMoney() {
+  loadMoney().then(() => { loadRefunds(); loadPayouts(); });
+}
+
+document.getElementById("moneySwitches").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-switch]");
+  if (!b) return;
+  const on = b.dataset.on === "1";
+  if (on && !confirm(SWITCH_TEXT[b.dataset.switch][2])) return;
+  b.disabled = true;
+  try {
+    const t = token();
+    if (!t) return lockOut();
+    await rpc("api_admin_set_money_switch", { p_token: t, p_name: b.dataset.switch, p_on: on });
+    reloadMoney();
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    alert(e2.message || "That did not save.");
+    b.disabled = false;
+  }
+});
+
+document.getElementById("rulings").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-rule-act]");
+  if (!b) return;
+  const act = b.dataset.ruleAct;
+  const q = {
+    apply: "Do what the rules suggest?",
+    refund: "Refund the client the price? The nail tech is not paid.",
+    pay_tech: "Pay the nail tech the whole price? The client is not refunded.",
+    dismiss: "Leave this case? Nothing changes now; if nobody scans it, the 12-hour refund applies.",
+  }[act];
+  if (!confirm(q)) return;
+  b.disabled = true;
+  try {
+    const t = token();
+    if (!t) return lockOut();
+    const res = await rpc("api_admin_rule_action", { p_token: t, p_id: Number(b.dataset.ruleId), p_action: act });
+    if (res && res.already) alert("That appointment was already " + res.already + ", so nothing was changed. The case is closed.");
+    reloadMoney();
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    alert(e2.message || "That did not save.");
+    b.disabled = false;
+  }
+});
+
+/* "Try again", "Return to wallet" and "Send by Kuda" on the two lists. */
+document.addEventListener("click", async (e) => {
+  const rp = e.target.closest("[data-retry-payout]");
+  const rr = e.target.closest("[data-retry-refund]");
+  const fp = e.target.closest("[data-fail-payout]");
+  const qr = e.target.closest("[data-queue-refund]");
+  const b = rp || rr || fp || qr;
+  if (!b) return;
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    if (rp) await rpc("api_admin_retry_money", { p_token: t, p_kind: "payout", p_id: Number(rp.dataset.retryPayout) });
+    else if (rr) await rpc("api_admin_retry_money", { p_token: t, p_kind: "refund", p_id: Number(rr.dataset.retryRefund) });
+    else if (qr) await rpc("api_admin_queue_refund", { p_token: t, p_booking: qr.dataset.queueRefund });
+    else {
+      const why = prompt("The money goes back to her wallet and she is told it was not sent. Why (shown to nobody but kept)?", "bank details look wrong");
+      if (why === null) return;
+      await rpc("api_admin_fail_payout", { p_token: t, p_id: Number(fp.dataset.failPayout), p_reason: why });
+    }
+    reloadMoney();
+  } catch (err) {
+    if (err.status === 401 || /sign in again/i.test(err.message)) return lockOut();
+    alert(err.message || "That did not work.");
+  }
+});
 
 /* ══ sidebar router, 22 Sep 2026 ═════════════════════════════════════
    Nothing above this changed to make the sidebar work — every section
@@ -906,7 +1161,7 @@ document.querySelectorAll(".navbtn").forEach((b) => {
     // same reasoning as Bookings above (nothing to reset, there's no
     // filter on this page yet).
     if (p === "mischief") { loadMischief(); loadInspoReports(); }
-    if (p === "finances") { loadRefunds(); loadFees(); }
+    if (p === "finances") { loadFees(); reloadMoney(); }
   });
 });
 
@@ -2202,6 +2457,7 @@ async function load() {
     drawGlobe(globe);
     drawPeople(folk);
     drawPayouts(payouts);
+    loadPayouts();
 
     document.getElementById("tiles").innerHTML = [
       tile("Nail techs listed", num(o.people.listed),
