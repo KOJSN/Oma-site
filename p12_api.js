@@ -1627,7 +1627,7 @@ const API = (() => {
         return {
           account_number: "90" + toy(b.id).slice(0, 8).replace(/\D/g, "0").padEnd(8, "4"),
           account_name: "OMA / " + (s.techs.find((t) => t.id === b.tech_id) || {}).business_name,
-          bank: "Wema Bank", amount_kobo: b.total_kobo,
+          bank: "Wema Bank", amount_kobo: b.total_kobo + 7500, fee_kobo: 7500, price_kobo: b.total_kobo,
           expires_at: new Date(b.pay_deadline_ms).toISOString(),
           reference: "mock_" + b.id, mock: true,
         };

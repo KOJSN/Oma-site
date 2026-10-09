@@ -87,6 +87,10 @@ function afterPaint() {
 }
 
 const kobo = (k) => "₦" + (Number(k || 0) / 100).toLocaleString("en-NG");
+/* What Oma charges on top of the appointment price, once per booking: ₦75. It
+   is Oma's, never the nail tech's. pay-init adds it to the charge and reports
+   it back as fee_kobo; this copy is only for showing it before she pays. */
+const BOOKING_FEE_KOBO = 7500;
 
 /* ── 20 sign in ───────────────────────────────────────── */
 /* mode: null until she picks a door, then "up" (new account) or "in".
@@ -408,7 +412,7 @@ function wireServicePicker() {
     // needs this to grey out a slot that would run into a booking this tech
     // already has, not just the exact minute someone else already took.
     PICKED.mins = m;
-    total.textContent = on.length ? `${kobo(k)} · about ${mins(m)}` : "";
+    total.textContent = on.length ? `${kobo(k)} + ${kobo(BOOKING_FEE_KOBO)} booking fee · about ${mins(m)}` : "";
     go.disabled = !on.length;
   };
   boxes.forEach((b) => b.addEventListener("change", update));
@@ -510,7 +514,8 @@ function vTimeLive() {
     </div>
     <div class="grid3 mt16" id="slotGrid">${slotGridHtml(days[0].getTime())}</div>
     <div class="note mt16"><div>You will have <b>30 minutes</b> to pay into an
-      account we show you next. The slot is held for you until then.</div></div>
+      account we show you next. The slot is held for you until then. A
+      <b>${kobo(BOOKING_FEE_KOBO)} booking fee</b> is added at checkout.</div></div>
   </div>`;
 }
 
@@ -530,6 +535,9 @@ function vPay(bookingId) {
         <div class="ticket"><div style="padding:18px" class="stack gap12">
           <div class="tiny sub">Transfer exactly this amount</div>
           <div style="font-size:30px;font-weight:800;letter-spacing:-.03em">${kobo(pay.amount_kobo)}</div>
+          ${Number(pay.fee_kobo) > 0 ? `
+          <div class="kv"><span class="k">Appointment</span><span class="v">${kobo(Number(pay.amount_kobo) - Number(pay.fee_kobo))}</span></div>
+          <div class="kv"><span class="k">Booking fee</span><span class="v">${kobo(pay.fee_kobo)}</span></div>` : ""}
           <div class="kv"><span class="k">Bank</span><span class="v">${esc(pay.bank || "")}</span></div>
           <div class="kv"><span class="k">Account number</span>
             <span class="v" style="font-size:20px;letter-spacing:.06em">${esc(pay.account_number)}</span></div>
@@ -618,8 +626,13 @@ function ticketFace(b) {
     <div class="kv"><span class="k">When</span><span class="v">${dayLabel(at)} · ${hhmm(at)}</span></div>
     <div class="kv"><span class="k">Services</span><span class="v">${
       b.items.map((i) => esc(i.name)).join("<br>")}</span></div>
+    ${b.status === "awaiting_payment" ? `
     <div class="kv" style="padding-top:12px;border-top:1px solid var(--line)">
-      <span class="k">Paid</span><span class="v" style="font-size:19px">${kobo(b.total_kobo)}</span></div>
+      <span class="k">Appointment</span><span class="v">${kobo(b.total_kobo)}</span></div>
+    <div class="kv"><span class="k">Booking fee</span><span class="v">${kobo(BOOKING_FEE_KOBO)}</span></div>
+    <div class="kv"><span class="k">To pay</span><span class="v" style="font-size:19px">${kobo(Number(b.total_kobo) + BOOKING_FEE_KOBO)}</span></div>` : `
+    <div class="kv" style="padding-top:12px;border-top:1px solid var(--line)">
+      <span class="k">Appointment</span><span class="v" style="font-size:19px">${kobo(b.total_kobo)}</span></div>`}
   </div></div>`;
 }
 
