@@ -2484,11 +2484,13 @@ async function load() {
   const t = token();
   if (!t) return lockOut("");
   try {
-    const [o, tr, series, recent, mail, pix, globe, folk, payouts, visits] = await Promise.all([
+    const [o, tr, series, recent, mail, pix, globe, folk, payouts, visits, listings] = await Promise.all([
       rpc("api_admin_overview", { p_token: t }),
       rpc("api_admin_trouble", { p_token: t }),
       rpc("api_admin_series", { p_token: t, p_days: 30 }),
-      rpc("api_admin_recent", { p_token: t, p_limit: 12 }),
+      // Ask for more than we show: deleted techs are hidden below, and hiding
+      // them must not leave the list short.
+      rpc("api_admin_recent", { p_token: t, p_limit: 40 }),
       // contact.sql may not be loaded yet. A missing inbox must not take the
       // whole dashboard down with it.
       rpc("api_admin_messages", { p_token: t, p_limit: 30 }).catch(() => null),
@@ -2507,6 +2509,9 @@ async function load() {
       // visits.sql may not be loaded yet. Missing visit counts must not take
       // the whole dashboard down with it.
       rpc("api_admin_visits", { p_token: t }).catch(() => null),
+      // listing-owners.sql may not be loaded yet: without it the list simply has
+      // no owner names (and the deleted techs are still hidden below).
+      rpc("api_admin_listings", { p_token: t, p_limit: 12 }).catch(() => null),
     ]);
 
     drawTrouble(tr);
@@ -2557,12 +2562,37 @@ async function load() {
       kv("Reviews", num(o.reviews.count) +
          (o.reviews.mean ? " · " + o.reviews.mean + "★" : ""));
 
-    document.getElementById("techs").innerHTML = (recent.techs || []).length
-      ? `<table><thead><tr><th>Business</th><th>Area</th><th>State</th>
+    // A deleted nail tech stays in the database as "A former nail tech" (their
+    // past bookings are financial records), but there is nothing to manage
+    // there, so they never show in this list - now or after any future delete.
+    const former = (x) => /^\s*a former nail tech\s*$/i.test(String(x.name || ""));
+    const haveOwners = Array.isArray(listings);
+    const liveTechs = (haveOwners ? listings : (recent.techs || []))
+      .filter((x) => !former(x))
+      .slice(0, 12);
+    // Kamsy, 9 Oct 2026: "let me see the name behind listing". The checked
+    // real name leads when there is one (with the same "verified" chip as the
+    // people list), otherwise the name they typed, otherwise the email in grey.
+    const ownerCell = (x) => {
+      if (!haveOwners) return '<span class="sub">\u2014</span>';
+      const nm = x.real_name || x.full_name;
+      if (!nm) {
+        return x.email
+          ? '<span class="sub" title="No name on the account \u2014 this is the email">' + esc(x.email) + "</span>"
+          : '<span class="sub">\u2014</span>';
+      }
+      return "<b>" + esc(nm) + "</b>"
+        + (x.real_name && x.owner_verified
+            ? ' <span class="chip ok" title="Matches a NIN or vNIN check that passed">verified</span>' : "")
+        + (x.email ? '<div class="sub" style="font-size:12px;margin-top:2px">' + esc(x.email) + "</div>" : "");
+    };
+    document.getElementById("techs").innerHTML = liveTechs.length
+      ? `<table><thead><tr><th>Business</th><th>Owner</th><th>Area</th><th>State</th>
            <th>ID</th><th>Listed</th><th>Services</th><th>Joined</th></tr></thead>
-         <tbody>${recent.techs.map((x) => `<tr>
+         <tbody>${liveTechs.map((x) => `<tr>
            <td><b>${esc(x.name)}</b>${x.home_service ? " 🚗" : ""}${
                 x.has_salon === false ? " 📍" : ""}</td>
+           <td>${ownerCell(x)}</td>
            <td>${esc(x.area || "—")}</td>
            <td>${esc(x.state || "—")}</td>
            <td><span class="chip ${x.kyc === "verified" ? "ok" : "no"}">${esc(x.kyc)}</span></td>
@@ -2570,6 +2600,11 @@ async function load() {
            <td class="tnum">${num(x.services)}</td>
            <td>${esc(ago(x.created_at))}</td></tr>`).join("")}</tbody></table>`
       : `<div class="empty">No nail techs have signed up yet.</div>`;
+    if (!haveOwners && liveTechs.length) {
+      document.getElementById("techs").insertAdjacentHTML("beforeend",
+        '<div class="sub" style="padding:10px 4px 0">To see who owns each listing, run '
+        + "<b>Listing owners</b> in the Supabase SQL editor.</div>");
+    }
 
     document.getElementById("states").innerHTML = (recent.states || []).length
       ? (recent.states || []).map((s) => kv(s.state, num(s.techs))).join("")
