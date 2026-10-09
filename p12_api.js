@@ -561,6 +561,9 @@ const API = (() => {
     checkIn:       (b, lat, lng)            => live() ? rpc("api_booking_checkin", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.checkIn(),
     techNoShow:    (b, lat, lng)            => live() ? rpc("api_tech_noshow", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.techNoShow(),
     cannotMakeIt:  (b, why)                 => live() ? rpc("api_tech_cannot_make_it", { p_booking: b, p_reason: why || null }) : MOCK.cannotMakeIt(),
+    // 9 Oct 2026 ("Visits count" SQL): one call each time a signed-in person
+    // opens Oma. The server counts it once per 30 minutes per person.
+    logVisit:      ()                       => live() ? rpc("api_log_visit") : Promise.resolve({ ok: true, counted: false }),
 
     // Where a withdrawal actually goes. resolveBank is a lookup against
     // Paystack (works today, no business verification needed); setBankDetails

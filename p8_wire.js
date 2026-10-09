@@ -1696,6 +1696,28 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
   pushProfile();
 })();
 
+/* ══ visits ══════════════════════════════════════════════
+   Kamsy, 9 Oct 2026: "total visits in the user section" of the admin page.
+   Each time a signed-in person opens Oma, or comes back to it, the server is
+   told once; it keeps only a count per person per day and counts a person
+   at most once every 30 minutes (visits.sql). Nothing about where, or which
+   page. Not signed in: nothing is sent. Not set up on the server yet: the
+   call fails quietly and nothing else notices. */
+let lastVisitPing = 0;
+function logVisit() {
+  try {
+    if (!API.signedIn() || !API.live()) return;
+    if (Date.now() - lastVisitPing < 10 * 60 * 1000) return;     // the server dedups too
+    lastVisitPing = Date.now();
+    Promise.resolve(API.logVisit()).catch(() => { /* never worth a message */ });
+  } catch (e) { /* storage blocked, anything at all */ }
+}
+// A moment after load, so a sign-in that has just come back from Google has a session.
+setTimeout(logVisit, 1500);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") logVisit();
+});
+
 /* ══ where somebody joined from ══════════════════════
    One dot on the admin globe, and nothing else in Oma reads it. The server
    rounds it to 0.1 degrees — about eleven kilometres — and refuses to

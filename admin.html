@@ -425,6 +425,16 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
         </div>
 
         <div class="page" data-page="users">
+          <!-- Counts (Kamsy, 9 Oct 2026: "total visits in the user section",
+               "also a total users"). Total users is the same figure as
+               "People signed up" on the dashboard; visits come from
+               visits.sql and say so when it has not been run. -->
+          <section>
+            <div class="lbl">Users</div>
+            <div class="grid g4" id="userTiles"></div>
+            <div id="userTilesCap" class="sub" style="font-size:12.5px;margin-top:8px"></div>
+          </section>
+
           <!-- The globe. Moved here from Reports, 23 Sep 2026, so people —
                the list and the map of where they joined from — live in one
                place. It can only draw somebody Oma holds a coordinate for,
@@ -2220,6 +2230,48 @@ async function drawGlobe(g) {
    by the database) — a "Delete..." tap here just fills that search box with
    this person's email and opens their panel, rather than putting a
    one-tap kill switch on a small row on a phone. */
+/* Visits: one row per person, found by id or, failing that, by email. */
+let visitsData = null, visitsIdx = {};
+function setVisits(v) {
+  visitsData = v || null;
+  visitsIdx = {};
+  ((v && v.by_person) || []).forEach((r) => {
+    if (r.id) visitsIdx["id:" + r.id] = r;
+    if (r.email) visitsIdx["e:" + String(r.email).toLowerCase()] = r;
+  });
+}
+
+function visitCell(p) {
+  if (!visitsData) return '<span class="sub">—</span>';
+  const r = visitsIdx["id:" + p.id] || visitsIdx["e:" + String(p.email || "").toLowerCase()];
+  if (!r) return '<span class="sub">none yet</span>';
+  return "<b>" + esc(num(r.visits)) + "</b>"
+    + '<div class="sub" style="font-size:12px;margin-top:2px">last ' + esc(ago(r.last_at)) + "</div>";
+}
+
+function drawUserTiles(o, v) {
+  const el = document.getElementById("userTiles");
+  const cap = document.getElementById("userTilesCap");
+  if (!el || !cap) return;
+  const pe = (o && o.people) || {};
+  const tiles = [tile("Total users", num(pe.users), num(pe.users_7d) + " new this week")];
+  if (v) {
+    const since = v.since
+      ? new Date(v.since + "T00:00:00").toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })
+      : "";
+    tiles.push(tile("Total visits", num(v.total), v.since ? "since " + since : "none counted yet"));
+    const ppl = (n) => num(n) + (Number(n) === 1 ? " person" : " people");
+    tiles.push(tile("Visits today", num(v.today), ppl(v.people_today)));
+    tiles.push(tile("Visits, last 7 days", num(v.last7), ppl(v.people_seen) + " counted so far"));
+    cap.textContent = "A visit is one time a signed-in person opens Oma; opening it again within 30 minutes is the same visit. "
+      + "Only the web app and phone apps that have been updated are counted, so these numbers start low and climb as people update.";
+  } else {
+    tiles.push(tile("Total visits", "—", "not loaded yet"));
+    cap.innerHTML = "Visits are not loaded yet &mdash; run <b>Visits count</b> in Supabase.";
+  }
+  el.innerHTML = tiles.join("");
+}
+
 function drawPeople(g) {
   const slot = document.getElementById("folk");
   const cap = document.getElementById("folkCap");
@@ -2241,7 +2293,7 @@ function drawPeople(g) {
 
   slot.innerHTML =
     '<table><thead><tr><th>Name</th><th>Email</th><th>Kind</th><th>Area</th>'
-    + "<th>On the globe</th><th>Joined</th><th></th></tr></thead><tbody>"
+    + "<th>On the globe</th><th>Visits</th><th>Joined</th><th></th></tr></thead><tbody>"
     + rows.map((p) =>
         "<tr>"
         // Kamsy, 20 Sep 2026: "the admin, we see only the real name" \u2014 but
@@ -2274,6 +2326,7 @@ function drawPeople(g) {
         // dot" on the row where the question occurs.
         + "<td>" + (p.located ? "yes"
                    : '<span class="sub">no location</span>') + "</td>"
+        + "<td>" + visitCell(p) + "</td>"
         + "<td>" + esc(ago(p.joined)) + "</td>"
         + "<td>" + (p.email
                     ? '<button class="btn plain" data-quickdel="' + esc(p.email) + '">Delete…</button>'
@@ -2431,7 +2484,7 @@ async function load() {
   const t = token();
   if (!t) return lockOut("");
   try {
-    const [o, tr, series, recent, mail, pix, globe, folk, payouts] = await Promise.all([
+    const [o, tr, series, recent, mail, pix, globe, folk, payouts, visits] = await Promise.all([
       rpc("api_admin_overview", { p_token: t }),
       rpc("api_admin_trouble", { p_token: t }),
       rpc("api_admin_series", { p_token: t, p_days: 30 }),
@@ -2451,11 +2504,16 @@ async function load() {
       // payout-bank.sql may not be loaded yet. A missing queue must not take
       // the whole dashboard down with it.
       rpc("api_admin_payouts", { p_token: t, p_status: "requested" }).catch(() => null),
+      // visits.sql may not be loaded yet. Missing visit counts must not take
+      // the whole dashboard down with it.
+      rpc("api_admin_visits", { p_token: t }).catch(() => null),
     ]);
 
     drawTrouble(tr);
     drawGlobe(globe);
+    setVisits(visits);
     drawPeople(folk);
+    drawUserTiles(o, visits);
     drawPayouts(payouts);
     loadPayouts();
 
