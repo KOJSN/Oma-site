@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as eea805f5f4/customer. -->
+     (start_url /techapp.html) — same fix shape as 249eaddbf4/customer. -->
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1426,7 +1426,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "eea805f5f4";
+const BUILD_ID = "249eaddbf4";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -4227,6 +4227,13 @@ const API = (() => {
 
     wallet:        ()                       => live() ? rpc("api_wallet")          : MOCK.wallet(),
     requestPayout: (kobo)                   => live() ? rpc("api_request_payout", { p_amount: kobo }) : MOCK.requestPayout(kobo),
+    // 9 Oct 2026 ("Automatic money (Kuda)" and "Refund rules" SQL). What she
+    // would receive after the bank-transfer fee; the phone checking in near an
+    // appointment; the nail tech's "Client didn't come" and "I can't make it".
+    payoutQuote:   (kobo)                   => live() ? rpc("api_payout_quote", { p_amount: kobo }) : MOCK.payoutQuote(kobo),
+    checkIn:       (b, lat, lng)            => live() ? rpc("api_booking_checkin", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.checkIn(),
+    techNoShow:    (b, lat, lng)            => live() ? rpc("api_tech_noshow", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.techNoShow(),
+    cannotMakeIt:  (b, why)                 => live() ? rpc("api_tech_cannot_make_it", { p_booking: b, p_reason: why || null }) : MOCK.cannotMakeIt(),
 
     // Where a withdrawal actually goes. resolveBank is a lookup against
     // Paystack (works today, no business verification needed); setBankDetails
@@ -5025,6 +5032,11 @@ const API = (() => {
         return { ok: true };
       },
       myReport: async (b) => ((load().reports || {})[b] || null),
+
+      payoutQuote: async (kobo) => ({ amount_kobo: kobo, fee_kobo: 1500, receive_kobo: Math.max(kobo - 1500, 0) }),
+      checkIn: async () => ({ ok: true, counted: false }),
+      techNoShow: async () => ({ ok: true, accepted: false, message: "Practice mode: nothing was sent." }),
+      cannotMakeIt: async () => ({ ok: true }),
 
       placesNearby: async (lat, lng, radius) => {
         const rows = await MOCK.nearby(lat, lng, radius);
@@ -8448,8 +8460,10 @@ function vTicket(bookingId) {
         </div>
         <div class="note pink"><div><b>Do not show this before she has done your
           nails.</b> Scanning it is what pays her, and it only works once.</div></div>
+        <div id="checkinSlot"></div>
       </div>`);
     fillPlace(b.id);
+    maybeCheckIn(b);
   });
   return head("Your appointment", "The code that pays her") + host();
 }
@@ -8823,15 +8837,29 @@ function vWallet() {
       API.myBank().catch(() => ({})),
     ]);
     const hasBank = !!(bank && bank.account_number);
+    // 9 Oct 2026: money from a scan can be withdrawn 24 hours later. Before
+    // the "Automatic money" SQL is run the wallet has no `withdrawable`, and
+    // then all of `available` is withdrawable, as it always was.
+    const can = w.withdrawable != null ? Number(w.withdrawable) : Number(w.available);
+    const locked = Math.max(Number(w.available) - can, 0);
+    let quote = null;
+    if (can > 0 && hasBank) { try { quote = await API.payoutQuote(can); } catch (e) { quote = null; } }
+    const unlockTs = w.unlocks_at ? new Date(w.unlocks_at).getTime() : null;
     fillHost(`
       <div class="pad stack gap12">
         <div class="ticket"><div style="padding:18px" class="stack gap12">
-          <div class="tiny sub">Yours to withdraw</div>
-          <div style="font-size:32px;font-weight:800;letter-spacing:-.03em">${kobo(w.available)}</div>
+          <div class="tiny sub">${w.withdrawable != null ? "Ready to withdraw" : "Yours to withdraw"}</div>
+          <div style="font-size:32px;font-weight:800;letter-spacing:-.03em">${kobo(can)}</div>
+          ${locked > 0 ? `<div class="kv" style="padding-top:12px;border-top:1px solid var(--line)">
+            <span class="k">Coming ${unlockTs ? "(next one " + dayLabel(unlockTs) + " " + hhmm(unlockTs) + ")" : "within " + (w.hold_hours || 24) + " hours"}</span>
+            <span class="v">${kobo(locked)}</span></div>` : ""}
           <div class="kv" style="padding-top:12px;border-top:1px solid var(--line)">
             <span class="k">Held until you scan</span>
             <span class="v">${kobo(w.held)}</span></div>
         </div></div>
+
+        ${locked > 0 ? `<div class="note"><div>Money from a scan can be withdrawn <b>${w.hold_hours || 24} hours</b>
+          later, once the client's card payment has reached Oma.</div></div>` : ""}
 
         ${w.held > 0 ? `<div class="note"><div>Money moves out of <b>held</b> the
           moment you scan a client's code. Until then it is hers, not yours —
@@ -8848,8 +8876,11 @@ function vWallet() {
             ${I.chev()}</button>
         </div>
 
-        <button class="btn" data-a="payout" ${w.available <= 0 ? "disabled" : ""}>
-          Withdraw ${kobo(w.available)}</button>
+        <button class="btn" data-a="payout" ${can <= 0 ? "disabled" : ""}>
+          Withdraw ${kobo(can)}</button>
+        ${quote ? `<div class="tiny sub" style="text-align:center">${quote.fee_kobo > 0
+          ? `Bank transfer fee ${kobo(quote.fee_kobo)} &middot; you get <b>${kobo(quote.receive_kobo)}</b>`
+          : `No transfer fee &middot; you get <b>${kobo(quote.receive_kobo)}</b>`}</div>` : ""}
 
         <div id="paidList"></div>
 
@@ -9317,6 +9348,51 @@ function vDiaryLive() {
 }
 
 /* ── one appointment, from whichever side ────────────── */
+/* ── check-in, 9 Oct 2026 ─────────────────────────────────────────────
+   While an appointment screen is open, from 3 hours before to 12 hours after
+   the start, the phone says how far it is from the place. The server keeps
+   only that distance and when, never coordinates, and deletes it 30 days
+   after the appointment. It is what lets a no-show be settled fairly: a nail
+   tech who says "she did not come" is believed only if her phone was at the
+   place, and a client whose phone was at the place cannot be called a
+   no-show. Nothing here ever blocks the screen: no location, no check-in. */
+const CHECKIN_SEEN = {};
+function currentPos() {
+  return new Promise((res) => {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => res({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => res(null),
+      { timeout: 10000, maximumAge: 60000, enableHighAccuracy: true });
+  });
+}
+function checkInWindow(b) {
+  if (!b || b.status !== "paid" || !b.starts_at) return false;
+  const at = new Date(b.starts_at).getTime(), now = Date.now();
+  return now >= at - 3 * 3600e3 && now <= at + 12 * 3600e3;
+}
+/* The first call carries no position: it only finds out whether the server
+   side exists yet (and that this appointment is hers). Only then is the phone
+   asked where it is, and the explanation shown, so nobody is asked for
+   location before the feature is switched on. A call without a position
+   stores nothing and does not use up the 5-minute limit. */
+function maybeCheckIn(b) {
+  try {
+    if (!checkInWindow(b) || !API.signedIn()) return;
+    API.checkIn(b.id, null, null).then(() => {
+      const slot = document.getElementById("checkinSlot");
+      if (slot) slot.innerHTML = CHECKIN_NOTE;
+      const now = Date.now();
+      if (CHECKIN_SEEN[b.id] && now - CHECKIN_SEEN[b.id] < 5 * 60e3) return;
+      CHECKIN_SEEN[b.id] = now;
+      return currentPos().then((p) => { if (p) return API.checkIn(b.id, p.lat, p.lng); });
+    }).catch(() => { /* not switched on yet, or not hers: stay quiet */ });
+  } catch (e) { /* never in the way of the screen */ }
+}
+const CHECKIN_NOTE = `<div class="tiny sub" style="text-align:center">While this screen is open,
+  your phone tells Oma only <b>how far you are from the place</b>, never where you are.
+  It is used to settle a no-show fairly and is deleted after 30 days.</div>`;
+
 function vJob(bookingId) {
   load(async () => {
     if (!API.signedIn()) return askToSignIn("this appointment");
@@ -9381,6 +9457,14 @@ function vJob(bookingId) {
           ? `<div class="note pink"><div>Do her nails first, then scan her code
                when you are done. Scanning is what pays you.</div></div>
              <button class="btn" data-a="go" data-v="scanner">Open the scanner</button>` : ""}
+        ${asTech && b.status === "paid" && Date.now() >= at + 30 * 60000
+          ? `<div class="note"><div>Waited 30 minutes and she has not come? If you are at the place,
+               tap this and you are paid the whole price. Your phone must be at the place.</div></div>
+             <button class="btn ghost" data-a="noshow" data-id="${esc(b.id)}">Client didn't come</button>` : ""}
+        <div id="checkinSlot"></div>
+        ${asTech && b.status === "paid"
+          ? `<div style="text-align:center"><button class="tag" data-a="cantmake" data-id="${esc(b.id)}"
+               style="color:var(--bad)">I can't make this appointment</button></div>` : ""}
         <!-- No cancel button, deliberately. An unpaid hold expires on its own
              after 30 minutes, and a paid one is escrow's problem: the tech
              scans at the end, and money nobody scanned auto-refunds 12 hours
@@ -9422,6 +9506,7 @@ function vJob(bookingId) {
         })()}
       </div>`);
     fillWhere(bookingId);
+    maybeCheckIn(b);
   });
   return head("Appointment", "") + host();
 }
@@ -13236,6 +13321,27 @@ document.getElementById("shell").addEventListener("click", e => {
   }
   if (a === "go-pay") return nav("pay", id);
 
+  // 9 Oct 2026: the nail tech waited and the client never came.
+  if (a === "noshow") {
+    if (!confirm("Only tap OK if you are at the place and your client has not come. Oma checks that your phone is there.")) return;
+    toast("Checking where you are…");
+    return currentPos().then((p) => {
+      if (!p) return toast("Turn on location so Oma can see you are at the place, then try again.");
+      return API.techNoShow(id, p.lat, p.lng).then((r) => {
+        toast((r && r.message) || "Done.");
+        paint();
+      });
+    }).catch((err) => toast(/could not find|schema cache/i.test(err.message || "") ? "This is not switched on yet." : err.message));
+  }
+  // …and the nail tech who cannot make a paid appointment: the client is refunded at once.
+  if (a === "cantmake") {
+    if (!confirm("Cancel this appointment? The client gets her money back straight away and you are not paid for it.")) return;
+    return API.cannotMakeIt(id).then(() => {
+      toast("Cancelled. The client has been refunded.");
+      nav("requests");
+    }).catch((err) => toast(/could not find|schema cache/i.test(err.message || "") ? "This is not switched on yet." : err.message));
+  }
+
   if (a === "scan-typed") {
     const which = document.getElementById("fWhich");
     const code = document.getElementById("fShort");
@@ -13249,8 +13355,14 @@ document.getElementById("shell").addEventListener("click", e => {
   }
 
   if (a === "payout") {
-    return Promise.all([API.wallet(), API.myBank().catch(() => ({}))]).then(([w, bank]) => {
-      if (w.available <= 0) return toast("Nothing to withdraw yet.");
+    return Promise.all([API.wallet(), API.myBank().catch(() => ({}))]).then(async ([w, bank]) => {
+      // 9 Oct 2026: only what is older than the hold can be withdrawn.
+      const can = w.withdrawable != null ? Number(w.withdrawable) : Number(w.available);
+      if (can <= 0) {
+        return toast(Number(w.available) > 0
+          ? "Not yet: money from a scan can be withdrawn " + (w.hold_hours || 24) + " hours later."
+          : "Nothing to withdraw yet.");
+      }
       // No bank on file: there is nowhere to send this yet, and a "requested"
       // payout with no account attached just sits stuck. Send her to add it
       // first rather than accepting a request that can never be paid.
@@ -13258,8 +13370,13 @@ document.getElementById("shell").addEventListener("click", e => {
         toast("Add your bank details first.");
         return nav("bank");
       }
-      return API.requestPayout(w.available)
-        .then(() => { toast("Withdrawal requested."); paint(); });
+      let q = null;
+      try { q = await API.payoutQuote(can); } catch (e) { q = null; }
+      return API.requestPayout(can)
+        .then(() => {
+          toast(q && q.receive_kobo ? "Withdrawal requested. You get " + kobo(q.receive_kobo) + "." : "Withdrawal requested.");
+          paint();
+        });
     }).catch(err => toast(err.message));
   }
 
