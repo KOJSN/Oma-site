@@ -7,6 +7,12 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#f0518d">
 <link rel="icon" type="image/png" href="/icons/icon-192.png">
+<link rel="manifest" href="/admin.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Oma Admin">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
@@ -268,6 +274,7 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
   border-radius:99px;background:var(--pink);color:var(--onpink);font-size:11px;
   font-weight:800;display:inline-flex;align-items:center;justify-content:center}
 .navbtn .nbadge[hidden]{display:none}
+#alertsOff[hidden]{display:none}
 .navbtn.on .nbadge{background:#fff;color:#d1376f}
 .carebox{display:grid;grid-template-columns:320px 1fr;padding:0;overflow:hidden;
   min-height:520px}
@@ -385,6 +392,9 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
       <div class="top">
         <div class="wrap">
           <button class="btn sm plain" id="refresh">Refresh</button>
+          <button class="btn sm plain" id="alerts" type="button">Turn on alerts</button>
+          <button class="btn sm plain" id="alertsOff" type="button" hidden>Off</button>
+          <span id="alertsMsg" role="status" style="font-size:12.5px;color:var(--faint);flex-basis:100%;order:9"></span>
           <button class="btn sm plain" id="out">Sign out</button>
           <div class="who" id="who"></div>
         </div>
@@ -1648,6 +1658,181 @@ function show(expires) {
   load();
   careOff = false;
   careLoadList();
+  alertsPaint();
+  alertsRefresh();
+  goToPage(location.hash.slice(1));
+}
+
+/* ══ alerts on this phone ════════════════════════════════════════════
+   Kamsy, 12 Oct 2026: "i want to receive notifications every time someone
+   requests a withdrawal, a refund is due, a customer care message, and any
+   other thing that needs my attention".
+
+   They arrive as Web Push on the home-screen copy of this page. The admin
+   sign-in is a passphrase, not an account, so the phone is filed under the
+   owner through api_admin_register_device (admin-alerts.sql), and the server
+   sends through the same notification queue the apps use. This is the public
+   half of the push key pair, the same one app.html carries. */
+const ALERT_VAPID = "BPXrpPfNAAGjOVPjDuMnXjIhJVcedu-3erpAYW9io90wBXs4HhD4mgcb-OAgq5jbV6McT92MY5YOg2Aw8l10KEs";
+const ALERT_FLAG = "oma-admin-alerts";
+const alertsBtn = document.getElementById("alerts");
+const alertsOffBtn = document.getElementById("alertsOff");
+const alertsMsg = document.getElementById("alertsMsg");
+
+function alertsSay(words) { alertsMsg.textContent = words || ""; }
+function alertsWanted() { try { return localStorage.getItem(ALERT_FLAG) === "1"; } catch (e) { return false; } }
+function alertsRemember(on) {
+  try { on ? localStorage.setItem(ALERT_FLAG, "1") : localStorage.removeItem(ALERT_FLAG); }
+  catch (e) { /* private mode */ }
+}
+function alertsBytes(b64) {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+function alertsLabel() {
+  const ua = navigator.userAgent || "";
+  const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android phone"
+           : /Mac OS X/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows PC" : "device";
+  return "Oma admin on " + os;
+}
+
+/* Can this page show alerts at all, and if not, say what to do about it. On an
+   iPhone, Apple only allows it for a page opened from its Home Screen icon. */
+function alertsCan() {
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent || "");
+  const installed = navigator.standalone === true ||
+    (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  if (ios && !installed) {
+    return { ok: false, says: "Open this page from its Home Screen icon. If it opens in Safari, delete the old shortcut, then Share, Add to Home Screen, and open that." };
+  }
+  if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return { ok: false, says: "This browser cannot show alerts. Use Chrome on Android, or the Home Screen icon on iPhone." };
+  }
+  if (Notification.permission === "denied") {
+    return { ok: false, says: "Alerts are blocked for this page. Turn them on in your phone's Settings, Notifications, Oma Admin." };
+  }
+  return { ok: true };
+}
+
+/* The address the phone gave. Reused when it exists: a new one on every visit
+   would fill the database with dead rows. */
+async function alertsAddress(askFirst) {
+  if (askFirst) {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") throw new Error("not allowed");
+  } else if (Notification.permission !== "granted") {
+    throw new Error("not allowed");
+  }
+  await navigator.serviceWorker.register("/sw.js");
+  const reg = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((_, no) => setTimeout(() => no(new Error("the phone did not start its notification helper")), 12000)),
+  ]);
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: alertsBytes(ALERT_VAPID),
+    });
+  }
+  return JSON.stringify(sub);
+}
+
+function alertsPaint() {
+  const on = alertsWanted();
+  alertsBtn.textContent = on ? "Alerts on · send test" : "Turn on alerts";
+  alertsOffBtn.hidden = !on;
+}
+
+function alertsFail(e) {
+  const m = (e && e.message) || "";
+  if (m === "not allowed") return "No alerts then. Allow them in your phone's Settings, Notifications, Oma Admin.";
+  if (e && (e.status === 404 || /api_admin_register_device|Could not find/i.test(m))) {
+    return "The alerts SQL has not been run yet. Run \"Admin alerts\" in Supabase first.";
+  }
+  return m || "That did not work.";
+}
+
+async function alertsTurnOn() {
+  const can = alertsCan();
+  if (!can.ok) return alertsSay(can.says);
+  const t = token();
+  if (!t) return lockOut();
+  alertsSay("Asking your phone…");
+  try {
+    const address = await alertsAddress(true);
+    await rpc("api_admin_register_device", {
+      p_token: t, p_platform: "web", p_device: address, p_label: alertsLabel() });
+    alertsRemember(true);
+    alertsPaint();
+    await rpc("api_admin_test_push", { p_token: t });
+    alertsSay("On. A test alert is on its way, it can take up to a minute.");
+  } catch (e) {
+    if (e && e.status === 401) return lockOut();
+    alertsSay(alertsFail(e));
+  }
+}
+
+async function alertsTest() {
+  const t = token();
+  if (!t) return lockOut();
+  alertsSay("Sending a test…");
+  try {
+    const r = await rpc("api_admin_test_push", { p_token: t });
+    alertsSay(r && r.phones === 0
+      ? "No phone is registered yet. Tap Off, then turn alerts on again."
+      : "Test sent, it can take up to a minute.");
+  } catch (e) { alertsSay(alertsFail(e)); }
+}
+
+async function alertsTurnOff() {
+  const t = token();
+  try {
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration("/");
+      const sub = reg && await reg.pushManager.getSubscription();
+      if (sub) {
+        if (t) { try { await rpc("api_admin_forget_device", { p_token: t, p_device: JSON.stringify(sub) }); } catch (e) { /* gone anyway */ } }
+        await sub.unsubscribe();
+      }
+    }
+  } catch (e) { /* the server stops sending when the row is gone */ }
+  alertsRemember(false);
+  alertsPaint();
+  alertsSay("Alerts are off on this phone.");
+}
+
+/* Every time the page opens signed in: hand the server the phone's current
+   address again, quietly. Phones change it now and then. */
+async function alertsRefresh() {
+  if (!alertsWanted() || !alertsCan().ok || Notification.permission !== "granted") return;
+  const t = token();
+  if (!t) return;
+  try {
+    const address = await alertsAddress(false);
+    await rpc("api_admin_register_device", {
+      p_token: t, p_platform: "web", p_device: address, p_label: alertsLabel() });
+  } catch (e) { /* not worth interrupting her; the button still works */ }
+}
+
+alertsBtn.addEventListener("click", () => (alertsWanted() ? alertsTest() : alertsTurnOn()));
+alertsOffBtn.addEventListener("click", () => alertsTurnOff());
+alertsPaint();
+
+/* Tapping an alert opens the right tab: the service worker either opens
+   /admin.html#finances or tells an already open page where to go. */
+function goToPage(name) {
+  const b = /^[a-z]+$/.test(name || "") && document.querySelector('.navbtn[data-page="' + name + '"]');
+  if (b) b.click();
+}
+window.addEventListener("hashchange", () => goToPage(location.hash.slice(1)));
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (e.data && e.data.oma === "admin") goToPage(e.data.page);
+  });
 }
 
 function lockOut(why) {

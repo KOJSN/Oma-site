@@ -117,7 +117,8 @@ self.addEventListener("push", (e) => {
     badge: "/icons/icon-180.png",
     // Two messages in one thread replace each other rather than stacking into
     // a wall of the same conversation.
-    tag: n.data && n.data.booking_id ? "oma-" + n.data.booking_id : "oma",
+    tag: n.data && n.data.admin ? "oma-admin-" + (n.data.note_id || Date.now())
+       : n.data && n.data.booking_id ? "oma-" + n.data.booking_id : "oma",
     renotify: true,
     data: n.data || {},
   }));
@@ -126,6 +127,25 @@ self.addEventListener("push", (e) => {
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const d = e.notification.data || {};
+
+  /* Alerts for the Oma owner (new withdrawal, refund to pay, a care message...)
+     carry admin:true. They open the admin page, on the right tab, never the
+     customer app. */
+  if (d.admin) {
+    const page = typeof d.page === "string" ? d.page.replace(/[^a-z]/g, "") : "";
+    e.waitUntil((async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const c of all) {
+        if (c.url.indexOf("/admin.html") !== -1 && "focus" in c) {
+          c.postMessage({ oma: "admin", page });
+          return c.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow("/admin.html" + (page ? "#" + page : ""));
+    })());
+    return;
+  }
+
   const to = d.view && d.booking_id ? `#go=${d.view}:${d.booking_id}`
            : d.view ? `#go=${d.view}` : "";
 
