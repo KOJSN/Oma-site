@@ -1753,6 +1753,9 @@ function alertsPaint() {
 function alertsFail(e) {
   const m = (e && e.message) || "";
   if (m === "not allowed") return "No alerts then. Allow them in your phone's Settings, Notifications, Oma Admin.";
+  if (/push_platform/.test(m)) {
+    return "The database still has the old alerts SQL. In Supabase, open a NEW query tab, paste admin-alerts-fix.sql and run it.";
+  }
   if (e && (e.status === 404 || /api_admin_register_device|Could not find/i.test(m))) {
     return "The alerts SQL has not been run yet. Run \"Admin alerts\" in Supabase first.";
   }
