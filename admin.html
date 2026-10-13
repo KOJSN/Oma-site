@@ -160,6 +160,19 @@ section{padding:26px 0}
 .chart svg{width:100%;height:150px;display:block;overflow:visible}
 .bar{fill:var(--pink)}
 .bar.z{fill:var(--grid)}          /* a day with nothing in it, still drawn */
+.ln{fill:none;stroke:var(--pink);stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.ar{fill:var(--pink);fill-opacity:.2;stroke:none}
+.dot{fill:none;stroke:var(--pink);stroke-width:6;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.dot.z{stroke:var(--grid)}
+.dot.hov{stroke-width:10}
+.chart .chead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.chart .chead h3{min-width:0}
+.kind{flex:none;padding:5px 10px;border-radius:99px;border:1.5px solid var(--line);
+  background:var(--bg);color:var(--ink);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.chart .ctab{height:150px;overflow:auto;-webkit-overflow-scrolling:touch}
+.chart .ctab[hidden]{display:none}
+.chart .ctab th{position:sticky;top:0;background:var(--card);padding-bottom:7px}
+.chart .ctab .r{text-align:right;padding-right:6px}
 .gridline{stroke:var(--grid);stroke-width:1}
 .axt{fill:var(--faint);font-size:10.5px;font-weight:600}
 .hit{fill:transparent}
@@ -535,24 +548,30 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
             <div class="lbl">The last 30 days</div>
             <div class="grid g2">
               <div class="card chart" id="chartBookings">
-                <h3>Bookings a day</h3>
+                <div class="chead"><h3>Bookings a day</h3>
+                  <select class="kind" aria-label="How to show: Bookings a day"></select></div>
                 <div class="cs" id="csBookings"></div>
                 <svg viewBox="0 0 600 150" preserveAspectRatio="none" role="img"
                      aria-label="Bookings made each day for the last 30 days"></svg>
+                <div class="ctab" hidden></div>
                 <div class="tip"></div>
               </div>
               <div class="card chart" id="chartMoney">
-                <h3>Paid into escrow a day</h3>
+                <div class="chead"><h3>Paid into escrow a day</h3>
+                  <select class="kind" aria-label="How to show: Paid into escrow a day"></select></div>
                 <div class="cs" id="csMoney"></div>
                 <svg viewBox="0 0 600 150" preserveAspectRatio="none" role="img"
                      aria-label="Money paid into escrow each day for the last 30 days"></svg>
+                <div class="ctab" hidden></div>
                 <div class="tip"></div>
               </div>
               <div class="card chart" id="chartOma">
-                <h3>Oma earnings a day</h3>
+                <div class="chead"><h3>Oma earnings a day</h3>
+                  <select class="kind" aria-label="How to show: Oma earnings a day"></select></div>
                 <div class="cs" id="csOma"></div>
                 <svg viewBox="0 0 600 150" preserveAspectRatio="none" role="img"
                      aria-label="Oma's fee earned each day for the last 30 days"></svg>
+                <div class="ctab" hidden></div>
                 <div class="tip"></div>
               </div>
             </div>
@@ -1850,46 +1869,123 @@ function lockOut(why) {
 
 /* ══ drawing ══════════════════════════════════════════════════════════ */
 
-/* A bar chart, by hand. Thin marks with 4px rounded tops anchored to the
-   baseline, a 2px gap between neighbours, one recessive gridline at the top,
-   and a hover tooltip — which an HTML chart gets by default, because it can.
-   No number printed on every bar: thirty labels is not a chart, it is a
-   table that has been made hard to read. */
-function drawBars(rootId, rows, valueOf, labelOf, subEl) {
+/* Charts, by hand. A dropdown on each card picks how the same thirty days
+   are drawn: bars, line, area, dots, running total, or a plain table. The
+   choice is remembered in this browser.
+   Bars are thin marks with 4px rounded tops anchored to the baseline, a 2px
+   gap between neighbours, one recessive gridline at the top, and a hover
+   tooltip — which an HTML chart gets by default, because it can. No number
+   printed on every mark: thirty labels is not a chart, it is a table that
+   has been made hard to read (and when you do want the numbers, the Table
+   choice is exactly that). */
+const CHART_KINDS = [["bars", "Bars"], ["line", "Line"], ["area", "Area"],
+  ["dots", "Dots"], ["total", "Running total"], ["table", "Table"]];
+const CHARTS = {};
+
+function chartKindGet(id) {
+  try {
+    const k = localStorage.getItem("oma-admin-chart-" + id);
+    if (CHART_KINDS.some((x) => x[0] === k)) return k;
+  } catch (e) { /* no storage here: bars */ }
+  return "bars";
+}
+function chartKindSet(id, k) {
+  try { localStorage.setItem("oma-admin-chart-" + id, k); } catch (e) { /* fine */ }
+}
+
+function drawChart(rootId, rows, valueOf, labelOf, subEl, unit) {
+  const root = document.getElementById(rootId);
+  const sel = root.querySelector("select.kind");
+  CHARTS[rootId] = { rows, valueOf, labelOf, unit: unit || "Total" };
+  if (!sel.options.length) {
+    sel.innerHTML = CHART_KINDS.map((k) => `<option value="${k[0]}">${k[1]}</option>`).join("");
+    sel.addEventListener("change", () => { chartKindSet(rootId, sel.value); paintChart(rootId); });
+  }
+  sel.value = chartKindGet(rootId);
+  paintChart(rootId);
+  if (subEl) {
+    const total = rows.reduce((a, r) => a + valueOf(r), 0);
+    subEl.textContent = labelOf(total) + " in " + rows.length + " days";
+  }
+}
+
+function paintChart(rootId) {
+  const { rows, valueOf, labelOf, unit } = CHARTS[rootId];
   const root = document.getElementById(rootId);
   const svg = root.querySelector("svg");
   const tip = root.querySelector(".tip");
+  const tab = root.querySelector(".ctab");
+  let kind = root.querySelector("select.kind").value;
+  tip.classList.remove("on");
+
+  if (kind === "table") {
+    svg.style.display = "none";
+    tab.hidden = false;
+    tab.innerHTML = rows.length
+      ? `<table><thead><tr><th>Day</th><th class="r">${esc(unit)}</th></tr></thead><tbody>`
+        + rows.slice().reverse().map((r) =>
+            `<tr><td>${esc(dayName(r.day))}</td><td class="r tnum">${esc(labelOf(valueOf(r)))}</td></tr>`
+          ).join("")
+        + "</tbody></table>"
+      : '<div class="empty">No days yet.</div>';
+    return;
+  }
+  svg.style.display = "";
+  tab.hidden = true;
+  tab.innerHTML = "";
+
   const W = 600, H = 150, PAD_B = 20, PAD_T = 14;
   const n = rows.length || 1;
   const slot = W / n;
-  // Thin marks, centred in the slot. Filling the slot made thirty bars into a
-  // solid block with slits in it; a capped width leaves the ground visible
-  // between them, which is what makes a shape readable at a glance.
-  const bw = Math.min(11, Math.max(2, slot - 2));
-  const off = (slot - bw) / 2;
-  const top = Math.max(1, ...rows.map(valueOf));
-
+  const raw = rows.map(valueOf);
+  let run = 0;
+  const vals = kind === "total" ? raw.map((v) => (run += v)) : raw;
+  // One point cannot make a line: show it as a dot instead of nothing.
+  if (rows.length < 2 && kind !== "bars") kind = "dots";
+  const top = Math.max(1, ...vals);
+  const base = H - PAD_B;
   const y = (v) => PAD_T + (H - PAD_T - PAD_B) * (1 - v / top);
+  const cx = (i) => i * slot + slot / 2;
+  const f = (v) => v.toFixed(1);
   const parts = [];
 
   // One line at the top of the scale. More would be furniture.
   parts.push(`<line class="gridline" x1="0" y1="${PAD_T}" x2="${W}" y2="${PAD_T}"/>`);
   parts.push(`<text class="axt" x="2" y="${PAD_T - 4}">${esc(labelOf(top))}</text>`);
-  parts.push(`<line class="gridline" x1="0" y1="${H - PAD_B}" x2="${W}" y2="${H - PAD_B}"/>`);
+  parts.push(`<line class="gridline" x1="0" y1="${base}" x2="${W}" y2="${base}"/>`);
 
-  rows.forEach((r, i) => {
-    const v = valueOf(r);
-    const x = i * slot + off;
-    const h = Math.max(v > 0 ? 3 : 2, (H - PAD_T - PAD_B) * (v / top));
-    const yy = (H - PAD_B) - h;
-    // rx on the whole rect, anchored to the baseline: the rounding reads at
-    // the data end and the bar still sits flat on the axis.
-    parts.push(`<rect class="bar${v ? "" : " z"}" x="${x.toFixed(1)}" y="${yy.toFixed(1)}"
-      width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3"/>`);
-    // A hit target the full slot and the full height, so an empty day and a
-    // 3px bar are both easy to point at with a finger.
-    parts.push(`<rect class="hit" x="${(i * slot).toFixed(1)}" y="0"
-      width="${slot.toFixed(1)}" height="${H}" data-i="${i}"/>`);
+  if (kind === "bars") {
+    // Thin marks, centred in the slot. Filling the slot made thirty bars into
+    // a solid block with slits in it; a capped width leaves the ground
+    // visible between them, which is what makes a shape readable at a glance.
+    const bw = Math.min(11, Math.max(2, slot - 2));
+    const off = (slot - bw) / 2;
+    vals.forEach((v, i) => {
+      const h = Math.max(v > 0 ? 3 : 2, (H - PAD_T - PAD_B) * (v / top));
+      // rx on the whole rect, anchored to the baseline: the rounding reads at
+      // the data end and the bar still sits flat on the axis.
+      parts.push(`<rect class="bar${v ? "" : " z"}" x="${f(i * slot + off)}" y="${f(base - h)}"
+        width="${f(bw)}" height="${f(h)}" rx="3"/>`);
+    });
+  } else if (kind === "dots") {
+    vals.forEach((v, i) => {
+      parts.push(`<path class="dot${v ? "" : " z"}" d="M${f(cx(i))} ${f(y(v))}h.01"/>`);
+    });
+  } else {   // line, area, running total
+    const pts = vals.map((v, i) => [cx(i), y(v)]);
+    const d = pts.map((p, i) => (i ? "L" : "M") + f(p[0]) + " " + f(p[1])).join(" ");
+    if (kind !== "line") {
+      parts.push(`<path class="ar" d="${d} L${f(pts[pts.length - 1][0])} ${base} L${f(pts[0][0])} ${base} Z"/>`);
+    }
+    parts.push(`<path class="ln" d="${d}"/>`);
+  }
+  // The point the finger or pointer is on (not for bars: the bar is the point).
+  if (kind !== "bars") parts.push('<path class="dot hov" d="M-9 -9h.01" style="visibility:hidden"/>');
+
+  // A hit target the full slot and the full height, so an empty day and a
+  // 3px mark are both easy to point at with a finger.
+  vals.forEach((v, i) => {
+    parts.push(`<rect class="hit" x="${f(i * slot)}" y="0" width="${f(slot)}" height="${H}" data-i="${i}"/>`);
   });
 
   // First and last date only. Every date would collide at this width.
@@ -1900,24 +1996,24 @@ function drawBars(rootId, rows, valueOf, labelOf, subEl) {
   }
   svg.innerHTML = parts.join("");
 
-  const box = () => svg.getBoundingClientRect();
+  const hov = svg.querySelector(".hov");
+  const total = root.querySelector("select.kind").value === "total";
   svg.onpointermove = (e) => {
     const t = e.target.closest("[data-i]");
-    if (!t) { tip.classList.remove("on"); return; }
-    const r = rows[+t.dataset.i];
-    tip.innerHTML = `<div>${esc(labelOf(valueOf(r)))}</div>
-      <div class="d">${esc(dayName(r.day))}</div>`;
-    const b = box();
+    if (!t) { tip.classList.remove("on"); if (hov) hov.style.visibility = "hidden"; return; }
+    const i = +t.dataset.i;
+    tip.innerHTML = `<div>${esc(labelOf(vals[i]))}${total ? " so far" : ""}</div>
+      <div class="d">${esc(dayName(rows[i].day))}</div>`;
+    const b = svg.getBoundingClientRect();
     tip.style.left = (e.clientX - b.left) + "px";
     tip.style.top = (e.clientY - b.top) + "px";
     tip.classList.add("on");
+    if (hov) {
+      hov.setAttribute("d", `M${f(cx(i))} ${f(y(vals[i]))}h.01`);
+      hov.style.visibility = "visible";
+    }
   };
-  svg.onpointerleave = () => tip.classList.remove("on");
-
-  if (subEl) {
-    const total = rows.reduce((a, r) => a + valueOf(r), 0);
-    subEl.textContent = labelOf(total) + " in " + rows.length + " days";
-  }
+  svg.onpointerleave = () => { tip.classList.remove("on"); if (hov) hov.style.visibility = "hidden"; };
 }
 
 function tile(k, v, s) {
@@ -2723,12 +2819,12 @@ async function load() {
            naira(o.oma.earned_kobo) + " all time"),
     ].join("");
 
-    drawBars("chartBookings", series, (r) => Number(r.bookings), num,
-             document.getElementById("csBookings"));
-    drawBars("chartMoney", series, (r) => Number(r.gross_kobo), shortNaira,
-             document.getElementById("csMoney"));
-    drawBars("chartOma", series, (r) => Number(r.oma_kobo), shortNaira,
-             document.getElementById("csOma"));
+    drawChart("chartBookings", series, (r) => Number(r.bookings), num,
+              document.getElementById("csBookings"), "Bookings");
+    drawChart("chartMoney", series, (r) => Number(r.gross_kobo), shortNaira,
+              document.getElementById("csMoney"), "Paid in");
+    drawChart("chartOma", series, (r) => Number(r.oma_kobo), shortNaira,
+              document.getElementById("csOma"), "Oma earned");
 
     document.getElementById("people").innerHTML =
       kv("People signed up", num(o.people.users)) +
