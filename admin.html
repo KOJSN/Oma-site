@@ -3069,8 +3069,9 @@ async function load() {
       ? `<table><thead><tr><th>Business</th><th>Owner</th><th>Area</th><th>State</th>
            <th>ID</th><th>Listed</th><th>Services</th><th>Joined</th></tr></thead>
          <tbody>${liveTechs.map((x) => `<tr>
-           <td><b>${esc(x.name)}</b>${x.home_service ? " 🚗" : ""}${
-                x.has_salon === false ? " 📍" : ""}</td>
+           <td><b>${esc(x.name)}</b>${x.has_salon === true ? ' <span title="Has a shop">🏪</span>' : ""}${
+                x.home_service ? ' <span title="Does home visits">🚗</span>' : ""}${
+                x.has_salon === false ? ' <span title="No shop: works from wherever she is">📍</span>' : ""}</td>
            <td>${ownerCell(x)}</td>
            <td>${esc(x.area || "—")}</td>
            <td>${esc(x.state || "—")}</td>
