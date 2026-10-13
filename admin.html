@@ -271,6 +271,36 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
   .navbtn{width:auto;flex:none;white-space:nowrap;padding:9px 13px}
 }
 
+/* ── one booking: its chat and its history, in a sheet over the page ── */
+.sheet{position:fixed;inset:0;z-index:60;background:rgba(10,8,13,.55);display:none;
+  align-items:flex-start;justify-content:center;padding:4vh 14px;overflow-y:auto}
+.sheet.on{display:flex}
+.sheetbox{width:min(720px,100%);background:var(--card);color:var(--ink);
+  border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}
+.sheetbox .shead{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.sheetbox .sh1{font-size:18px;font-weight:800;letter-spacing:-.02em;overflow-wrap:anywhere}
+.sheetbox .facts{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:10px;
+  font-size:13.5px;color:var(--sub)}
+.sheetbox .facts b{color:var(--ink)}
+.sheetbox .shl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
+  font-weight:800;margin:22px 0 8px}
+.sheetbox .who2{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.5;overflow-wrap:anywhere}
+.stl{list-style:none;margin:0;padding:0}
+.stl li{display:flex;gap:12px;justify-content:space-between;padding:7px 0;
+  border-top:1px solid var(--line);font-size:13.5px}
+.stl li:first-child{border-top:0}
+.stl li span:last-child{color:var(--faint);white-space:nowrap}
+.rep{border:1px solid var(--line);border-radius:14px;padding:10px 13px;font-size:13.5px;
+  margin-bottom:8px;overflow-wrap:anywhere}
+.chatlog{display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow-y:auto;
+  padding:4px 2px;-webkit-overflow-scrolling:touch}
+.bub{max-width:84%;padding:9px 13px;border-radius:16px;font-size:14px;line-height:1.45;
+  white-space:pre-wrap;overflow-wrap:anywhere}
+.bub.customer{align-self:flex-start;background:var(--fill);border-bottom-left-radius:5px}
+.bub.tech{align-self:flex-end;background:var(--tint);border-bottom-right-radius:5px}
+.bub.other{align-self:center;border:1px dashed var(--line)}
+.bub .bw{display:block;font-size:11.5px;font-weight:700;color:var(--faint);margin-bottom:2px}
+
 /* ── bookings page ── */
 .filters{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}
 .filters select,.filters input{padding:10px 13px;border-radius:11px;
@@ -1244,13 +1274,14 @@ function drawBookings(data, errMsg) {
   const rows = data.bookings || [];
   el.innerHTML = rows.length
     ? `<table><thead><tr>
-        <th>When</th><th>Customer</th><th>Tech</th><th>Amount</th><th>Status</th><th></th>
+        <th>When</th><th>Customer</th><th>Tech</th><th>Amount</th><th>Status</th><th>Chat</th><th></th>
       </tr></thead><tbody>${rows.map((b) => `<tr>
         <td>${esc(ago(b.created_at))}${b.at_home ? " · at home" : ""}</td>
         <td>${esc(b.customer)}</td>
         <td>${esc(b.tech)}</td>
         <td class="tnum">${naira(b.total_kobo)}</td>
         <td>${bkChip(b.status)}</td>
+        <td><button class="btn sm plain" data-bkopen="${esc(b.id)}" type="button">Open<span class="faint" data-bkn="${esc(b.id)}"></span></button></td>
         <td>${(b.status === "disputed" || b.status === "paid")
           ? `<button class="btn sm plain" data-refund="${esc(b.id)}" type="button">Refund customer</button>`
           : ""}</td>
@@ -1277,6 +1308,7 @@ async function loadBookings(resetPage) {
       p_status: status, p_q: q,
     });
     drawBookings(data);
+    bkCounts(((data && data.bookings) || []).map((b) => b.id));
   } catch (e) {
     if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
     drawBookings(null, e && e.message);
@@ -1297,6 +1329,165 @@ document.getElementById("bkNext").addEventListener("click", () => {
   BK_OFFSET += BK_LIMIT;
   loadBookings();
 });
+
+/* ══ one booking: its chat and what happened, 13 Oct 2026 ═════════════
+   Kamsy: "for every booking I want to be able to monitor chats and know
+   what's going on". Read only. Two functions (admin-booking-chats.sql):
+   api_admin_chat_counts puts "3 msgs" on each row, and api_admin_booking_chat
+   fills the sheet. Opening a chat marks nothing as read for the two people.
+   Everything a person typed goes through esc(), never innerHTML raw. */
+let SHEET = { id: null, timer: null };
+
+const BK_WORDS = {
+  created_at: "Booked", paid_at: "Paid into escrow", scanned_at: "Scanned at the appointment",
+  released_at: "Released to the tech", refunded_at: "Refunded", cancelled_at: "Cancelled",
+  canceled_at: "Cancelled", expired_at: "Expired unpaid", starts_at: "Appointment time",
+  disputed_at: "Disputed", accepted_at: "Accepted", confirmed_at: "Confirmed",
+  completed_at: "Completed", ended_at: "Ended",
+};
+const bkWord = (k) => BK_WORDS[k] ||
+  k.replace(/_at$/, "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+const bkWhen = (iso) => iso
+  ? new Date(iso).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
+  : "—";
+
+async function bkCounts(ids) {
+  const t = token();
+  if (!t || !ids.length) return;
+  let r = null;
+  try { r = await rpc("api_admin_chat_counts", { p_token: t, p_ids: ids }); }
+  catch (e) { return; }   // the SQL may not be run yet: Open still works
+  document.querySelectorAll("[data-bkn]").forEach((el) => {
+    const x = r && r[el.dataset.bkn];
+    el.textContent = x && x.n ? " · " + num(x.n) + (x.n === 1 ? " msg" : " msgs") : "";
+  });
+}
+
+function ensureSheet() {
+  let el = document.getElementById("bookingSheet");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "bookingSheet";
+    el.className = "sheet";
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-modal", "true");
+    el.setAttribute("aria-label", "Booking details");
+    el.innerHTML = '<div class="sheetbox"><div id="sheetBody"></div></div>';
+    document.body.appendChild(el);
+    el.addEventListener("click", (e) => { if (e.target === el) closeSheet(); });
+  }
+  return el;
+}
+
+function closeSheet() {
+  clearInterval(SHEET.timer);
+  SHEET = { id: null, timer: null };
+  const el = document.getElementById("bookingSheet");
+  if (el) el.classList.remove("on");
+  document.body.style.overflow = "";
+}
+
+function openSheet(id) {
+  const el = ensureSheet();
+  clearInterval(SHEET.timer);
+  SHEET = { id, timer: setInterval(() => { if (!document.hidden) loadSheet(false); }, 8000) };
+  document.getElementById("sheetBody").innerHTML =
+    '<div class="empty">Loading…</div>';
+  el.classList.add("on");
+  el.scrollTop = 0;
+  document.body.style.overflow = "hidden";
+  loadSheet(true);
+}
+
+function sheetError(html) {
+  document.getElementById("sheetBody").innerHTML =
+    '<div class="shead"><div class="empty">' + html + "</div>"
+    + '<button class="btn sm plain" data-sheetclose type="button">Close</button></div>';
+}
+
+async function loadSheet(first) {
+  const id = SHEET.id;
+  if (!id) return;
+  const t = token();
+  if (!t) { closeSheet(); return lockOut(); }
+  let r;
+  try { r = await rpc("api_admin_booking_chat", { p_token: t, p_booking: id }); }
+  catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) { closeSheet(); return lockOut(); }
+    if (SHEET.id !== id || !first) return;
+    sheetError(/api_admin_booking_chat|could not find the function|does not exist/i.test(e.message)
+      ? "Run <b>Admin booking chats</b> in the Supabase SQL editor to switch this on."
+      : esc(e.message));
+    return;
+  }
+  if (SHEET.id !== id) return;          // closed, or another booking opened, meanwhile
+  paintSheet(r, first);
+}
+
+function paintSheet(r, first) {
+  if (!r || !r.ok) { sheetError(esc((r && r.why) || "Could not load this booking.")); return; }
+  const b = r.booking || {}, c = r.customer || {}, t = r.tech || {};
+  const body = document.getElementById("sheetBody");
+  const old = body.querySelector(".chatlog");
+  const wasBottom = !old || old.scrollHeight - old.scrollTop - old.clientHeight < 40;
+  const oldTop = old ? old.scrollTop : 0;
+
+  const steps = (r.timeline || []).filter((x) => x.key !== "updated_at");
+  const reps = r.reports || [];
+  const msgs = r.messages || [];
+  const rul = r.ruling;
+  const nameOf = (who) => who === "customer" ? (c.name || "Customer")
+    : who === "tech" ? (t.name || "Nail tech") : "Someone else";
+
+  body.innerHTML =
+    '<div class="shead"><div>'
+    + '<div class="sh1">' + esc(t.name || "Nail tech") + ' <span class="faint">for</span> ' + esc(c.name || "a customer") + "</div>"
+    + '<div class="facts">' + bkChip(b.status)
+    + "<span><b>" + naira(b.total_kobo) + "</b></span>"
+    + "<span>" + (b.at_home ? "At the customer's home" : "At the shop") + "</span>"
+    + "<span>Appointment <b>" + esc(bkWhen(b.starts_at)) + "</b></span></div>"
+    + '<div class="who2">Customer: <b>' + esc(c.name || "—") + "</b>" + (c.email ? " · " + esc(c.email) : "")
+    + "<br>Nail tech: <b>" + esc(t.name || "—") + "</b>" + (t.owner ? " · owner " + esc(t.owner) : "") + "</div>"
+    + "</div>"
+    + '<button class="btn sm plain" data-sheetclose type="button">Close</button></div>'
+
+    + '<div class="shl">What happened</div>'
+    + (steps.length
+        ? '<ul class="stl">' + steps.map((x) =>
+            "<li><span>" + esc(bkWord(x.key)) + "</span><span>" + esc(bkWhen(x.at)) + "</span></li>").join("") + "</ul>"
+        : '<div class="empty">No dates recorded.</div>')
+
+    + ((reps.length || (rul && rul.outcome))
+        ? '<div class="shl">Reports and rulings</div>'
+          + reps.map((x) => '<div class="rep"><b>' + esc(nameOf(x.by)) + "</b> reported: "
+              + esc((x.kind || "").replace(/_/g, " ")) + (x.body ? " — " + esc(x.body) : "")
+              + '<div class="faint" style="font-size:12px;margin-top:3px">' + esc(bkWhen(x.at))
+              + (x.status ? " · " + esc(x.status) : "") + (x.outcome ? " · " + esc(x.outcome) : "") + "</div></div>").join("")
+          + (rul && rul.outcome
+              ? '<div class="rep">No-show ruling: <b>' + esc(String(rul.outcome).replace(/_/g, " "))
+                + "</b>" + (rul.status ? " · " + esc(rul.status) : "") + "</div>" : "")
+        : "")
+
+    + '<div class="shl">Chat · ' + num(msgs.length) + (msgs.length === 1 ? " message" : " messages") + "</div>"
+    + (msgs.length
+        ? '<div class="chatlog">' + msgs.map((m) =>
+            '<div class="bub ' + esc(m.from) + '"><span class="bw">' + esc(nameOf(m.from)) + " · "
+            + esc(bkWhen(m.at)) + "</span>" + esc(m.body) + "</div>").join("") + "</div>"
+        : '<div class="empty">Nobody has written in this booking.</div>')
+    + (r.chat_note ? '<div class="faint" style="font-size:12.5px;margin-top:8px">' + esc(r.chat_note) + "</div>" : "")
+    + '<div class="faint" style="font-size:12px;margin-top:12px">Read only. Opening this does not mark anything as read for them. It refreshes by itself every few seconds.</div>';
+
+  const nl = body.querySelector(".chatlog");
+  if (nl) nl.scrollTop = (first || wasBottom) ? nl.scrollHeight : oldTop;
+  if (first) { const x = body.querySelector("[data-sheetclose]"); if (x) x.focus({ preventScroll: true }); }
+}
+
+document.addEventListener("click", (e) => {
+  const o = e.target.closest("[data-bkopen]");
+  if (o) { openSheet(o.dataset.bkopen); return; }
+  if (e.target.closest("[data-sheetclose]")) closeSheet();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && SHEET.id) closeSheet(); });
 
 // Refund a disputed booking — 23 Sep 2026. Only ever pays the customer
 // back (there's no function yet to pay the tech instead); see
@@ -1861,6 +2052,7 @@ if ("serviceWorker" in navigator) {
 }
 
 function lockOut(why) {
+  try { closeSheet(); } catch (e) { /* sheet code not reached yet */ }
   setToken(null);
   app.style.display = "none";
   gate.style.display = "grid";
