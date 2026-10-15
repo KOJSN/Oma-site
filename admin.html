@@ -7,13 +7,16 @@
 <meta name="robots" content="noindex,nofollow">
 <script>
 /* 15 Oct 2026: this page is for staff. The owner's browser is marked by master.html
-   (it sets this flag when she signs in there), and is sent on to master instead,
-   so the old home-screen icon and any phone alert that still points at
-   /admin.html#finances land on master. To look at THIS page from the owner's own
-   browser, open /admin.html?staff=1 */
+   (it sets this flag when she signs in there). Such a browser is sent on to master
+   ONLY when the page was opened the way the old admin page was: from the home-screen
+   icon, or from an alert tap (those carry a #tab). Typing /admin.html in a normal
+   browser tab shows this staff page. /admin.html?staff=1 never redirects. */
 (function () {
   try {
-    if (localStorage.getItem("oma-master-device") === "1" && !/[?&]staff\b/.test(location.search)) {
+    var app = window.navigator.standalone === true ||
+      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+    if (localStorage.getItem("oma-master-device") === "1" &&
+        !/[?&]staff\b/.test(location.search) && (location.hash || app)) {
       location.replace("/master.html" + location.hash);
     }
   } catch (e) { /* private mode: stay here */ }
