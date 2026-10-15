@@ -87,7 +87,8 @@ self.addEventListener("fetch", (e) => {
      page she opens on purpose, on a connection, a handful of times a day;
      there is nothing to gain by having it offline and a great deal to lose
      by having it stale. */
-  if (url.pathname === "/admin.html" || url.pathname === "/admin") return;
+  if (url.pathname === "/admin.html" || url.pathname === "/admin" ||
+      url.pathname === "/master.html" || url.pathname === "/master") return;
 
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
@@ -129,19 +130,19 @@ self.addEventListener("notificationclick", (e) => {
   const d = e.notification.data || {};
 
   /* Alerts for the Oma owner (new withdrawal, refund to pay, a care message...)
-     carry admin:true. They open the admin page, on the right tab, never the
-     customer app. */
+     carry admin:true. They open the MASTER page (the owner's; admin.html is the
+     staff page since 15 Oct 2026), on the right tab, never the customer app. */
   if (d.admin) {
     const page = typeof d.page === "string" ? d.page.replace(/[^a-z]/g, "") : "";
     e.waitUntil((async () => {
       const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const c of all) {
-        if (c.url.indexOf("/admin.html") !== -1 && "focus" in c) {
+        if (c.url.indexOf("/master.html") !== -1 && "focus" in c) {
           c.postMessage({ oma: "admin", page });
           return c.focus();
         }
       }
-      if (self.clients.openWindow) return self.clients.openWindow("/admin.html" + (page ? "#" + page : ""));
+      if (self.clients.openWindow) return self.clients.openWindow("/master.html" + (page ? "#" + page : ""));
     })());
     return;
   }

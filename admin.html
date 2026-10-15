@@ -5,6 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Oma — admin</title>
 <meta name="robots" content="noindex,nofollow">
+<script>
+/* 15 Oct 2026: this page is for staff. The owner's browser is marked by master.html
+   (it sets this flag when she signs in there), and is sent on to master instead,
+   so the old home-screen icon and any phone alert that still points at
+   /admin.html#finances land on master. To look at THIS page from the owner's own
+   browser, open /admin.html?staff=1 */
+(function () {
+  try {
+    if (localStorage.getItem("oma-master-device") === "1" && !/[?&]staff\b/.test(location.search)) {
+      location.replace("/master.html" + location.hash);
+    }
+  } catch (e) { /* private mode: stay here */ }
+})();
+</script>
+
 <meta name="theme-color" content="#f0518d">
 <link rel="icon" type="image/png" href="/icons/icon-192.png">
 <link rel="manifest" href="/admin.webmanifest">
@@ -372,6 +387,34 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
   .cth .back{display:inline-flex}
   .carethread{max-height:none}
 }
+
+/* ── staff page: landing, sidebar label, view-only finance ── */
+.gone{display:none!important}
+.linkbtn{background:none;color:var(--sub);font-size:12.5px;font-weight:700;padding:8px 0 0;display:block}
+.linkbtn:hover{color:var(--pink)}
+#pick{min-height:100dvh;display:grid;place-items:center;padding:24px}
+#pick .box{width:min(520px,100%);background:var(--card);border:1px solid var(--line);
+  border-radius:24px;padding:30px;box-shadow:var(--shadow)}
+#pick h1{font-size:24px;letter-spacing:-.03em;margin:22px 0 4px}
+#pick .psub{color:var(--sub);margin:0 0 18px;font-size:15px}
+.depts{display:grid;gap:10px;margin-bottom:10px}
+.dcard{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:16px 18px;
+  border-radius:16px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
+.dcard:hover,.dcard:focus-visible{border-color:var(--pink);outline:none}
+.dcard svg{flex:none;color:var(--pink)}
+.dcard b{display:block;font-size:16px}
+.dcard span{display:block;color:var(--sub);font-size:13px;margin-top:2px}
+.deptname{margin:-8px 0 14px 38px;color:var(--faint);font-size:12.5px;font-weight:700}
+@media (max-width:860px){.deptname{display:none}}
+#alerts,#alertsOff{display:none!important}
+.viewonly{display:none}
+body.dept-finance .viewonly{display:block}
+/* View only: nothing in Finance can be pressed or typed into. The database refuses the
+   money actions to staff anyway; this just stops dead buttons from showing. */
+body.dept-finance .page[data-page="finances"] button,
+body.dept-finance .page[data-page="finances"] input,
+body.dept-finance .page[data-page="finances"] select,
+body.dept-finance .page[data-page="finances"] textarea{display:none!important}
 </style>
 </head>
 <body>
@@ -391,14 +434,29 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
   <div class="box">
     <div class="mark"><i aria-hidden="true"></i>Oma admin</div>
     <form id="gateForm">
-      <label for="pw">Passphrase</label>
-      <input id="pw" type="password" autocomplete="current-password"
-             autocapitalize="off" autocorrect="off" spellcheck="false">
+      <label for="pw">Seed phrase</label>
+      <input id="pw" type="password" autocomplete="off"
+             autocapitalize="off" autocorrect="off" spellcheck="false"
+             placeholder="eight words, with spaces">
+      <button class="linkbtn" id="pwShow" type="button">Show the words</button>
       <button class="btn wide" id="go" type="submit">Open</button>
     </form>
     <div id="gateMsg"></div>
-    <div class="hint">Eight wrong tries locks this for fifteen minutes. A
-      session lasts eight hours and then asks again.</div>
+    <div class="hint">Your seed phrase is the eight words the owner gave you.
+      A session lasts eight hours and then asks again.</div>
+  </div>
+</div>
+
+
+<!-- ══ the landing page ══ shown after the seed phrase is accepted when the account
+     has more than one department. -->
+<div id="pick" class="gone">
+  <div class="box">
+    <div class="mark"><i aria-hidden="true"></i>Oma admin</div>
+    <h1 id="pickHi">Hello</h1>
+    <p class="psub" id="pickSub">Which department are you working in?</p>
+    <div class="depts" id="deptCards"></div>
+    <button class="linkbtn" id="pickOut" type="button">Sign out</button>
   </div>
 </div>
 
@@ -407,21 +465,10 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
   <div class="shell">
     <nav class="sidebar" id="sidebar">
       <div class="mark"><i aria-hidden="true"></i>Oma admin</div>
-      <button class="navbtn on" type="button" data-page="dashboard">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="12" width="8" height="9" rx="2"/><rect x="3" y="14" width="8" height="7" rx="2"/></svg>
-        Dashboard</button>
+      <div class="deptname" id="deptName"></div>
       <button class="navbtn" type="button" data-page="care">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.1A8.4 8.4 0 1 1 21 11.5Z"/></svg>
         Customer care<span class="nbadge" id="careBadge" hidden></span></button>
-      <button class="navbtn" type="button" data-page="users">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Users</button>
-      <button class="navbtn" type="button" data-page="bookings">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-        Bookings</button>
-      <button class="navbtn" type="button" data-page="reports">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
-        Reports</button>
       <button class="navbtn" type="button" data-page="finances">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.4-1.3-2.5-3-2.5s-3 1-3 2.3c0 3 6 1.4 6 4.4 0 1.4-1.3 2.3-3 2.3s-3-1-3-2.3"/></svg>
         Finances</button>
@@ -431,6 +478,9 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
       <button class="navbtn" type="button" data-page="control">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M12 8v4l3 2"/></svg>
         Control</button>
+      <button class="navbtn" type="button" data-page="reports">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
+        Reports</button>
     </nav>
 
     <div class="main">
@@ -439,6 +489,7 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
           <button class="btn sm plain" id="refresh">Refresh</button>
           <button class="btn sm plain" id="alerts" type="button">Turn on alerts</button>
           <button class="btn sm plain" id="alertsOff" type="button" hidden>Off</button>
+          <button class="btn sm plain gone" id="switchDept" type="button">Switch department</button>
           <button class="btn sm plain" id="out">Sign out</button>
           <div class="who" id="who"></div>
         </div>
@@ -448,7 +499,7 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
 
         <div id="alertsMsg" class="alertsmsg" role="status"></div>
 
-        <div class="page on" data-page="dashboard">
+        <div class="page" data-page="dashboard">
           <section>
             <div class="lbl">Needs looking at</div>
             <div class="grid g3" id="trouble"></div>
@@ -617,10 +668,6 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
             <div class="card" id="mail"></div>
           </section>
 
-          <section>
-            <div class="lbl">Where they are</div>
-            <div class="card" id="states"></div>
-          </section>
         </div>
 
         <!-- Mischief, 23 Sep 2026 — "i realized i can not even view the
@@ -651,6 +698,8 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
         </div>
 
         <div class="page" data-page="finances">
+          <div class="msg warn viewonly" style="margin:22px 0 0">View only. Paying, refunding, the switches and the
+            no-show decisions are done by the owner.</div>
           <!-- 9 Oct 2026: the switches that let Kuda pay withdrawals and refunds
                by itself, and the no-show cases the refund rules could not or
                would not settle alone. Backed by "Automatic money (Kuda)" and
@@ -782,7 +831,8 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
    stored in THIS browser. That fallback is fine here in a way it is not on
    the public page: this page is only ever meant for Kamsy, on her own
    machine. It means the dashboard can work before the file is filled in. */
-const TOKEN_KEY = "oma-admin-token";
+const TOKEN_KEY = "oma-staff-token";
+const DEPT_KEY = "oma-staff-dept";
 
 function cfg() {
   const s = window.OMA_CFG || {};
@@ -1822,19 +1872,20 @@ function gateSay(kind, words) {
 document.getElementById("gateForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const pw = document.getElementById("pw").value;
-  if (!pw) return gateSay("bad", "Type the passphrase.");
+  if (!pw.trim()) return gateSay("bad", "Type your seed phrase.");
   goBtn.disabled = true;
   gateSay("", "");
   try {
-    const r = await rpc("api_admin_open", { p_password: pw });
+    const r = await rpc("api_staff_open", { p_phrase: pw });
     if (!r || !r.ok) {
-      // It RETURNS a refusal rather than raising one — see admin.sql for why
+      // It RETURNS a refusal rather than raising one — see admin-accounts.sql for why
       // that is what makes the lockout work at all.
       gateSay(r && r.why === "locked" ? "warn" : "bad",
               (r && r.says) || "That did not work.");
       return;
     }
     setToken(r.token);
+    try { sessionStorage.removeItem(DEPT_KEY); } catch (e2) { /* fine */ }
     document.getElementById("pw").value = "";
     show(r.expires_at);
   } catch (err) {
@@ -1847,7 +1898,7 @@ document.getElementById("gateForm").addEventListener("submit", async (e) => {
 document.getElementById("out").addEventListener("click", async () => {
   const t = token();
   setToken(null);
-  if (t) { try { await rpc("api_admin_close", { p_token: t }); } catch (e) { /* gone anyway */ } }
+  if (t) { try { await rpc("api_staff_close", { p_token: t }); } catch (e) { /* gone anyway */ } }
   location.reload();
 });
 
@@ -1860,20 +1911,91 @@ document.addEventListener("click", (e) => {
   if (p) markPayoutPaid(p.dataset.payout);
 });
 
-function show(expires) {
-  gate.style.display = "none";
+/* ══ departments, 15 Oct 2026 ═══════════════════════════════════════════════
+   Kamsy: "when someone gets to the admin landing page they will pick whether
+   they are customer care, finance, damage control (mischief, control,
+   reports)". The master page decides which departments each account has; the
+   database refuses every call outside them (staff_ok in admin-accounts.sql).
+   This only shapes what is on screen. */
+const DEPTS = {
+  care:    { label: "Customer care",  blurb: "Reply to the live chats from omanails.com", pages: ["care"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.1A8.4 8.4 0 1 1 21 11.5Z"/></svg>` },
+  finance: { label: "Finance",        blurb: "Withdrawals, refunds and money switches. View only", pages: ["finances"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.4-1.3-2.5-3-2.5s-3 1-3 2.3c0 3 6 1.4 6 4.4 0 1.4-1.3 2.3-3 2.3s-3-1-3-2.3"/></svg>` },
+  damage:  { label: "Damage control", blurb: "Mischief reports, Control and Reports", pages: ["mischief", "control", "reports"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>` },
+};
+let STAFF = null;     // { name, depts, expires_at } from api_staff_me
+let DEPT = null;      // the department being worked in
+const pickEl = document.getElementById("pick");
+
+function showPick() {
+  DEPT = null;
+  try { sessionStorage.removeItem(DEPT_KEY); } catch (e) { /* fine */ }
+  app.style.display = "none";
+  document.body.classList.remove("dept-care", "dept-finance", "dept-damage");
+  careOff = true;
+  const have = (STAFF.depts || []).filter((d) => DEPTS[d]);
+  document.getElementById("pickHi").textContent = "Hello, " + (STAFF.name || "");
+  document.getElementById("pickSub").textContent = have.length
+    ? "Which department are you working in?"
+    : "You have not been given a department yet. Ask the owner.";
+  document.getElementById("deptCards").innerHTML = have.map((d) =>
+    `<button class="dcard" type="button" data-dept="${d}">${DEPTS[d].icon}<div><b>${esc(DEPTS[d].label)}</b><span>${esc(DEPTS[d].blurb)}</span></div></button>`).join("");
+  pickEl.classList.remove("gone");
+}
+
+function enter(d) {
+  DEPT = d;
+  try { sessionStorage.setItem(DEPT_KEY, d); } catch (e) { /* fine */ }
+  pickEl.classList.add("gone");
   app.style.display = "block";
-  if (expires) {
-    document.getElementById("who").textContent =
-      "signed in until " + new Date(expires).toLocaleTimeString("en-NG",
-        { hour: "2-digit", minute: "2-digit" });
+  document.body.classList.remove("dept-care", "dept-finance", "dept-damage");
+  document.body.classList.add("dept-" + d);
+  const pages = DEPTS[d].pages;
+  document.querySelectorAll(".navbtn").forEach((b) => b.classList.toggle("gone", !pages.includes(b.dataset.page)));
+  document.getElementById("deptName").textContent = DEPTS[d].label;
+  document.getElementById("switchDept").classList.toggle("gone", (STAFF.depts || []).filter((x) => DEPTS[x]).length < 2);
+  document.getElementById("who").textContent = STAFF.name + " · until " +
+    new Date(STAFF.expires_at).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
+  careOff = d !== "care";
+  const wanted = location.hash.slice(1);
+  const land = pages.includes(wanted) ? wanted : pages[0];
+  document.querySelector('.navbtn[data-page="' + land + '"]').click();   // Care and Finance load on that click
+  if (d === "damage") load();                                           // Reports' charts come from load()
+}
+
+document.getElementById("deptCards").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-dept]");
+  if (b && STAFF && STAFF.depts.includes(b.dataset.dept)) enter(b.dataset.dept);
+});
+document.getElementById("switchDept").addEventListener("click", showPick);
+document.getElementById("pickOut").addEventListener("click", () => document.getElementById("out").click());
+document.getElementById("pwShow").addEventListener("click", () => {
+  const f = document.getElementById("pw"), on = f.type === "password";
+  f.type = on ? "text" : "password";
+  document.getElementById("pwShow").textContent = on ? "Hide the words" : "Show the words";
+});
+
+/* Mid-click guard: the money buttons are hidden for Finance staff, and this is the second
+   lock on the same door. The database is the real one. */
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-switch],[data-rule-act],[data-retry-payout],[data-retry-refund],[data-fail-payout],[data-queue-refund],[data-markrefund],[data-payout]")) {
+    e.stopPropagation(); e.preventDefault();
   }
-  load();
-  careOff = false;
-  careLoadList();
-  alertsPaint();
-  alertsRefresh();
-  goToPage(location.hash.slice(1));
+}, true);
+
+async function show(expires) {
+  gate.style.display = "none";
+  const t = token();
+  try {
+    STAFF = await rpc("api_staff_me", { p_token: t });
+  } catch (e) {
+    return lockOut(e.status === 401 || /sign in again/i.test(e.message) ? "" : e.message);
+  }
+  const have = (STAFF.depts || []).filter((d) => DEPTS[d]);
+  let want = null;
+  try { want = sessionStorage.getItem(DEPT_KEY); } catch (e) { /* fine */ }
+  if (have.length === 1) enter(have[0]);
+  else if (want && have.includes(want)) enter(want);
+  else showPick();
 }
 
 /* ══ alerts on this phone ════════════════════════════════════════════
@@ -2042,7 +2164,7 @@ alertsPaint();
    /admin.html#finances or tells an already open page where to go. */
 function goToPage(name) {
   const b = /^[a-z]+$/.test(name || "") && document.querySelector('.navbtn[data-page="' + name + '"]');
-  if (b) b.click();
+  if (b && !b.classList.contains("gone")) b.click();
 }
 window.addEventListener("hashchange", () => goToPage(location.hash.slice(1)));
 if ("serviceWorker" in navigator) {
@@ -2054,6 +2176,8 @@ if ("serviceWorker" in navigator) {
 function lockOut(why) {
   try { closeSheet(); } catch (e) { /* sheet code not reached yet */ }
   setToken(null);
+  STAFF = null; DEPT = null;
+  document.getElementById("pick").classList.add("gone");
   app.style.display = "none";
   gate.style.display = "grid";
   gateSay("warn", why || "That session has ended. Sign in again.");
@@ -2962,133 +3086,20 @@ let timer = null;
 async function load() {
   const t = token();
   if (!t) return lockOut("");
+  if (!DEPT) return;
   try {
-    const [o, tr, series, recent, mail, pix, globe, folk, payouts, visits, listings] = await Promise.all([
-      rpc("api_admin_overview", { p_token: t }),
-      rpc("api_admin_trouble", { p_token: t }),
-      rpc("api_admin_series", { p_token: t, p_days: 30 }),
-      // Ask for more than we show: deleted techs are hidden below, and hiding
-      // them must not leave the list short.
-      rpc("api_admin_recent", { p_token: t, p_limit: 40 }),
-      // contact.sql may not be loaded yet. A missing inbox must not take the
-      // whole dashboard down with it.
-      rpc("api_admin_messages", { p_token: t, p_limit: 30 }).catch(() => null),
-      // photo.sql may not be loaded yet either. A missing gallery must not
-      // take the whole dashboard down with it.
-      rpc("api_admin_photos", { p_token: t, p_limit: 40 }).catch(() => null),
-      // globe.sql may not be loaded yet. A missing globe must not take the
-      // whole dashboard down with it — same rule as the inbox and the gallery.
-      rpc("api_admin_globe", { p_token: t }).catch(() => null),
-      // people.sql may not be loaded yet. A missing list must not take the
-      // whole dashboard down with it.
-      rpc("api_admin_people", { p_token: t, p_limit: 200 }).catch(() => null),
-      // payout-bank.sql may not be loaded yet. A missing queue must not take
-      // the whole dashboard down with it.
-      rpc("api_admin_payouts", { p_token: t, p_status: "requested" }).catch(() => null),
-      // visits.sql may not be loaded yet. Missing visit counts must not take
-      // the whole dashboard down with it.
-      rpc("api_admin_visits", { p_token: t }).catch(() => null),
-      // listing-owners.sql may not be loaded yet: without it the list simply has
-      // no owner names (and the deleted techs are still hidden below).
-      rpc("api_admin_listings", { p_token: t, p_limit: 12 }).catch(() => null),
-    ]);
-
-    drawTrouble(tr);
-    drawGlobe(globe);
-    setVisits(visits);
-    drawPeople(folk);
-    drawUserTiles(o, visits);
-    drawPayouts(payouts);
-    loadPayouts();
-
-    document.getElementById("tiles").innerHTML = [
-      tile("Nail techs listed", num(o.people.listed),
-           num(o.people.techs) + " signed up · " + num(o.people.awaiting_kyc) + " awaiting ID"),
-      tile("Bookings this week", num(o.bookings.week),
-           num(o.bookings.all) + " ever · " + num(o.bookings.at_home) + " at home"),
-      tile("In escrow now", naira(o.money.in_escrow_kobo), "waiting on a scan"),
-      tile("Oma earned, 30 days", naira(o.oma.earned_30d_kobo),
-           naira(o.oma.earned_kobo) + " all time"),
-    ].join("");
-
+    if (DEPT === "damage") {
+      const [series, mail, pix] = await Promise.all([
+        rpc("api_admin_series", { p_token: t, p_days: 30 }),
+        rpc("api_admin_messages", { p_token: t, p_limit: 30 }).catch(() => null),
+        rpc("api_admin_photos", { p_token: t, p_limit: 40 }).catch(() => null),
+      ]);
     drawChart("chartBookings", series, (r) => Number(r.bookings), num,
               document.getElementById("csBookings"), "Bookings");
     drawChart("chartMoney", series, (r) => Number(r.gross_kobo), shortNaira,
               document.getElementById("csMoney"), "Paid in");
     drawChart("chartOma", series, (r) => Number(r.oma_kobo), shortNaira,
               document.getElementById("csOma"), "Oma earned");
-
-    document.getElementById("people").innerHTML =
-      kv("People signed up", num(o.people.users)) +
-      kv("New this week", num(o.people.users_7d)) +
-      kv("Techs, ID verified", num(o.people.verified)) +
-      kv("Techs who travel", num(o.people.travelling)) +
-      kv("Offer home visits", num(o.people.home_service)) +
-      kv("Listed with no services", num(o.people.no_services));
-
-    document.getElementById("money").innerHTML =
-      kv("Ever paid in", naira(o.money.paid_in_kobo)) +
-      kv("Released to techs", naira(o.money.released_kobo)) +
-      kv("Refunded", naira(o.money.refunded_kobo)) +
-      kv("Held (not yet scanned)", naira(o.money.held_kobo)) +
-      kv("Techs' available balance", naira(o.money.available_kobo));
-
-    document.getElementById("oma").innerHTML =
-      kv("Earned, all time", naira(o.oma.earned_kobo)) +
-      kv("Earned, 30 days", naira(o.oma.earned_30d_kobo)) +
-      kv("Services charged", num(o.oma.services_charged)) +
-      kv("Travel not charged on", naira(o.oma.travel_kobo)) +
-      kv("Reviews", num(o.reviews.count) +
-         (o.reviews.mean ? " · " + o.reviews.mean + "★" : ""));
-
-    // A deleted nail tech stays in the database as "A former nail tech" (their
-    // past bookings are financial records), but there is nothing to manage
-    // there, so they never show in this list - now or after any future delete.
-    const former = (x) => /^\s*a former nail tech\s*$/i.test(String(x.name || ""));
-    const haveOwners = Array.isArray(listings);
-    const liveTechs = (haveOwners ? listings : (recent.techs || []))
-      .filter((x) => !former(x))
-      .slice(0, 12);
-    // Kamsy, 9 Oct 2026: "let me see the name behind listing". The checked
-    // real name leads when there is one (with the same "verified" chip as the
-    // people list), otherwise the name they typed, otherwise the email in grey.
-    const ownerCell = (x) => {
-      if (!haveOwners) return '<span class="sub">\u2014</span>';
-      const nm = x.real_name || x.full_name;
-      if (!nm) {
-        return x.email
-          ? '<span class="sub" title="No name on the account \u2014 this is the email">' + esc(x.email) + "</span>"
-          : '<span class="sub">\u2014</span>';
-      }
-      return "<b>" + esc(nm) + "</b>"
-        + (x.real_name && x.owner_verified
-            ? ' <span class="chip ok" title="Matches a NIN or vNIN check that passed">verified</span>' : "")
-        + (x.email ? '<div class="sub" style="font-size:12px;margin-top:2px">' + esc(x.email) + "</div>" : "");
-    };
-    document.getElementById("techs").innerHTML = liveTechs.length
-      ? `<table><thead><tr><th>Business</th><th>Owner</th><th>Area</th><th>State</th>
-           <th>ID</th><th>Listed</th><th>Services</th><th>Joined</th></tr></thead>
-         <tbody>${liveTechs.map((x) => `<tr>
-           <td><b>${esc(x.name)}</b>${x.has_salon === true ? ' <span title="Has a shop">🏪</span>' : ""}${
-                x.home_service ? ' <span title="Does home visits">🚗</span>' : ""}${
-                x.has_salon === false ? ' <span title="No shop: works from wherever she is">📍</span>' : ""}</td>
-           <td>${ownerCell(x)}</td>
-           <td>${esc(x.area || "—")}</td>
-           <td>${esc(x.state || "—")}</td>
-           <td><span class="chip ${x.kyc === "verified" ? "ok" : "no"}">${esc(x.kyc)}</span></td>
-           <td>${x.listed ? "yes" : "no"}</td>
-           <td class="tnum">${num(x.services)}</td>
-           <td>${esc(ago(x.created_at))}</td></tr>`).join("")}</tbody></table>`
-      : `<div class="empty">No nail techs have signed up yet.</div>`;
-    if (!haveOwners && liveTechs.length) {
-      document.getElementById("techs").insertAdjacentHTML("beforeend",
-        '<div class="sub" style="padding:10px 4px 0">To see who owns each listing, run '
-        + "<b>Listing owners</b> in the Supabase SQL editor.</div>");
-    }
-
-    document.getElementById("states").innerHTML = (recent.states || []).length
-      ? (recent.states || []).map((s) => kv(s.state, num(s.techs))).join("")
-      : `<div class="empty">Nothing listed anywhere yet.</div>`;
 
     document.getElementById("mail").innerHTML = mail === null
       ? `<div class="empty">The contact form's tables are not loaded yet —
@@ -3118,13 +3129,16 @@ async function load() {
                 >${p.hidden ? "Put it back" : "Hide it"}</button>
             </div>`).join("")}</div>`
         : `<div class="empty">No photos yet.</div>`);
-
+      alertsSay("");
+    } else if (DEPT === "finance") {
+      reloadMoney();
+      loadFees();
+    } else if (DEPT === "care") {
+      careLoadList();
+    }
   } catch (err) {
     if (err.status === 401 || /sign in again/i.test(err.message)) return lockOut();
-    // Anything else is worth seeing rather than swallowing — a dashboard that
-    // silently shows yesterday's numbers is worse than one that says it broke.
-    document.getElementById("trouble").innerHTML =
-      `<div class="tr bad">${esc(err.message)}<b>!</b></div>`;
+    alertsSay(err.message);
   }
 }
 
@@ -3158,7 +3172,7 @@ const careThreadEl = document.getElementById("careThread");
 const adminTitle = document.title;
 let careRows = [], careOpen = null, careAfter = 0, careClosed = false;
 const careSeen = new Set();
-let careOff = false, careTicks = 0;
+let careOff = true, careTicks = 0;   // staff: on only inside Customer care
 
 const careOnPage = () => {
   const p = document.querySelector('.page[data-page="care"]');

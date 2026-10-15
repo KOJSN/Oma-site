@@ -1,0 +1,3653 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Oma — master</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#f0518d">
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
+<link rel="manifest" href="/master.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Oma Master">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+/* ══ tokens ═══════════════════════════════════════════════════════════
+   Light first on bare :root, overridden twice. The dark steps are CHOSEN
+   against the dark surface, not an automatic flip of the light ones — a
+   flipped palette is how a chart ends up unreadable in one theme.        */
+:root{
+  --bg:#f7f5fa; --card:#ffffff; --ink:#181220; --sub:#5f5670; --faint:#8a8296;
+  --line:rgba(24,18,32,.10); --fill:#f2eff7;
+  --pink:#f0518d; --tint:#fff0f6; --onpink:#fff;
+  --good:#1b9e5a; --goodbg:rgba(27,158,90,.12);
+  --warn:#b8791b; --warnbg:rgba(184,121,27,.13);
+  --bad:#c0392b;  --badbg:rgba(192,57,43,.12);
+  --grid:rgba(24,18,32,.10);
+  --shadow:0 2px 10px -2px rgba(24,18,32,.08),0 1px 2px rgba(24,18,32,.04);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a080d; --card:#17131e; --ink:#f7f4f9; --sub:#a79db3; --faint:#7b7186;
+    --line:rgba(255,255,255,.10); --fill:#1e1927;
+    --pink:#ff5f96; --tint:#2a1622; --onpink:#1a0f16;
+    --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
+    --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+    --bad:#ff7a6b;  --badbg:rgba(255,122,107,.14);
+    --grid:rgba(255,255,255,.10);
+    --shadow:0 2px 10px -2px rgba(0,0,0,.5);
+  }
+}
+/* The same tokens again under an explicit stamp, so the switch below wins in
+   BOTH directions. Without this block a toggle to dark on a light phone
+   changes nothing, because there is nothing for it to match. */
+:root[data-theme="dark"]{
+  --bg:#0a080d; --card:#17131e; --ink:#f7f4f9; --sub:#a79db3; --faint:#7b7186;
+  --line:rgba(255,255,255,.10); --fill:#1e1927;
+  --pink:#ff5f96; --tint:#2a1622; --onpink:#1a0f16;
+  --good:#4ed08c; --goodbg:rgba(78,208,140,.14);
+  --warn:#e0a944; --warnbg:rgba(224,169,68,.14);
+  --bad:#ff7a6b;  --badbg:rgba(255,122,107,.14);
+  --grid:rgba(255,255,255,.10);
+  --shadow:0 2px 10px -2px rgba(0,0,0,.5);
+}
+
+/* A person, once the globe has become a map. Fixed size on screen, because
+   the thing under it is now streets and a marker that grows would cover
+   them. The white ring is what keeps a red pin legible on a pale road.
+
+   pointer-events:auto is not a nicety. globe.gl hangs its HTML layer off a
+   container it sets to pointer-events:none — so the drag-to-spin gesture
+   passes through to the canvas underneath instead of being eaten by an
+   invisible sheet. Every pin inherits that, and a pin that inherits it
+   cannot be tapped: the click lands on the globe behind it and the panel
+   never opens. Turning it back on for the pin itself, and only the pin,
+   gives the tap somewhere to land while leaving the rest of the layer
+   transparent to the mouse. */
+.pin{width:13px;height:13px;border-radius:50%;border:2px solid #fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.45);cursor:pointer;pointer-events:auto}
+
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Plus Jakarta Sans",system-ui,-apple-system,sans-serif;
+  font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;letter-spacing:-.03em;line-height:1.15}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+button{font:inherit;cursor:pointer;border:0}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ── the door ── */
+#gate{min-height:100dvh;display:grid;place-items:center;padding:24px}
+#gate .box{width:min(400px,100%);background:var(--card);border:1px solid var(--line);
+  border-radius:24px;padding:30px;box-shadow:var(--shadow)}
+.mark{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;
+  letter-spacing:-.04em}
+.mark i{width:28px;height:28px;border-radius:9px;flex:none;position:relative;
+  background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f)}
+.mark i::after{content:"";position:absolute;inset:7px 9px;border-radius:50%;
+  border:2.5px solid rgba(11,9,16,.92);transform:rotate(-15deg)}
+label{display:block;font-size:12.5px;font-weight:700;color:var(--sub);margin:20px 0 7px}
+input{width:100%;padding:14px 16px;border-radius:14px;border:1.5px solid var(--line);
+  background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+input:focus{outline:2px solid var(--pink);outline-offset:1px;border-color:transparent}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:13px 22px;border-radius:99px;font-weight:700;font-size:15px;
+  background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);color:#fff;
+  box-shadow:0 10px 26px -12px rgba(240,81,141,.9)}
+.btn.wide{width:100%;margin-top:18px}
+.btn.sm{padding:9px 16px;font-size:13.5px;box-shadow:none}
+.btn.plain{background:var(--fill);color:var(--ink);box-shadow:none}
+.btn[disabled]{opacity:.55;cursor:default}
+.msg{margin-top:14px;padding:12px 14px;border-radius:12px;font-size:14px;
+  font-weight:600}
+.msg.bad{background:var(--badbg);color:var(--bad)}
+.msg.warn{background:var(--warnbg);color:var(--warn)}
+.hint{color:var(--faint);font-size:12.5px;margin-top:16px;line-height:1.5}
+.iconbtn{width:34px;height:34px;flex:none;display:grid;place-items:center;
+  border-radius:11px;border:1.5px solid var(--line);background:var(--card);
+  color:var(--sub);cursor:pointer}
+.iconbtn.float{position:fixed;top:15px;right:16px;z-index:40}
+.iconbtn:hover{color:var(--pink);border-color:var(--pink)}
+
+/* ── the dashboard ── */
+#app{display:none}
+.top{position:sticky;top:0;z-index:20;background:var(--bg);
+  border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:10px 14px;min-height:64px;padding-top:10px;padding-bottom:10px;flex-wrap:wrap}
+.top .who{margin-left:auto;color:var(--faint);font-size:12.5px}
+section{padding:26px 0}
+.lbl{font-size:11.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--faint);margin:0 0 12px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+@media (max-width:860px){.g4{grid-template-columns:repeat(2,1fr)}
+  .g3,.g2{grid-template-columns:1fr}}
+@media (max-width:480px){.g4{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+  padding:18px;box-shadow:var(--shadow)}
+/* A stat tile. No plot in it, so no hover — the number IS the whole chart. */
+.tile .k{font-size:12.5px;color:var(--sub);font-weight:600}
+.tile .v{font-size:30px;font-weight:800;letter-spacing:-.04em;margin-top:2px}
+.tile .s{font-size:12.5px;color:var(--faint);margin-top:1px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:14.2px}
+.kv .k{color:var(--sub)}
+.kv .v{font-weight:700}
+.kv + .kv{border-top:1px solid var(--line)}
+
+/* trouble */
+.tr{display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:14px;
+  font-size:14.2px;font-weight:600}
+.tr.bad{background:var(--badbg);color:var(--bad)}
+.tr.warn{background:var(--warnbg);color:var(--warn)}
+.tr.ok{background:var(--goodbg);color:var(--good)}
+.tr b{margin-left:auto;font-variant-numeric:tabular-nums;font-size:16px}
+
+/* ── charts ──────────────────────────────────────────────────────────
+   Two charts, never one with two y-axes. Bookings are a count and money is
+   kobo; putting them on a shared axis makes a relationship out of a unit
+   mismatch, which is the most common way a dashboard lies.
+   One series each, so the title names it and no legend is needed. */
+.chart{position:relative}
+.chart h3{font-size:15px;margin-bottom:2px}
+.chart .cs{font-size:12.5px;color:var(--faint);margin-bottom:14px}
+.chart svg{width:100%;height:150px;display:block;overflow:visible}
+.bar{fill:var(--pink)}
+.bar.z{fill:var(--grid)}          /* a day with nothing in it, still drawn */
+.ln{fill:none;stroke:var(--pink);stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.ar{fill:var(--pink);fill-opacity:.2;stroke:none}
+.dot{fill:none;stroke:var(--pink);stroke-width:6;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.dot.z{stroke:var(--grid)}
+.dot.hov{stroke-width:10}
+.chart .chead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.chart .chead h3{min-width:0}
+.kind{flex:none;padding:5px 10px;border-radius:99px;border:1.5px solid var(--line);
+  background:var(--bg);color:var(--ink);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.chart .ctab{height:150px;overflow:auto;-webkit-overflow-scrolling:touch}
+.chart .ctab[hidden]{display:none}
+.chart .ctab th{position:sticky;top:0;background:var(--card);padding-bottom:7px}
+.chart .ctab .r{text-align:right;padding-right:6px}
+.gridline{stroke:var(--grid);stroke-width:1}
+.axt{fill:var(--faint);font-size:10.5px;font-weight:600}
+.hit{fill:transparent}
+.tip{position:absolute;pointer-events:none;background:var(--card);
+  border:1px solid var(--line);border-radius:11px;padding:8px 11px;
+  box-shadow:var(--shadow);font-size:12.5px;font-weight:600;white-space:nowrap;
+  transform:translate(-50%,-118%);opacity:0;transition:opacity .1s}
+.tip .d{color:var(--faint);font-weight:600}
+.tip.on{opacity:1}
+
+table{width:100%;border-collapse:collapse;font-size:13.8px}
+th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--faint);font-weight:800;padding:0 10px 9px 0}
+td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
+.scroll{overflow-x:auto}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11.5px;
+  font-weight:700}
+.chip.ok{background:var(--goodbg);color:var(--good)}
+.chip.no{background:var(--warnbg);color:var(--warn)}
+.faint{color:var(--faint)}
+.swrow{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;padding:12px 14px;border-top:1px solid var(--line)}
+.swrow:first-child{border-top:0}
+.swt{flex:1;min-width:0}
+.swa{display:flex;gap:8px;align-items:center;flex:none}
+@media (max-width:560px){.swrow{flex-direction:column;gap:10px}}
+/* Photographs, reported first. Small: this is a page for deciding, not for
+   admiring, and forty thumbnails at 96px load faster than eight at 300. */
+.pix{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:12px}
+.pic{border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  background:var(--fill);position:relative}
+.pic img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.pic.gone img{filter:grayscale(1);opacity:.4}
+.pic .m{padding:8px 9px;font-size:11.5px;line-height:1.35}
+.pic .m b{display:block;font-size:12px}
+.pic .m span{color:var(--faint)}
+.pic .act{width:100%;padding:8px;font-size:12px;font-weight:700;
+  border-top:1px solid var(--line);background:var(--fill);color:var(--ink)}
+.pic .act.hide{background:var(--badbg);color:var(--bad)}
+.pic .rep{position:absolute;top:6px;left:6px;padding:2px 8px;border-radius:99px;
+  background:var(--bad);color:#fff;font-size:11px;font-weight:800}
+.mail{border-top:1px solid var(--line);padding:14px 0}
+.mail:first-of-type{border-top:0}
+.mail .h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.mail .n{font-weight:800}
+.mail .e{color:var(--faint);font-size:12.5px}
+.mail .w{color:var(--faint);font-size:12.5px;margin-left:auto}
+.mail p{margin:6px 0 0;color:var(--sub);white-space:pre-wrap}
+.empty{color:var(--faint);font-size:14px;padding:10px 0}
+
+/* ── sidebar, 22 Sep 2026 ──────────────────────────────────────────────
+   Kamsy shared a reference dashboard ("FlowMail") and asked for a sleek
+   sidebar: Users, Reports, Finances, and a page that watches every single
+   booking. This does not touch a single element ID or JS function below —
+   every existing <section> just moved inside a .page wrapper, and the
+   page-switcher only ever toggles .on. Nothing that already worked had to
+   be taught to work differently. */
+.shell{display:flex;align-items:flex-start;min-height:100dvh}
+/* 22 Sep 2026: this used to be hard-coded near-black (#150e1b) no matter
+   what — a sidebar that never noticed the day/night switch sitting right
+   above it in Settings. Same --card/--ink/--line tokens as every other
+   surface on this page now, so it goes light or dark with the rest of it,
+   the phone, or her own toggle at the top — see the theme script below. */
+.sidebar{width:230px;flex:none;position:sticky;top:0;height:100dvh;
+  overflow-y:auto;background:var(--card);color:var(--ink);
+  border-right:1px solid var(--line);
+  display:flex;flex-direction:column;padding:20px 14px 20px;gap:3px}
+.sidebar .mark{color:var(--ink);padding:2px 8px 22px;font-size:17px}
+.navbtn{display:flex;align-items:center;gap:11px;width:100%;
+  padding:11px 13px;border-radius:12px;background:transparent;
+  color:var(--sub);font-weight:650;font-size:14px;text-align:left}
+.navbtn svg{flex:none;opacity:.85}
+.navbtn:hover{background:var(--fill);color:var(--ink)}
+.navbtn.on{background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
+  color:#fff;box-shadow:0 10px 22px -12px rgba(240,81,141,.85)}
+.navbtn.on svg{opacity:1}
+.main{flex:1;min-width:0}
+.main .top .wrap{max-width:none;padding:10px 24px}
+.main>.wrap{max-width:1080px;padding:0 24px}
+.page{display:none}
+.page.on{display:block}
+@media (max-width:820px){
+  /* 22 Sep 2026: the bar looked cut off, not scrollable — .shell was still
+     align-items:flex-start (set above, for the desktop sidebar), which lets
+     a flex column's children size to their own content instead of the
+     viewport. The row of buttons was simply wider than the phone and had
+     no width to scroll WITHIN — the whole page shifted sideways instead,
+     which is why "Control" ran off the edge with nothing to swipe.
+     align-items:stretch plus a real width:100% on the bar gives overflow-x
+     something to clip to, so the buttons scroll inside their own strip and
+     the page itself stays put. */
+  .shell{flex-direction:column;align-items:stretch}
+  .sidebar{position:static;height:auto;width:100%;flex-direction:row;
+    overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;padding:12px;gap:6px}
+  .sidebar .mark{display:none}
+  .navbtn{width:auto;flex:none;white-space:nowrap;padding:9px 13px}
+}
+
+/* ── one booking: its chat and its history, in a sheet over the page ── */
+.sheet{position:fixed;inset:0;z-index:60;background:rgba(10,8,13,.55);display:none;
+  align-items:flex-start;justify-content:center;padding:4vh 14px;overflow-y:auto}
+.sheet.on{display:flex}
+.sheetbox{width:min(720px,100%);background:var(--card);color:var(--ink);
+  border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}
+.sheetbox .shead{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.sheetbox .sh1{font-size:18px;font-weight:800;letter-spacing:-.02em;overflow-wrap:anywhere}
+.sheetbox .facts{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:10px;
+  font-size:13.5px;color:var(--sub)}
+.sheetbox .facts b{color:var(--ink)}
+.sheetbox .shl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
+  font-weight:800;margin:22px 0 8px}
+.sheetbox .who2{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.5;overflow-wrap:anywhere}
+.stl{list-style:none;margin:0;padding:0}
+.stl li{display:flex;gap:12px;justify-content:space-between;padding:7px 0;
+  border-top:1px solid var(--line);font-size:13.5px}
+.stl li:first-child{border-top:0}
+.stl li span:last-child{color:var(--faint);white-space:nowrap}
+.rep{border:1px solid var(--line);border-radius:14px;padding:10px 13px;font-size:13.5px;
+  margin-bottom:8px;overflow-wrap:anywhere}
+.chatlog{display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow-y:auto;
+  padding:4px 2px;-webkit-overflow-scrolling:touch}
+.bub{max-width:84%;padding:9px 13px;border-radius:16px;font-size:14px;line-height:1.45;
+  white-space:pre-wrap;overflow-wrap:anywhere}
+.bub.customer{align-self:flex-start;background:var(--fill);border-bottom-left-radius:5px}
+.bub.tech{align-self:flex-end;background:var(--tint);border-bottom-right-radius:5px}
+.bub.other{align-self:center;border:1px dashed var(--line)}
+.bub .bw{display:block;font-size:11.5px;font-weight:700;color:var(--faint);margin-bottom:2px}
+
+/* ── bookings page ── */
+.filters{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+.filters select,.filters input{padding:10px 13px;border-radius:11px;
+  border:1.5px solid var(--line);background:var(--bg);color:var(--ink);
+  font:inherit;font-size:13.8px}
+.filters input{flex:1;min-width:200px}
+.pager{display:flex;align-items:center;gap:12px;justify-content:flex-end;
+  margin-top:14px;font-size:13px;color:var(--sub)}
+.chip.warn{background:var(--warnbg);color:var(--warn)}
+.chip.bad{background:var(--badbg);color:var(--bad)}
+
+/* ── customer care page, 4 Oct 2026 ── */
+.navbtn .nbadge{margin-left:auto;min-width:19px;height:19px;padding:0 6px;
+  border-radius:99px;background:var(--pink);color:var(--onpink);font-size:11px;
+  font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+.navbtn .nbadge[hidden]{display:none}
+#alertsOff[hidden]{display:none}
+.alertsmsg{margin:12px 0 0;padding:10px 14px;border-radius:12px;background:var(--fill);color:var(--sub);font-size:13.5px;line-height:1.4}
+.alertsmsg:empty{display:none}
+.navbtn.on .nbadge{background:#fff;color:#d1376f}
+.carebox{display:grid;grid-template-columns:320px 1fr;padding:0;overflow:hidden;
+  min-height:520px}
+.carelist{border-right:1px solid var(--line);overflow-y:auto;max-height:72vh}
+.cc{display:block;width:100%;text-align:left;padding:13px 16px;background:none;
+  border:0;border-bottom:1px solid var(--line);color:var(--ink);font:inherit;
+  cursor:pointer}
+.cc:hover{background:var(--fill)}
+.cc.on{background:var(--tint)}
+.cc .cch{display:flex;gap:8px;align-items:baseline}
+.cc .ccn{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cc.unread .ccn::before{content:"";display:inline-block;width:8px;height:8px;
+  border-radius:50%;background:var(--pink);margin-right:7px}
+.cc .ccw{margin-left:auto;color:var(--faint);font-size:12px;flex:none}
+.cc .ccp{color:var(--sub);font-size:13.5px;margin-top:3px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.cc .ccm{margin-top:5px;display:flex;gap:6px;flex-wrap:wrap}
+.cc .ccm:empty{display:none}
+.carethread{display:flex;flex-direction:column;min-width:0;max-height:72vh}
+.cth{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;
+  align-items:center;flex-wrap:wrap}
+.cth .ctw{min-width:0}
+.cth .ctn{font-weight:800}
+.cth .cts{color:var(--faint);font-size:12.5px;overflow-wrap:anywhere}
+.cth .back{display:none}
+.ctlog{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;
+  gap:10px;min-height:280px}
+.cmsg{display:flex;flex-direction:column;max-width:80%}
+.cmsg.theirs{align-self:flex-start;align-items:flex-start}
+.cmsg.mine{align-self:flex-end;align-items:flex-end}
+.cmsg .cb{padding:10px 14px;border-radius:18px;font-size:14.5px;line-height:1.45;
+  white-space:pre-wrap;overflow-wrap:anywhere}
+.cmsg.theirs .cb{background:var(--fill);color:var(--ink);border-bottom-left-radius:6px}
+.cmsg.mine .cb{background:linear-gradient(150deg,#ff8fba,#f0518d 55%,#d1376f);
+  color:#fff;border-bottom-right-radius:6px}
+.cmsg .ct{font-size:11.5px;color:var(--faint);margin-top:3px}
+.ctreply{border-top:1px solid var(--line);padding:12px;display:flex;gap:10px;
+  align-items:flex-end}
+.ctreply textarea{flex:1;padding:11px 14px;border-radius:14px;
+  border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;
+  font-size:15px;min-height:48px;max-height:140px;resize:vertical}
+.ctreply textarea:focus{outline:2px solid var(--pink);outline-offset:1px;border-color:transparent}
+.carebox .errline{padding:0 16px 12px;color:var(--bad);font-size:13px}
+.carebox .errline:empty{display:none}
+@media (max-width:820px){
+  .carebox{grid-template-columns:1fr}
+  .carelist{border-right:0;max-height:none}
+  .carebox.open .carelist{display:none}
+  .carebox:not(.open) .carethread{display:none}
+  .cth .back{display:inline-flex}
+  .carethread{max-height:none}
+}
+
+/* ── Team page and the seed-phrase popup (master only) ── */
+.dpicks{display:flex;flex-wrap:wrap;gap:8px}
+.dpill{display:inline-block;margin:0;position:relative;cursor:pointer}
+.dpill input{position:absolute;opacity:0;width:0;height:0}
+.dpill span{display:inline-block;padding:9px 16px;border-radius:99px;border:1.5px solid var(--line);
+  background:var(--bg);font-size:14px;font-weight:700;color:var(--sub)}
+.dpill input:checked + span{background:var(--tint);border-color:var(--pink);color:var(--pink)}
+.dpill input:focus-visible + span{outline:2px solid var(--pink);outline-offset:2px}
+.dtogs{display:flex;flex-wrap:wrap;gap:6px}
+.dtog{padding:5px 11px;border-radius:99px;font-size:12.5px;font-weight:700;
+  border:1.5px solid var(--line);background:var(--bg);color:var(--faint)}
+.dtog.on{background:var(--tint);border-color:var(--pink);color:var(--pink)}
+.tact{white-space:nowrap}
+.tact .btn{margin:2px 4px 2px 0}
+.btn.danger{color:var(--bad)}
+.pmodal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;
+  background:rgba(10,8,13,.62)}
+.pmodal[hidden]{display:none!important}
+.pbox{width:min(480px,100%);background:var(--card);color:var(--ink);border:1px solid var(--line);
+  border-radius:24px;padding:28px;box-shadow:0 30px 80px -20px rgba(0,0,0,.6)}
+.pbox h2{margin:0 0 8px;font-size:20px;letter-spacing:-.03em}
+.psub{color:var(--sub);font-size:14px;line-height:1.5;margin:0 0 18px}
+.pwords{list-style:none;margin:0 0 18px;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;
+  counter-reset:w}
+.pwords li{counter-increment:w;padding:11px 14px;border-radius:12px;background:var(--fill);
+  font-weight:800;font-size:17px;letter-spacing:-.01em}
+.pwords li::before{content:counter(w) ". ";color:var(--faint);font-weight:700;font-size:13px}
+.prow{display:flex;flex-wrap:wrap;gap:8px}
+.pnote{margin-top:12px;color:var(--good);font-size:13px;font-weight:700;min-height:18px}
+@media print{
+  #gate,#app{display:none!important}
+  .pmodal{position:static;background:#fff;color:#000;padding:0}
+  .pbox{box-shadow:none;border:0;color:#000;background:#fff}
+  .pwords li{background:#eee;color:#000}
+  .prow,.pnote{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Outside #app on purpose. It used to sit in the dashboard's top bar,
+     which is display:none until she signs in — so the one screen anybody
+     meets before signing in was the one screen with no way to change the
+     theme. -->
+<button class="iconbtn float" id="theme" type="button"></button>
+
+<!-- ══ the door ══════════════════════════════════════════════════════
+     Nothing here checks the passphrase. It cannot: this file is public and
+     anything it checks for itself, anybody can read. It sends the words to
+     the database, which compares them against a bcrypt hash and hands back a
+     token that expires in eight hours. See api/admin.sql. -->
+<div id="gate">
+  <div class="box">
+    <div class="mark"><i aria-hidden="true"></i>Oma master</div>
+    <form id="gateForm">
+      <label for="pw">Passphrase</label>
+      <input id="pw" type="password" autocomplete="current-password"
+             autocapitalize="off" autocorrect="off" spellcheck="false">
+      <button class="btn wide" id="go" type="submit">Open</button>
+    </form>
+    <div id="gateMsg"></div>
+    <div class="hint">Eight wrong tries locks this for fifteen minutes. A
+      session lasts eight hours and then asks again.</div>
+  </div>
+</div>
+
+<!-- ══ the dashboard ═════════════════════════════════════════════════ -->
+<div id="app">
+  <div class="shell">
+    <nav class="sidebar" id="sidebar">
+      <div class="mark"><i aria-hidden="true"></i>Oma master</div>
+      <button class="navbtn on" type="button" data-page="dashboard">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="12" width="8" height="9" rx="2"/><rect x="3" y="14" width="8" height="7" rx="2"/></svg>
+        Dashboard</button>
+      <button class="navbtn" type="button" data-page="care">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.1A8.4 8.4 0 1 1 21 11.5Z"/></svg>
+        Customer care<span class="nbadge" id="careBadge" hidden></span></button>
+      <button class="navbtn" type="button" data-page="users">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Users</button>
+      <button class="navbtn" type="button" data-page="bookings">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Bookings</button>
+      <button class="navbtn" type="button" data-page="reports">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
+        Reports</button>
+      <button class="navbtn" type="button" data-page="finances">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.4-1.3-2.5-3-2.5s-3 1-3 2.3c0 3 6 1.4 6 4.4 0 1.4-1.3 2.3-3 2.3s-3-1-3-2.3"/></svg>
+        Finances</button>
+      <button class="navbtn" type="button" data-page="mischief">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+        Mischief</button>
+      <button class="navbtn" type="button" data-page="control">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M12 8v4l3 2"/></svg>
+        Control</button>
+      <button class="navbtn" type="button" data-page="team">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+        Team</button>
+    </nav>
+
+    <div class="main">
+      <div class="top">
+        <div class="wrap">
+          <button class="btn sm plain" id="refresh">Refresh</button>
+          <button class="btn sm plain" id="alerts" type="button">Turn on alerts</button>
+          <button class="btn sm plain" id="alertsOff" type="button" hidden>Off</button>
+          <button class="btn sm plain" id="out">Sign out</button>
+          <div class="who" id="who"></div>
+        </div>
+      </div>
+
+      <div class="wrap">
+
+        <div id="alertsMsg" class="alertsmsg" role="status"></div>
+
+        <div class="page on" data-page="dashboard">
+          <section>
+            <div class="lbl">Needs looking at</div>
+            <div class="grid g3" id="trouble"></div>
+          </section>
+
+          <section>
+            <div class="lbl">Right now</div>
+            <div class="grid g4" id="tiles"></div>
+          </section>
+
+          <section>
+            <div class="grid g3">
+              <div class="card"><div class="lbl">People</div><div id="people"></div></div>
+              <div class="card"><div class="lbl">Money</div><div id="money"></div></div>
+              <div class="card"><div class="lbl">Oma's own books</div><div id="oma"></div></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="page" data-page="care">
+          <section>
+            <div class="lbl">Customer care</div>
+            <div class="card carebox" id="careBox">
+              <div class="carelist" id="careList"><div class="empty" style="padding:16px">Loading…</div></div>
+              <div class="carethread" id="careThread">
+                <div class="empty" style="padding:24px">Pick a conversation to read and reply.</div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="page" data-page="users">
+          <!-- Counts (Kamsy, 9 Oct 2026: "total visits in the user section",
+               "also a total users"). Total users is the same figure as
+               "People signed up" on the dashboard; visits come from
+               visits.sql and say so when it has not been run. -->
+          <section>
+            <div class="lbl">Users</div>
+            <div class="grid g4" id="userTiles"></div>
+            <div id="userTilesCap" class="sub" style="font-size:12.5px;margin-top:8px"></div>
+          </section>
+
+          <!-- The globe. Moved here from Reports, 23 Sep 2026, so people —
+               the list and the map of where they joined from — live in one
+               place. It can only draw somebody Oma holds a coordinate for,
+               and it holds one for very few — location is recorded only
+               when a signed-in person opens Oma having ALREADY granted it,
+               and Oma never prompts. The caption below says how many of the
+               people it is actually drawing, so it never quietly implies it
+               is showing everybody, and it says the dots are good to about
+               11 km however far you zoom — which is a property of the
+               column, not of this page. See globe.sql. -->
+          <section>
+            <div class="lbl">Where people joined from</div>
+            <div class="card" style="padding:0;overflow:hidden">
+              <div id="globe" style="height:440px;display:flex;align-items:center;
+                   justify-content:center;background:var(--card)"></div>
+              <div id="globeWho" style="display:none;padding:14px 16px;border-top:1px solid var(--line)"></div>
+              <div id="globeCap" class="sub"
+                   style="font-size:12.5px;padding:12px 16px;border-top:1px solid var(--line)"></div>
+            </div>
+          </section>
+
+          <!-- Everyone. This is the list the count in "People" was standing
+               in for. It says per row who is not on the map, so the gap is
+               explained where it is noticed. See people.sql. -->
+          <section>
+            <div class="lbl">Everyone who has signed up</div>
+            <div class="card scroll" id="folk"></div>
+            <div id="folkCap" class="sub" style="font-size:12.5px;margin-top:8px"></div>
+          </section>
+
+          <section>
+            <div class="lbl">Newest listings</div>
+            <div class="card scroll" id="techs"></div>
+          </section>
+
+          <!-- The one destructive thing on this page, and it stays last on
+               purpose: far below the list, so nobody arrives at it by
+               scrolling idly. -->
+          <section>
+            <div class="lbl">Delete a user</div>
+            <div class="card">
+              <form id="findForm" style="display:flex;gap:8px;flex-wrap:wrap">
+                <input id="findQ" placeholder="Email address or name"
+                       autocomplete="off" spellcheck="false"
+                       style="flex:1;min-width:220px">
+                <button class="btn" id="findGo" type="submit">Find</button>
+              </form>
+              <div id="found" style="margin-top:14px"></div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Every single booking, one row each — api_admin_bookings, added
+             22 Sep 2026 because nothing on this page had ever listed an
+             individual booking before: api_admin_series only had daily
+             totals, and api_admin_recent only lists techs. See
+             admin-bookings.sql. -->
+        <div class="page" data-page="bookings">
+          <section>
+            <div class="lbl">Every booking</div>
+            <div class="card">
+              <div class="filters">
+                <select id="bkStatus">
+                  <option value="">Any status</option>
+                  <option value="paid">Paid (in escrow)</option>
+                  <option value="released">Released</option>
+                  <option value="refunded">Refunded</option>
+                  <option value="disputed">Disputed</option>
+                </select>
+                <input id="bkSearch" placeholder="Customer, tech or booking id"
+                       autocomplete="off" spellcheck="false">
+              </div>
+              <div class="scroll" id="bookings"></div>
+              <div class="pager">
+                <span id="bkPageInfo"></span>
+                <button class="btn sm plain" id="bkPrev" type="button">Previous</button>
+                <button class="btn sm plain" id="bkNext" type="button">Next</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="page" data-page="reports">
+          <section>
+            <div class="lbl">The last 30 days</div>
+            <div class="grid g2">
+              <div class="card chart" id="chartBookings">
+                <div class="chead"><h3>Bookings a day</h3>
+                  <select class="kind" aria-label="How to show: Bookings a day"></select></div>
+                <div class="cs" id="csBookings"></div>
+                <svg viewBox="0 0 600 150" preserveAspectRatio="none" role="img"
+                     aria-label="Bookings made each day for the last 30 days"></svg>
+                <div class="ctab" hidden></div>
+                <div class="tip"></div>
+              </div>
+              <div class="card chart" id="chartMoney">
+                <div class="chead"><h3>Paid into escrow a day</h3>
+                  <select class="kind" aria-label="How to show: Paid into escrow a day"></select></div>
+                <div class="cs" id="csMoney"></div>
+                <svg viewBox="0 0 600 150" preserveAspectRatio="none" role="img"
+                     aria-label="Money paid into escrow each day for the last 30 days"></svg>
+                <div class="ctab" hidden></div>
+                <div class="tip"></div>
+              </div>
+              <div class="card chart" id="chartOma">
+                <div class="chead"><h3>Oma earnings a day</h3>
+                  <select class="kind" aria-label="How to show: Oma earnings a day"></select></div>
+                <div class="cs" id="csOma"></div>
+                <svg viewBox="0 0 600 150" preserveAspectRatio="none" role="img"
+                     aria-label="Oma's fee earned each day for the last 30 days"></svg>
+                <div class="ctab" hidden></div>
+                <div class="tip"></div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div class="lbl">Photos</div>
+            <div class="card" id="photos"></div>
+          </section>
+
+          <section>
+            <div class="lbl">Messages</div>
+            <div class="card" id="mail"></div>
+          </section>
+
+          <section>
+            <div class="lbl">Where they are</div>
+            <div class="card" id="states"></div>
+          </section>
+        </div>
+
+        <!-- Mischief, 23 Sep 2026 — "i realized i can not even view the
+             reports so create a new sidebar and name it mischief where i
+             view all the reports and group them too based on kind of
+             report." Nothing before this ever read the incident table
+             (the "Report a problem" screen has been writing to it since
+             it shipped) — see admin-mischief.sql. Grouped by kind here,
+             client-side; the RPC just hands back every report. -->
+        <div class="page" data-page="mischief">
+          <section>
+            <div class="lbl">Reports, by kind</div>
+            <div class="card" id="mischief">
+              <div class="empty">Loading…</div>
+            </div>
+          </section>
+          <!-- 9 Oct 2026: a nail tech can report a customer's inspo picture.
+               Open reports first. "Remove picture" hides it now and the
+               cleanup job deletes the file; "Dismiss" keeps it. Backed by
+               api_admin_inspo_reports / api_admin_inspo_resolve
+               (inspo-care.sql, "Inspo cleanup and reports"). -->
+          <section>
+            <div class="lbl">Reported inspo pictures</div>
+            <div class="card scroll" id="inspoReports">
+              <div class="empty">Loading…</div>
+            </div>
+          </section>
+        </div>
+
+        <div class="page" data-page="finances">
+          <!-- 9 Oct 2026: the switches that let Kuda pay withdrawals and refunds
+               by itself, and the no-show cases the refund rules could not or
+               would not settle alone. Backed by "Automatic money (Kuda)" and
+               "Refund rules". All start OFF. -->
+          <section>
+            <div class="lbl">Automatic money</div>
+            <div class="card" id="moneySwitches"><div class="empty">Loading…</div></div>
+          </section>
+          <section>
+            <div class="lbl">No-show cases</div>
+            <div class="card scroll" id="rulings"><div class="empty">Loading…</div></div>
+          </section>
+          <!-- 9 Oct 2026: the ₦75 booking fee. It is Oma's own income and never
+               touches the escrow or a nail tech's wallet. Backed by
+               api_admin_booking_fees (inspo-care.sql). -->
+          <section>
+            <div class="lbl">Booking fee income (₦75)</div>
+            <div class="card scroll" id="feeIncome"><div class="empty">Loading…</div></div>
+          </section>
+          <!-- 7 Oct 2026, Kamsy: refunds are only ever handled here. Oma pays
+               the customer by hand to the account she saved in the app, then
+               taps "Mark refunded". That tap is the ONLY thing that tells the
+               customer her refund was sent (see refund-admin.sql). -->
+          <section>
+            <div class="lbl">Refunds to pay</div>
+            <div class="card scroll" id="refundsWaiting"></div>
+          </section>
+          <!-- 9 Oct 2026: withdrawals. Until the Kuda function is switched on
+               you send each one by hand (the "Send her" amount) and tap
+               "Mark as paid". With it on they go by themselves and this list
+               holds the ones that need you, with the reason on the row. -->
+          <section>
+            <div class="lbl">Withdrawals waiting</div>
+            <div class="card scroll" id="payouts"></div>
+          </section>
+        </div>
+
+        <!-- Backend control, 22 Sep 2026 — "i want to be able to control the
+             backend from the admin." One thing, on purpose: a tech's
+             listed/KYC flag, a plain flag with nothing financial wired
+             through it. The fee rate and a booking's status are NOT here —
+             see the note at the top of admin-control.sql for why.
+             Kamsy, 22 Sep 2026: "that app setting is nor needed" — the
+             generic key/value table (api_admin_config_*) is gone from this
+             page. admin-control.sql still creates app_config and the three
+             RPCs; nothing here calls them any more, and removing the SQL
+             too would be the riskier half of this to get right blind, so
+             it stays installed and simply unused. -->
+        <div class="page" data-page="control">
+          <section>
+            <div class="lbl">A tech's listing and verification</div>
+            <div class="card">
+              <form id="techFindForm" style="display:flex;gap:8px;flex-wrap:wrap">
+                <input id="techFindQ" placeholder="Their email or name"
+                       autocomplete="off" spellcheck="false"
+                       style="flex:1;min-width:220px">
+                <button class="btn" id="techFindGo" type="submit">Find</button>
+              </form>
+              <div id="techFound" style="margin-top:14px"></div>
+            </div>
+          </section>
+        </div>
+
+
+        <!-- Team, 15 Oct 2026 — "in the master sees all the admin account and
+             creates their seed phrase". Backed by admin-accounts.sql
+             ("Admin accounts and departments"). A phrase is made HERE, in this
+             browser, shown once, and only its hash reaches the database. -->
+        <div class="page" data-page="team">
+          <section>
+            <div class="lbl">Admin accounts</div>
+            <div class="card scroll" id="teamList"><div class="empty">Loading…</div></div>
+            <div id="teamMsg" role="status"></div>
+          </section>
+          <section>
+            <div class="lbl">Add an admin</div>
+            <div class="card">
+              <form id="teamForm" autocomplete="off">
+                <label for="teamName" style="margin-top:0">Name</label>
+                <input id="teamName" maxlength="60" placeholder="e.g. Chioma" autocomplete="off">
+                <label>Departments</label>
+                <div class="dpicks" id="teamDepts">
+                  <label class="dpill"><input type="checkbox" value="care"><span>Customer care</span></label>
+                  <label class="dpill"><input type="checkbox" value="finance"><span>Finance</span></label>
+                  <label class="dpill"><input type="checkbox" value="damage"><span>Damage control</span></label>
+                </div>
+                <button class="btn" id="teamGo" type="submit" style="margin-top:20px">Create and show seed phrase</button>
+              </form>
+              <div class="hint">They sign in at <b id="teamLink"></b> with the eight words. The words are shown
+                once, right after you create the account. If they are lost, press “New seed phrase” on the
+                account: the old words stop working at once.</div>
+            </div>
+          </section>
+          <section>
+            <div class="lbl">What each department can do</div>
+            <div class="card">
+              <div class="kv"><span>Customer care</span><b>Reads and answers the live chats from omanails.com.</b></div>
+              <div class="kv"><span>Finance</span><b>Sees the money switches, no-show cases, fee income, refunds and withdrawals. View only: paying, refunding, the switches and the decisions stay with you.</b></div>
+              <div class="kv"><span>Damage control</span><b>Mischief reports and reported pictures, Control (list or verify a nail tech), and Reports (charts, photos, messages).</b></div>
+              <div class="kv"><span>Only you</span><b>Dashboard, Users, Bookings and this Team page.</b></div>
+            </div>
+          </section>
+        </div>
+
+        <div style="height:40px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- The seed phrase, shown once. It does not close on a click outside or on
+     Escape: closing it by accident would lose the only copy. -->
+<div class="pmodal" id="phraseModal" role="dialog" aria-modal="true" aria-labelledby="pmTitle" hidden>
+  <div class="pbox">
+    <h2 id="pmTitle">Seed phrase for <span id="pmWho"></span></h2>
+    <p class="psub">This is the only time these words are shown. Copy or print them now and give them to
+      the person privately. Anyone with the words can sign in as them.</p>
+    <ol class="pwords" id="pmWords"></ol>
+    <div class="prow">
+      <button class="btn sm" id="pmCopy" type="button">Copy</button>
+      <button class="btn sm plain" id="pmPrint" type="button">Print</button>
+      <button class="btn sm plain" id="pmDone" type="button">I have saved it</button>
+    </div>
+    <div class="pnote" id="pmNote" role="status"></div>
+  </div>
+</div>
+
+<script src="/oma-config.js"></script>
+
+<script>
+/* ── light or dark, her choice ────────────────────────────────────────
+   The palette already followed the phone. What it did not have was a way to
+   disagree with the phone — Kamsy, 9 Sep 2026: "add a light mode to the
+   website", looking at it on a phone that was set to dark.
+
+   Three states, not two, and that is the whole subtlety. No stored choice
+   means FOLLOW THE PHONE, which is the default and is not the same as
+   "light": the tokens are structured so the bare :root is light, a media
+   query darkens it, and an explicit stamp beats both in either direction.
+   Storing "light" the moment somebody lands would silently opt them out of
+   their own phone's setting for ever. */
+(function () {
+  const KEY = "oma-theme";
+  const root = document.documentElement;
+  let saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+  if (saved === "light" || saved === "dark") root.setAttribute("data-theme", saved);
+
+  const dark = () => root.getAttribute("data-theme") === "dark" ||
+    (!root.hasAttribute("data-theme") &&
+     matchMedia("(prefers-color-scheme: dark)").matches);
+
+  const btn = document.getElementById("theme");
+  function label() {
+    const d = dark();
+    btn.setAttribute("aria-label", d ? "Switch to light mode" : "Switch to dark mode");
+    btn.setAttribute("title", btn.getAttribute("aria-label"));
+    // One glyph, showing what a tap will GIVE you rather than where you are —
+    // a sun when it is dark, a moon when it is light.
+    btn.innerHTML = d
+      ? '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2M12 19.8v2M2.2 12h2M19.8 12h2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19"/></svg>'
+      : '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8.2 8.2 0 0 1 10.5 4a8.2 8.2 0 1 0 9.5 9.5Z"/></svg>';
+  }
+  btn.addEventListener("click", () => {
+    const next = dark() ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem(KEY, next); } catch (e) { /* private mode */ }
+    label();
+  });
+  // Follow the phone while she has not chosen, including if she changes it
+  // in Settings with this page still open.
+  matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", () => { if (!root.hasAttribute("data-theme")) label(); });
+  label();
+})();
+
+/* ══ connecting ═══════════════════════════════════════════════════════
+   The anon key is PUBLIC BY DESIGN — it is already inside every copy of the
+   app, and every function it can reach checks the caller. The service_role
+   key is a different thing and must NEVER be put here.
+
+   The two lines live in oma-config.js, which loads just above this script —
+   the same file the public page uses, so there is one place to fill in and
+   not two.
+
+   If that file is still empty this page falls back to whatever app.html
+   stored in THIS browser. That fallback is fine here in a way it is not on
+   the public page: this page is only ever meant for Kamsy, on her own
+   machine. It means the dashboard can work before the file is filled in. */
+const TOKEN_KEY = "oma-master-token";
+
+function cfg() {
+  const s = window.OMA_CFG || {};
+  if (s.url && s.anon) return { url: s.url, anon: s.anon };
+  try {
+    const c = JSON.parse(localStorage.getItem("oma-cfg") || "{}");
+    if (c.url && c.anon) return c;
+  } catch (e) { /* private mode */ }
+  return null;
+}
+
+async function rpc(fn, args) {
+  const c = cfg();
+  if (!c) throw new Error("This page is not connected to Oma's database yet.");
+  const r = await fetch(c.url.replace(/\/$/, "") + "/rest/v1/rpc/" + fn, {
+    method: "POST",
+    headers: { apikey: c.anon, "Content-Type": "application/json" },
+    body: JSON.stringify(args || {}),
+  });
+  const text = await r.text();
+  let body = null;
+  try { body = text ? JSON.parse(text) : null; } catch (e) { body = { message: text }; }
+  if (!r.ok) {
+    const e = new Error((body && (body.message || body.msg)) || ("request failed (" + r.status + ")"));
+    e.status = r.status;
+    throw e;
+  }
+  return body;
+}
+
+/* The token lives in sessionStorage, not localStorage: closing the tab should
+   end the session on a borrowed or shared device. */
+function token() { try { return sessionStorage.getItem(TOKEN_KEY); } catch (e) { return null; } }
+function setToken(t) {
+  // 15 Oct 2026: this browser now belongs to the owner. The staff page (admin.html)
+  // reads this flag and sends her here instead, so a phone alert that still points
+  // at /admin.html#finances, or the old home-screen icon, lands on master.
+  try { if (t) localStorage.setItem("oma-master-device", "1"); } catch (e) { /* private mode */ }
+  try { t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY); }
+  catch (e) { /* private mode — she will just sign in again */ }
+}
+
+/* The bucket is public to read, so a thumbnail needs no token — the same URL
+   a customer's phone loads. */
+function photoSrc(path) {
+  const c = cfg();
+  if (!c) return "";
+  if (/^data:/.test(path)) return path;          // the practice backend
+  return c.url.replace(/\/$/, "") + "/storage/v1/object/public/portfolio/" + path;
+}
+
+async function hidePhoto(id, hide) {
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    await rpc("api_admin_hide_photo", { p_token: t, p_id: Number(id), p_hide: hide });
+    load();
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+  }
+}
+
+/* ══ refunds, 7 Oct 2026 (updated 9 Oct) ═══════════════════════════════
+   "refunds should only be in the admin page". A booking that has been
+   refunded (the escrow is reversed) waits here until the customer has been
+   paid, by you by hand, or by Kuda once the automatic job is on.
+   "Mark refunded" records it and is what tells the customer.
+   Backed by api_admin_refunds_waiting / api_admin_mark_refund
+   (refund-admin.sql, now replaced by "Automatic money (Kuda)"). */
+function autoRefundCell(r) {
+  const s = r.auto_status;
+  const why = r.auto_hold
+    ? `<br><span class="faint" style="font-size:12px">${esc(r.auto_hold)}</span>` : "";
+  if (!s) return `<span class="faint">by hand</span>`;
+  if (s === "processing") return `<span class="chip ok">Kuda is sending</span>${why}`;
+  if (s === "failed") return `<span class="chip bad">failed</span>${why}`;
+  if (r.auto_hold) return `<span class="chip warn">needs you</span>${why}`;
+  return `<span class="chip">queued for Kuda</span>`;
+}
+
+function drawRefunds(list, errMsg) {
+  const el = document.getElementById("refundsWaiting");
+  if (!el) return;
+  if (list === null) {
+    el.innerHTML = errMsg
+      ? `<div class="empty">Refunds did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Refunds are not loaded yet &mdash;
+      run <b>Refund held for admin</b> in Supabase.</div>`;
+    return;
+  }
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">No refunds waiting.</div>`;
+    return;
+  }
+  const autoOn = !!(moneyState.switches && moneyState.switches.auto_refunds);
+  el.innerHTML = `<table><thead><tr>
+      <th>Refunded</th><th>Customer</th><th>Amount</th><th>Pay to</th><th>Automatic</th><th></th>
+    </tr></thead><tbody>${list.map((r) => `<tr>
+      <td>${esc(ago(r.refunded_at))}</td>
+      <td><b>${esc(r.customer_name || "—")}</b><br><span style="opacity:.7">${esc(r.customer_email || "")}</span></td>
+      <td class="tnum">${naira(r.amount_kobo)}</td>
+      <td>${r.account_number
+        ? `${esc(r.bank_name || "")}<br><span style="font-variant-numeric:tabular-nums;letter-spacing:.03em">${esc(r.account_number)}</span> · ${esc(r.account_name || "")}`
+        : `<span class="chip warn">no refund account yet</span>`}
+        ${r.paystack_sent ? `<br><span class="chip ok">Paystack already sent</span>` : ""}</td>
+      <td>${autoRefundCell(r)}</td>
+      <td style="white-space:nowrap">
+        ${r.auto_job_id && (r.auto_hold || r.auto_status === "failed")
+          ? `<button class="btn sm plain" data-retry-refund="${esc(r.auto_job_id)}" type="button">Try again</button> ` : ""}
+        ${!r.auto_status && autoOn && r.account_number
+          ? `<button class="btn sm plain" data-queue-refund="${esc(r.booking_id)}" type="button">Send by Kuda</button> ` : ""}
+        <button class="btn sm" data-markrefund="${esc(r.booking_id)}" type="button">Mark refunded</button></td>
+    </tr>`).join("")}</tbody></table>`;
+}
+
+async function loadRefunds() {
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    drawRefunds(await rpc("api_admin_refunds_waiting", { p_token: t }));
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawRefunds(null, /could not find|does not exist|schema cache/i.test(e.message || "") ? "" : (e && e.message));
+  }
+}
+
+document.getElementById("refundsWaiting").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-markrefund]");
+  if (!btn) return;
+  const note = prompt("Only tap OK once the money has been sent. Your bank's reference for the transfer (optional):", "");
+  if (note === null) return;
+  btn.disabled = true;
+  try {
+    const t = token();
+    if (!t) return lockOut();
+    await rpc("api_admin_mark_refund", { p_token: t, p_booking: btn.dataset.markrefund, p_note: note });
+    loadRefunds();
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    alert(e2.message || "That did not save.");
+    btn.disabled = false;
+  }
+});
+
+/* Withdrawals. Until the Kuda function is switched on you send each one
+   yourself: send her the "Send her" amount (what she asked for, less the
+   transfer fee she pays), then tap "Mark as paid". With the automatic job on
+   they go by themselves and this list is for the ones that need you: the
+   reason is written on the row. */
+function drawPayouts(list) {
+  const el = document.getElementById("payouts");
+  if (list === null) {
+    el.innerHTML = `<div class="empty">Withdrawals are not loaded yet —
+      run <b>payout-bank.sql</b> in Supabase.</div>`;
+    return;
+  }
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">No withdrawals waiting.</div>`;
+    return;
+  }
+  el.innerHTML = `<table><thead><tr>
+      <th>Tech</th><th>Send her</th><th>Bank</th><th>Account</th><th>Asked</th><th>Status</th><th></th>
+    </tr></thead><tbody>${list.map((p) => {
+      const fee = Number(p.fee_kobo) || 0;
+      const sending = p.status === "processing" && !p.hold_reason;
+      const status = sending
+        ? `<span class="chip ok">Kuda is sending</span>`
+        : p.hold_reason
+          ? `<span class="chip warn">needs you</span><br><span class="faint" style="font-size:12px">${esc(p.hold_reason)}</span>`
+          : p.last_error
+            ? `<span class="chip">waiting</span><br><span class="faint" style="font-size:12px">${esc(p.last_error)}</span>`
+            : `<span class="faint">by hand</span>`;
+      return `<tr>
+      <td><b>${esc(p.business || "—")}</b></td>
+      <td class="tnum"><b>${naira((Number(p.amount_kobo) || 0) - fee)}</b>${fee
+        ? `<br><span class="faint" style="font-size:12px">she asked ${naira(p.amount_kobo)}, fee ${naira(fee)} kept</span>` : ""}</td>
+      <td>${esc(p.bank_name || "—")}</td>
+      <td>${p.account_number
+        ? `<span style="font-variant-numeric:tabular-nums;letter-spacing:.03em">${esc(p.account_number)}</span> · ${esc(p.account_name || "not confirmed")}`
+        : `<span class="chip no">no bank on file</span>`}</td>
+      <td>${esc(ago(p.requested_at))}</td>
+      <td>${status}</td>
+      <td style="white-space:nowrap">${p.account_number
+        ? `<button class="btn sm" data-payout="${p.id}" type="button">Mark as paid</button>` : ""}
+        ${p.hold_reason && p.status === "requested"
+          ? ` <button class="btn sm plain" data-retry-payout="${p.id}" type="button">Try again</button>` : ""}
+        ${moneyState.ready
+          ? `<button class="btn sm plain" data-fail-payout="${p.id}" type="button">Return to wallet</button>` : ""}</td>
+    </tr>`;
+    }).join("")}</tbody></table>`;
+}
+
+/* Both the "asked" and the "Kuda is sending" lists, oldest first. */
+async function loadPayouts() {
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    const a = await rpc("api_admin_payouts", { p_token: t, p_status: "requested" });
+    const b = await rpc("api_admin_payouts", { p_token: t, p_status: "processing" }).catch(() => []);
+    drawPayouts((a || []).concat(b || []));
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawPayouts(null);
+  }
+}
+
+async function markPayoutPaid(id) {
+  const t = token();
+  if (!t) return lockOut();
+  const ref = prompt("Only tap OK once the money has been sent. Your bank's reference for this transfer (optional, but worth keeping):", "");
+  if (ref === null) return;   // she cancelled
+  try {
+    await rpc("api_admin_mark_payout_sent", { p_token: t, p_payout_id: Number(id), p_reference: ref });
+    loadPayouts();
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    alert(e.message);
+  }
+}
+
+/* ══ automatic money and no-show cases, 9 Oct 2026 ═════════════════════
+   Backed by "Automatic money (Kuda)" (the switches, the hold reasons, try
+   again / return to wallet) and "Refund rules" (the no-show cases). Until
+   those are run each card says so instead of failing. Nothing here moves
+   money by itself: the switches start OFF. */
+let moneyState = { switches: {}, ready: false };
+
+const SWITCH_TEXT = {
+  auto_payouts: ["Send withdrawals automatically",
+    "A nail tech's withdrawal is sent from your Kuda account by itself, 24 hours after her scan. Off: you send each one by hand and tap Mark as paid.",
+    "Turn ON automatic withdrawals?\n\nNail techs' withdrawals will be sent from your Kuda account without you. Only turn this on after the Kuda connection has been tested."],
+  auto_refunds: ["Send refunds automatically",
+    "A refund the rules or the 12-hour rule approved is sent from your Kuda account to the client's refund account. Off: you pay each one by hand and tap Mark refunded.",
+    "Turn ON automatic refunds?\n\nApproved refunds will be sent from your Kuda account without you. Only turn this on after the Kuda connection has been tested."],
+  auto_rules: ["Let the no-show rules decide",
+    "Off: the rules only suggest, and you approve each case below with one tap. On: clear cases (the nail tech was at the place and the client never came, or the client came and the nail tech never did) are decided straight away and both people are told.",
+    "Turn ON the no-show rules?\n\nClear no-show cases will be paid to the nail tech or refunded to the client straight away, without you."],
+};
+
+function drawSwitches(d, errMsg) {
+  const el = document.getElementById("moneySwitches");
+  if (!el) return;
+  if (!d) {
+    el.innerHTML = errMsg
+      ? `<div class="empty">Did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Not loaded yet &mdash; run <b>Automatic money (Kuda)</b> in Supabase.</div>`;
+    return;
+  }
+  const cap = (d.settings || []).find((s) => s.name === "auto_daily_cap_kobo");
+  const rows = (d.switches || []).filter((s) => SWITCH_TEXT[s.name]).map((s) => `
+    <div class="swrow"><div class="swt"><b>${esc(SWITCH_TEXT[s.name][0])}</b>
+      <div class="faint" style="font-size:12.5px;margin-top:3px">${esc(SWITCH_TEXT[s.name][1])}</div></div>
+      <div class="swa"><span class="chip ${s.is_on ? "ok" : ""}">${s.is_on ? "ON" : "OFF"}</span>
+      <button class="btn sm ${s.is_on ? "plain" : ""}" data-switch="${esc(s.name)}" data-on="${s.is_on ? 0 : 1}" type="button">${s.is_on ? "Turn off" : "Turn on"}</button></div></div>`).join("");
+  el.innerHTML = rows + `<div class="faint" style="padding:10px 14px;font-size:12.5px">
+    Sent automatically in the last 24 hours: <b>${naira(d.sent_24h_kobo)}</b>${cap ? ` of ${naira(cap.value)} allowed` : ""}.
+    Waiting: ${Number(d.waiting_payouts) || 0} withdrawal(s), ${Number(d.waiting_refunds) || 0} refund(s).
+    The two sending switches need the Kuda connection, which has to be set up and tested first; turning one on before that sends nothing.
+    Turning any switch off stops it at once.</div>`;
+}
+
+const RULE_WORDS = {
+  pay_tech: "pay the nail tech the whole price",
+  refund: "refund the client",
+  admin: "decide",
+};
+
+function factsLine(f) {
+  if (!f) return "";
+  const bits = [];
+  if (f.minutes_past_start != null) bits.push(Math.round(f.minutes_past_start) + " min past the start");
+  bits.push(f.tech_tap ? "nail tech tapped “Client didn’t come” (" + (f.tech_tap === "accepted" ? "believed" : "not believed") + ")" : "no tap");
+  bits.push("nail tech " + (f.tech_nearest_m != null ? "seen " + f.tech_nearest_m + " m from the place" : "never seen at the place"));
+  bits.push("client " + (f.client_nearest_m != null ? "seen " + f.client_nearest_m + " m from the place" : "never seen at the place"));
+  if (f.client_reported_no_show) bits.push("client reported a no-show");
+  return bits.join(" · ");
+}
+
+function drawRulings(open, done, errMsg) {
+  const el = document.getElementById("rulings");
+  if (!el) return;
+  if (open === null) {
+    el.innerHTML = errMsg
+      ? `<div class="empty">Did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Not loaded yet &mdash; run <b>Refund rules</b> in Supabase.</div>`;
+    return;
+  }
+  const when = (s) => s ? new Date(s).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+  const openHtml = open.length
+    ? `<table><thead><tr><th>Appointment</th><th>Case</th><th></th></tr></thead><tbody>${open.map((g) => `<tr>
+        <td><b>${esc(g.tech || "—")}</b> with <b>${esc(g.customer || "—")}</b><br>
+          <span class="faint" style="font-size:12px">${esc(when(g.starts_at))} · ${naira(g.price_kobo)}</span></td>
+        <td><span class="chip warn">rule ${esc(g.rule)}</span> ${esc(g.reason)}
+          ${g.suggestion ? `<br><i>${esc(g.suggestion)}</i>` : ""}
+          <br><span class="faint" style="font-size:12px">${esc(factsLine(g.facts))}</span></td>
+        <td style="white-space:nowrap">
+          ${g.outcome !== "admin"
+            ? `<button class="btn sm" data-rule-id="${esc(g.id)}" data-rule-act="apply" type="button">${g.outcome === "pay_tech" ? "Pay the nail tech" : "Refund the client"}</button> ` : ""}
+          ${g.outcome !== "refund" ? `<button class="btn sm plain" data-rule-id="${esc(g.id)}" data-rule-act="refund" type="button">Refund client</button> ` : ""}
+          ${g.outcome !== "pay_tech" ? `<button class="btn sm plain" data-rule-id="${esc(g.id)}" data-rule-act="pay_tech" type="button">Pay nail tech</button> ` : ""}
+          <button class="btn sm plain" data-rule-id="${esc(g.id)}" data-rule-act="dismiss" type="button">Leave it</button></td>
+      </tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No no-show cases waiting.</div>`;
+  const doneHtml = (done && done.length)
+    ? `<div class="faint" style="padding:12px 14px 4px;font-size:12px;letter-spacing:.07em;text-transform:uppercase;font-weight:800">Decided</div>
+      <table><tbody>${done.slice(0, 15).map((g) => `<tr>
+        <td class="faint">${esc(when(g.created_at))}</td>
+        <td>${esc(g.tech || "—")} / ${esc(g.customer || "—")} · ${naira(g.price_kobo)}</td>
+        <td><span class="chip ${g.outcome === "refund" ? "" : "ok"}">${g.outcome === "refund" ? "refunded" : "nail tech paid"}</span>
+          <span class="faint" style="font-size:12px"> rule ${esc(g.rule)}, by ${esc(g.decided_by)}</span></td>
+      </tr>`).join("")}</tbody></table>` : "";
+  el.innerHTML = openHtml + doneHtml;
+}
+
+async function loadMoney() {
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    const d = await rpc("api_admin_money_switches", { p_token: t });
+    moneyState.switches = {};
+    (d.switches || []).forEach((s) => { moneyState.switches[s.name] = !!s.is_on; });
+    moneyState.ready = true;
+    drawSwitches(d);
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawSwitches(null, sqlMissing(e) ? "" : (e && e.message));
+  }
+  try {
+    const open = await rpc("api_admin_rulings", { p_token: t, p_status: "open" });
+    const done = await rpc("api_admin_rulings", { p_token: t, p_status: "done" }).catch(() => []);
+    drawRulings(open, done);
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawRulings(null, null, sqlMissing(e) ? "" : (e && e.message));
+  }
+}
+
+function reloadMoney() {
+  loadMoney().then(() => { loadRefunds(); loadPayouts(); });
+}
+
+document.getElementById("moneySwitches").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-switch]");
+  if (!b) return;
+  const on = b.dataset.on === "1";
+  if (on && !confirm(SWITCH_TEXT[b.dataset.switch][2])) return;
+  b.disabled = true;
+  try {
+    const t = token();
+    if (!t) return lockOut();
+    await rpc("api_admin_set_money_switch", { p_token: t, p_name: b.dataset.switch, p_on: on });
+    reloadMoney();
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    alert(e2.message || "That did not save.");
+    b.disabled = false;
+  }
+});
+
+document.getElementById("rulings").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-rule-act]");
+  if (!b) return;
+  const act = b.dataset.ruleAct;
+  const q = {
+    apply: "Do what the rules suggest?",
+    refund: "Refund the client the price? The nail tech is not paid.",
+    pay_tech: "Pay the nail tech the whole price? The client is not refunded.",
+    dismiss: "Leave this case? Nothing changes now; if nobody scans it, the 12-hour refund applies.",
+  }[act];
+  if (!confirm(q)) return;
+  b.disabled = true;
+  try {
+    const t = token();
+    if (!t) return lockOut();
+    const res = await rpc("api_admin_rule_action", { p_token: t, p_id: Number(b.dataset.ruleId), p_action: act });
+    if (res && res.already) alert("That appointment was already " + res.already + ", so nothing was changed. The case is closed.");
+    reloadMoney();
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    alert(e2.message || "That did not save.");
+    b.disabled = false;
+  }
+});
+
+/* "Try again", "Return to wallet" and "Send by Kuda" on the two lists. */
+document.addEventListener("click", async (e) => {
+  const rp = e.target.closest("[data-retry-payout]");
+  const rr = e.target.closest("[data-retry-refund]");
+  const fp = e.target.closest("[data-fail-payout]");
+  const qr = e.target.closest("[data-queue-refund]");
+  const b = rp || rr || fp || qr;
+  if (!b) return;
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    if (rp) await rpc("api_admin_retry_money", { p_token: t, p_kind: "payout", p_id: Number(rp.dataset.retryPayout) });
+    else if (rr) await rpc("api_admin_retry_money", { p_token: t, p_kind: "refund", p_id: Number(rr.dataset.retryRefund) });
+    else if (qr) await rpc("api_admin_queue_refund", { p_token: t, p_booking: qr.dataset.queueRefund });
+    else {
+      const why = prompt("The money goes back to her wallet and she is told it was not sent. Why (shown to nobody but kept)?", "bank details look wrong");
+      if (why === null) return;
+      await rpc("api_admin_fail_payout", { p_token: t, p_id: Number(fp.dataset.failPayout), p_reason: why });
+    }
+    reloadMoney();
+  } catch (err) {
+    if (err.status === 401 || /sign in again/i.test(err.message)) return lockOut();
+    alert(err.message || "That did not work.");
+  }
+});
+
+/* ══ sidebar router, 22 Sep 2026 ═════════════════════════════════════
+   Nothing above this changed to make the sidebar work — every section
+   that already worked kept its id and its function untouched; it just
+   moved inside a .page wrapper that this toggles the visibility of. */
+document.querySelectorAll(".navbtn").forEach((b) => {
+  b.addEventListener("click", () => {
+    const p = b.dataset.page;
+    document.querySelectorAll(".navbtn").forEach((x) => x.classList.toggle("on", x === b));
+    document.querySelectorAll(".page").forEach((x) => x.classList.toggle("on", x.dataset.page === p));
+    // 23 Sep 2026: "let it already be showing me all then i can also
+    // search" — opening the tab used to call loadBookings() with whatever
+    // status/search were left over from last time, so the FIRST thing she
+    // saw after a filtered look could be an empty "No bookings match"
+    // rather than everything. The status and search box are reset here, so
+    // every fresh visit to the tab starts from the full list — searching
+    // afterward still narrows it exactly as before.
+    if (p === "bookings") {
+      document.getElementById("bkStatus").value = "";
+      document.getElementById("bkSearch").value = "";
+      loadBookings(true);
+    }
+    // 22 Sep 2026: the globe spilled out of its card, wider than the page
+    // itself. drawGlobe() sizes it once with slot.clientWidth/clientHeight
+    // — but the dashboard loads every section at once, while the tab it
+    // lives on still sits behind .page{display:none}. A hidden element has
+    // no box, so that first fit measured a 0×0 slot and globe.gl fell back
+    // to its own default size instead, which is where the overflow came
+    // from. Nothing resized it afterward — the ONLY other trigger is the
+    // browser's own resize event, and switching tabs isn't one. Now
+    // opening the globe's tab re-measures the real, now-visible card and
+    // fits the globe to it, exactly the way GLOBE's own window-resize
+    // handler already does.
+    // 23 Sep 2026: the globe itself moved from Reports to Users — "let the
+    // globe be in the users tab" — so this now fires on "users", not
+    // "reports". Kept as its own check rather than folded into the ids
+    // list above since it does real work, not just a load() call.
+    if (p === "users" && typeof GLOBE !== "undefined" && GLOBE) {
+      const slot = document.getElementById("globe");
+      if (slot) GLOBE.width(slot.clientWidth).height(slot.clientHeight);
+    }
+    // 23 Sep 2026: Mischief — load fresh every time the tab is opened,
+    // same reasoning as Bookings above (nothing to reset, there's no
+    // filter on this page yet).
+    if (p === "mischief") { loadMischief(); loadInspoReports(); }
+    if (p === "finances") { loadFees(); reloadMoney(); }
+  });
+});
+
+/* ══ bookings, 22 Sep 2026 ════════════════════════════════════════════
+   "monitor every single booking made on the Oma app." Nothing before this
+   listed one — api_admin_series only had daily totals and api_admin_recent
+   only lists techs — so this is a new function, api_admin_bookings, in
+   admin-bookings.sql. Same shape as every other admin RPC here: a token,
+   graceful failure if the .sql has not been run yet, sign-out on an
+   expired token. */
+let BK_OFFSET = 0;
+const BK_LIMIT = 25;
+
+function bkChip(status) {
+  const map = { paid: ["ok", "In escrow"], released: ["ok", "Released"],
+    refunded: ["warn", "Refunded"], disputed: ["bad", "Disputed"] };
+  const hit = map[status];
+  return hit ? `<span class="chip ${hit[0]}">${esc(hit[1])}</span>`
+             : `<span class="chip no">${esc(status || "—")}</span>`;
+}
+
+function drawBookings(data, errMsg) {
+  const el = document.getElementById("bookings");
+  if (data === null) {
+    // 23 Sep 2026: this used to always say "run admin-bookings.sql" no
+    // matter what actually went wrong, which made a real error impossible
+    // to tell apart from a genuinely missing function. Now it shows
+    // Supabase's own message when there is one.
+    el.innerHTML = errMsg
+      ? `<div class="empty">Bookings did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Bookings are not loaded yet —
+      run <b>admin-bookings.sql</b> in Supabase.</div>`;
+    document.getElementById("bkPageInfo").textContent = "";
+    document.getElementById("bkPrev").disabled = true;
+    document.getElementById("bkNext").disabled = true;
+    return;
+  }
+  const rows = data.bookings || [];
+  el.innerHTML = rows.length
+    ? `<table><thead><tr>
+        <th>When</th><th>Customer</th><th>Tech</th><th>Amount</th><th>Status</th><th>Chat</th><th></th>
+      </tr></thead><tbody>${rows.map((b) => `<tr>
+        <td>${esc(ago(b.created_at))}${b.at_home ? " · at home" : ""}</td>
+        <td>${esc(b.customer)}</td>
+        <td>${esc(b.tech)}</td>
+        <td class="tnum">${naira(b.total_kobo)}</td>
+        <td>${bkChip(b.status)}</td>
+        <td><button class="btn sm plain" data-bkopen="${esc(b.id)}" type="button">Open<span class="faint" data-bkn="${esc(b.id)}"></span></button></td>
+        <td>${(b.status === "disputed" || b.status === "paid")
+          ? `<button class="btn sm plain" data-refund="${esc(b.id)}" type="button">Refund customer</button>`
+          : ""}</td>
+      </tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No bookings match.</div>`;
+  const total = data.total || 0;
+  const from = total ? BK_OFFSET + 1 : 0;
+  const to = Math.min(BK_OFFSET + BK_LIMIT, total);
+  document.getElementById("bkPageInfo").textContent =
+    total ? `${from}–${to} of ${num(total)}` : "";
+  document.getElementById("bkPrev").disabled = BK_OFFSET <= 0;
+  document.getElementById("bkNext").disabled = to >= total;
+}
+
+async function loadBookings(resetPage) {
+  const t = token();
+  if (!t) return lockOut();
+  if (resetPage) BK_OFFSET = 0;
+  const status = document.getElementById("bkStatus").value || null;
+  const q = document.getElementById("bkSearch").value.trim() || null;
+  try {
+    const data = await rpc("api_admin_bookings", {
+      p_token: t, p_limit: BK_LIMIT, p_offset: BK_OFFSET,
+      p_status: status, p_q: q,
+    });
+    drawBookings(data);
+    bkCounts(((data && data.bookings) || []).map((b) => b.id));
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawBookings(null, e && e.message);
+  }
+}
+
+document.getElementById("bkStatus").addEventListener("change", () => loadBookings(true));
+let bkSearchTimer = null;
+document.getElementById("bkSearch").addEventListener("input", () => {
+  clearTimeout(bkSearchTimer);
+  bkSearchTimer = setTimeout(() => loadBookings(true), 350);
+});
+document.getElementById("bkPrev").addEventListener("click", () => {
+  BK_OFFSET = Math.max(0, BK_OFFSET - BK_LIMIT);
+  loadBookings();
+});
+document.getElementById("bkNext").addEventListener("click", () => {
+  BK_OFFSET += BK_LIMIT;
+  loadBookings();
+});
+
+/* ══ one booking: its chat and what happened, 13 Oct 2026 ═════════════
+   Kamsy: "for every booking I want to be able to monitor chats and know
+   what's going on". Read only. Two functions (admin-booking-chats.sql):
+   api_admin_chat_counts puts "3 msgs" on each row, and api_admin_booking_chat
+   fills the sheet. Opening a chat marks nothing as read for the two people.
+   Everything a person typed goes through esc(), never innerHTML raw. */
+let SHEET = { id: null, timer: null };
+
+const BK_WORDS = {
+  created_at: "Booked", paid_at: "Paid into escrow", scanned_at: "Scanned at the appointment",
+  released_at: "Released to the tech", refunded_at: "Refunded", cancelled_at: "Cancelled",
+  canceled_at: "Cancelled", expired_at: "Expired unpaid", starts_at: "Appointment time",
+  disputed_at: "Disputed", accepted_at: "Accepted", confirmed_at: "Confirmed",
+  completed_at: "Completed", ended_at: "Ended",
+};
+const bkWord = (k) => BK_WORDS[k] ||
+  k.replace(/_at$/, "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+const bkWhen = (iso) => iso
+  ? new Date(iso).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
+  : "—";
+
+async function bkCounts(ids) {
+  const t = token();
+  if (!t || !ids.length) return;
+  let r = null;
+  try { r = await rpc("api_admin_chat_counts", { p_token: t, p_ids: ids }); }
+  catch (e) { return; }   // the SQL may not be run yet: Open still works
+  document.querySelectorAll("[data-bkn]").forEach((el) => {
+    const x = r && r[el.dataset.bkn];
+    el.textContent = x && x.n ? " · " + num(x.n) + (x.n === 1 ? " msg" : " msgs") : "";
+  });
+}
+
+function ensureSheet() {
+  let el = document.getElementById("bookingSheet");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "bookingSheet";
+    el.className = "sheet";
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-modal", "true");
+    el.setAttribute("aria-label", "Booking details");
+    el.innerHTML = '<div class="sheetbox"><div id="sheetBody"></div></div>';
+    document.body.appendChild(el);
+    el.addEventListener("click", (e) => { if (e.target === el) closeSheet(); });
+  }
+  return el;
+}
+
+function closeSheet() {
+  clearInterval(SHEET.timer);
+  SHEET = { id: null, timer: null };
+  const el = document.getElementById("bookingSheet");
+  if (el) el.classList.remove("on");
+  document.body.style.overflow = "";
+}
+
+function openSheet(id) {
+  const el = ensureSheet();
+  clearInterval(SHEET.timer);
+  SHEET = { id, timer: setInterval(() => { if (!document.hidden) loadSheet(false); }, 8000) };
+  document.getElementById("sheetBody").innerHTML =
+    '<div class="empty">Loading…</div>';
+  el.classList.add("on");
+  el.scrollTop = 0;
+  document.body.style.overflow = "hidden";
+  loadSheet(true);
+}
+
+function sheetError(html) {
+  document.getElementById("sheetBody").innerHTML =
+    '<div class="shead"><div class="empty">' + html + "</div>"
+    + '<button class="btn sm plain" data-sheetclose type="button">Close</button></div>';
+}
+
+async function loadSheet(first) {
+  const id = SHEET.id;
+  if (!id) return;
+  const t = token();
+  if (!t) { closeSheet(); return lockOut(); }
+  let r;
+  try { r = await rpc("api_admin_booking_chat", { p_token: t, p_booking: id }); }
+  catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) { closeSheet(); return lockOut(); }
+    if (SHEET.id !== id || !first) return;
+    sheetError(/api_admin_booking_chat|could not find the function|does not exist/i.test(e.message)
+      ? "Run <b>Admin booking chats</b> in the Supabase SQL editor to switch this on."
+      : esc(e.message));
+    return;
+  }
+  if (SHEET.id !== id) return;          // closed, or another booking opened, meanwhile
+  paintSheet(r, first);
+}
+
+function paintSheet(r, first) {
+  if (!r || !r.ok) { sheetError(esc((r && r.why) || "Could not load this booking.")); return; }
+  const b = r.booking || {}, c = r.customer || {}, t = r.tech || {};
+  const body = document.getElementById("sheetBody");
+  const old = body.querySelector(".chatlog");
+  const wasBottom = !old || old.scrollHeight - old.scrollTop - old.clientHeight < 40;
+  const oldTop = old ? old.scrollTop : 0;
+
+  const steps = (r.timeline || []).filter((x) => x.key !== "updated_at");
+  const reps = r.reports || [];
+  const msgs = r.messages || [];
+  const rul = r.ruling;
+  const nameOf = (who) => who === "customer" ? (c.name || "Customer")
+    : who === "tech" ? (t.name || "Nail tech") : "Someone else";
+
+  body.innerHTML =
+    '<div class="shead"><div>'
+    + '<div class="sh1">' + esc(t.name || "Nail tech") + ' <span class="faint">for</span> ' + esc(c.name || "a customer") + "</div>"
+    + '<div class="facts">' + bkChip(b.status)
+    + "<span><b>" + naira(b.total_kobo) + "</b></span>"
+    + "<span>" + (b.at_home ? "At the customer's home" : "At the shop") + "</span>"
+    + "<span>Appointment <b>" + esc(bkWhen(b.starts_at)) + "</b></span></div>"
+    + '<div class="who2">Customer: <b>' + esc(c.name || "—") + "</b>" + (c.email ? " · " + esc(c.email) : "")
+    + "<br>Nail tech: <b>" + esc(t.name || "—") + "</b>" + (t.owner ? " · owner " + esc(t.owner) : "") + "</div>"
+    + "</div>"
+    + '<button class="btn sm plain" data-sheetclose type="button">Close</button></div>'
+
+    + '<div class="shl">What happened</div>'
+    + (steps.length
+        ? '<ul class="stl">' + steps.map((x) =>
+            "<li><span>" + esc(bkWord(x.key)) + "</span><span>" + esc(bkWhen(x.at)) + "</span></li>").join("") + "</ul>"
+        : '<div class="empty">No dates recorded.</div>')
+
+    + ((reps.length || (rul && rul.outcome))
+        ? '<div class="shl">Reports and rulings</div>'
+          + reps.map((x) => '<div class="rep"><b>' + esc(nameOf(x.by)) + "</b> reported: "
+              + esc((x.kind || "").replace(/_/g, " ")) + (x.body ? " — " + esc(x.body) : "")
+              + '<div class="faint" style="font-size:12px;margin-top:3px">' + esc(bkWhen(x.at))
+              + (x.status ? " · " + esc(x.status) : "") + (x.outcome ? " · " + esc(x.outcome) : "") + "</div></div>").join("")
+          + (rul && rul.outcome
+              ? '<div class="rep">No-show ruling: <b>' + esc(String(rul.outcome).replace(/_/g, " "))
+                + "</b>" + (rul.status ? " · " + esc(rul.status) : "") + "</div>" : "")
+        : "")
+
+    + '<div class="shl">Chat · ' + num(msgs.length) + (msgs.length === 1 ? " message" : " messages") + "</div>"
+    + (msgs.length
+        ? '<div class="chatlog">' + msgs.map((m) =>
+            '<div class="bub ' + esc(m.from) + '"><span class="bw">' + esc(nameOf(m.from)) + " · "
+            + esc(bkWhen(m.at)) + "</span>" + esc(m.body) + "</div>").join("") + "</div>"
+        : '<div class="empty">Nobody has written in this booking.</div>')
+    + (r.chat_note ? '<div class="faint" style="font-size:12.5px;margin-top:8px">' + esc(r.chat_note) + "</div>" : "")
+    + '<div class="faint" style="font-size:12px;margin-top:12px">Read only. Opening this does not mark anything as read for them. It refreshes by itself every few seconds.</div>';
+
+  const nl = body.querySelector(".chatlog");
+  if (nl) nl.scrollTop = (first || wasBottom) ? nl.scrollHeight : oldTop;
+  if (first) { const x = body.querySelector("[data-sheetclose]"); if (x) x.focus({ preventScroll: true }); }
+}
+
+document.addEventListener("click", (e) => {
+  const o = e.target.closest("[data-bkopen]");
+  if (o) { openSheet(o.dataset.bkopen); return; }
+  if (e.target.closest("[data-sheetclose]")) closeSheet();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && SHEET.id) closeSheet(); });
+
+// Refund a disputed booking — 23 Sep 2026. Only ever pays the customer
+// back (there's no function yet to pay the tech instead); see
+// admin-refund.sql for why. Reuses api_admin_bookings' own id column.
+document.getElementById("bookings").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-refund]");
+  if (!btn) return;
+  const reason = prompt("Reason for the refund (the customer may see this):", "");
+  if (reason === null) return;
+  btn.disabled = true;
+  try {
+    const t = token();
+    if (!t) return lockOut();
+    await rpc("api_admin_refund_booking", { p_token: t, p_booking: btn.dataset.refund, p_reason: reason });
+    loadBookings();
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    alert(e2.message || "That refund did not go through.");
+    btn.disabled = false;
+  }
+});
+
+/* ══ mischief, 23 Sep 2026 ════════════════════════════════════════════
+   "i can not even view the reports so create a new sidebar named
+   mischief where i view all the reports and group them too based on
+   kind of report." One RPC, api_admin_reports (admin-mischief.sql),
+   returns every report; grouping by kind happens right here. */
+const MISCHIEF_KIND_LABEL = {
+  safety: "I felt unsafe",
+  harassment: "Harassment",
+  theft: "Something was taken",
+  no_show: "Did not turn up",
+  other: "Something else",
+};
+const MISCHIEF_KIND_ORDER = ["safety", "harassment", "theft", "no_show", "other"];
+
+function drawMischief(data, errMsg) {
+  const el = document.getElementById("mischief");
+  if (data === null) {
+    el.innerHTML = errMsg
+      ? `<div class="empty">Reports did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Reports are not loaded yet —
+      run <b>admin-mischief.sql</b> in Supabase.</div>`;
+    return;
+  }
+  const rows = data.reports || [];
+  if (!rows.length) {
+    el.innerHTML = `<div class="empty">No reports filed. Long may that last.</div>`;
+    return;
+  }
+  const groups = {};
+  rows.forEach((r) => {
+    const k = MISCHIEF_KIND_LABEL[r.kind] ? r.kind : "other";
+    (groups[k] = groups[k] || []).push(r);
+  });
+  el.innerHTML = MISCHIEF_KIND_ORDER.filter((k) => groups[k] && groups[k].length).map((k) => `
+    <div class="lbl" style="margin-top:18px">${esc(MISCHIEF_KIND_LABEL[k])} · ${groups[k].length}</div>
+    <table><thead><tr>
+      <th>When</th><th>Reporter</th><th>Accused</th><th>Says</th><th>Status</th><th>Attached</th>
+    </tr></thead><tbody>${groups[k].map((r) => `<tr>
+      <td>${esc(ago(r.created_at))}</td>
+      <td>${esc(r.reporter)}</td>
+      <td>${esc(r.accused)}</td>
+      <td style="max-width:280px;white-space:normal">${esc(r.body || "—")}</td>
+      <td><span class="chip ${r.status === "reviewed" ? "ok" : "warn"}">${esc(r.status || "open")}</span></td>
+      <td>${r.has_video
+        ? `<div class="mischiefMedia" data-media="${esc(r.id)}">
+             <span class="tiny sub">loading…</span></div>`
+        : ""}</td>
+    </tr>`).join("")}</tbody></table>`).join("");
+}
+
+// 23 Sep 2026: "let the video or picture just be there" — no click, no
+// button, it just loads in. The incident bucket has no read policy for
+// anyone (see incident-bucket.sql), so this can't just point an <img>/
+// <video> tag at the file directly — it asks the incident-video Edge
+// Function for a short-lived signed URL (it holds the service-role key that
+// can actually read a private bucket, and checks this same admin token
+// before it will), one report at a time, and drops the player/image straight
+// into that report's row as each answer comes back.
+async function loadMischiefMedia(rows) {
+  const t = token();
+  const c = cfg();
+  if (!t || !c) return;
+  const base = c.url.replace(/\/$/, "") + "/functions/v1/incident-video";
+  const withVideo = (rows || []).filter((r) => r.has_video);
+  await Promise.all(withVideo.map(async (r) => {
+    const slot = document.querySelector(`[data-media="${CSS.escape(String(r.id))}"]`);
+    if (!slot) return;
+    try {
+      const res = await fetch(base, {
+        method: "POST",
+        headers: { apikey: c.anon, "Content-Type": "application/json" },
+        body: JSON.stringify({ token: t, id: r.id }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || "unavailable");
+      const path = new URL(out.url).pathname.toLowerCase();
+      const isImage = /\.(jpe?g|png|gif|webp|heic)$/.test(path);
+      slot.innerHTML = isImage
+        ? `<img src="${esc(out.url)}" alt="Attached photo"
+             style="max-width:160px;max-height:120px;border-radius:8px;display:block">`
+        : `<video src="${esc(out.url)}" controls preload="metadata"
+             style="max-width:220px;max-height:140px;border-radius:8px;display:block"></video>`;
+    } catch (e) {
+      slot.innerHTML = `<span class="tiny sub">could not load</span>`;
+    }
+  }));
+}
+
+async function loadMischief() {
+  const t = token();
+  if (!t) return lockOut();
+  document.getElementById("mischief").innerHTML = `<div class="empty">Loading…</div>`;
+  try {
+    const data = await rpc("api_admin_reports", { p_token: t, p_limit: 200 });
+    drawMischief(data);
+    loadMischiefMedia(data && data.reports);
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawMischief(null, e && e.message);
+  }
+}
+
+/* ══ booking fee income + reported inspo pictures, 9 Oct 2026 ══════════
+   Both read functions from inspo-care.sql ("Inspo cleanup and reports").
+   Until that query has been run they say so instead of failing. */
+const inspoSrc = (path) => {
+  const c = cfg();
+  return c ? c.url.replace(/\/$/, "") + "/storage/v1/object/public/inspo/" + path : "";
+};
+const sqlMissing = (e) => /could not find|does not exist|schema cache/i.test((e && e.message) || "");
+
+async function loadFees() {
+  const el = document.getElementById("feeIncome");
+  if (!el) return;
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    const d = await rpc("api_admin_booking_fees", { p_token: t });
+    // Paystack's share is a few kobo a booking, so show naira and kobo here.
+    const n2 = (k) => "₦" + ((Number(k) || 0) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const row = (label, x) => `<tr><td>${label}</td><td class="tnum">${Number(x.count) || 0}</td>
+      <td class="tnum">${n2(x.fee_kobo)}</td><td class="tnum">${n2(x.paystack_kobo)}</td>
+      <td class="tnum"><b>${n2((Number(x.fee_kobo) || 0) - (Number(x.paystack_kobo) || 0))}</b></td></tr>`;
+    el.innerHTML = `<table><thead><tr><th></th><th>Bookings</th><th>Fees charged</th>
+      <th>Paystack's share</th><th>Oma keeps</th></tr></thead><tbody>
+      ${row("Today", d.today || {})}${row("Last 30 days", d.last30 || {})}${row("All time", d.all || {})}
+      </tbody></table>
+      <div class="faint" style="padding:10px 14px;font-size:12.5px">The booking fee is not refundable and
+      never goes into a nail tech's wallet. Paystack's share is the part of its card fee that falls on the fee.</div>`;
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    el.innerHTML = sqlMissing(e)
+      ? `<div class="empty">Not loaded yet &mdash; run <b>Inspo cleanup and reports</b> in Supabase.</div>`
+      : `<div class="empty">Did not load: <b>${esc(e.message)}</b></div>`;
+  }
+}
+
+function drawInspoReports(list, errMsg) {
+  const el = document.getElementById("inspoReports");
+  if (!el) return;
+  if (list === null) {
+    el.innerHTML = errMsg
+      ? `<div class="empty">Did not load: <b>${esc(errMsg)}</b></div>`
+      : `<div class="empty">Not loaded yet &mdash; run <b>Inspo cleanup and reports</b> in Supabase.</div>`;
+    return;
+  }
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">No reported pictures.</div>`;
+    return;
+  }
+  el.innerHTML = `<table><thead><tr><th>Picture</th><th>Reported</th><th>By</th><th>Why</th><th></th></tr></thead>
+    <tbody>${list.map((r) => `<tr>
+      <td>${r.gone
+        ? `<span class="chip">picture gone</span>`
+        : `<a href="${esc(inspoSrc(r.path))}" target="_blank" rel="noopener"><img src="${esc(inspoSrc(r.path))}"
+             alt="Reported inspo picture" style="width:84px;height:84px;object-fit:cover;border-radius:10px"></a>`}</td>
+      <td>${esc(ago(r.created_at))}</td>
+      <td><b>${esc(r.tech_name || "a nail tech")}</b><br><span class="faint" style="font-size:12px">booking ${esc(String(r.booking_id || "").slice(0, 8))}</span></td>
+      <td>${esc(r.reason || "—")}</td>
+      <td>${r.status === "open"
+        ? `<button class="btn sm" data-inspo-remove="${esc(r.id)}" type="button">Remove picture</button>
+           <button class="btn sm plain" data-inspo-dismiss="${esc(r.id)}" type="button">Dismiss</button>`
+        : `<span class="chip ${r.status === "removed" ? "warn" : "ok"}">${r.status === "removed" ? "Removed" : "Dismissed"}</span>`}</td>
+    </tr>`).join("")}</tbody></table>`;
+}
+
+async function loadInspoReports() {
+  const t = token();
+  if (!t) return lockOut();
+  try {
+    drawInspoReports(await rpc("api_admin_inspo_reports", { p_token: t, p_limit: 60 }));
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    drawInspoReports(null, sqlMissing(e) ? "" : (e && e.message));
+  }
+}
+
+document.getElementById("inspoReports").addEventListener("click", async (e) => {
+  const rm = e.target.closest("[data-inspo-remove]");
+  const dm = e.target.closest("[data-inspo-dismiss]");
+  const btn = rm || dm;
+  if (!btn) return;
+  if (rm && !confirm("Remove this picture? The nail tech stops seeing it now and the file is deleted soon after.")) return;
+  btn.disabled = true;
+  try {
+    const t = token();
+    if (!t) return lockOut();
+    await rpc("api_admin_inspo_resolve", {
+      p_token: t, p_report: Number((rm || dm).dataset[rm ? "inspoRemove" : "inspoDismiss"]), p_remove: !!rm });
+    loadInspoReports();
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    alert(e2.message || "That did not save.");
+    btn.disabled = false;
+  }
+});
+
+/* ══ backend control, 22 Sep 2026 ═════════════════════════════════════
+   A tech's listed/KYC flag. Nothing here moves money or touches a
+   booking's status — see admin-control.sql's header for why those two
+   stayed out. The generic app_config key/value editor that used to sit
+   above this was removed 22 Sep 2026 ("that app setting is nor needed") —
+   along with configRows/configForm and everything that read or wrote
+   them, so nothing here is left pointing at elements that no longer
+   exist. */
+
+/* ── a tech's listing and KYC ── */
+function techChipKyc(kyc) {
+  const map = { verified: ["ok", "Verified"], pending: ["warn", "KYC pending"],
+    failed: ["no", "KYC failed"], none: ["no", "No KYC"] };
+  const hit = map[kyc] || ["no", kyc || "—"];
+  return `<span class="chip ${hit[0]}">${esc(hit[1])}</span>`;
+}
+
+function drawTechFound(rows) {
+  const el = document.getElementById("techFound");
+  const techs = (rows || []).filter((r) => r.is_tech);
+  if (!rows) { el.innerHTML = ""; return; }
+  if (!techs.length) {
+    el.innerHTML = `<div class="empty">${rows.length
+      ? "None of those matches is a nail tech."
+      : "No match. Type at least three characters."}</div>`;
+    return;
+  }
+  el.innerHTML = techs.map((r) => `<div class="kv" data-techid="${esc(r.id)}"
+      data-listed="${r.listed ? "1" : "0"}"
+      style="align-items:flex-start;flex-wrap:wrap">
+      <span class="k">
+        <b style="color:var(--ink);font-weight:700">${esc(r.name || r.email || "(no name)")}</b>
+        <br><span class="faint">${esc(r.email || "")}</span>
+      </span>
+      <span class="v" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span class="chip ${r.listed ? "ok" : "no"}">${r.listed ? "Listed" : "Unlisted"}</span>
+        ${techChipKyc(r.kyc)}
+        <button class="btn sm plain" data-techlist type="button">${r.listed ? "Unlist" : "List"}</button>
+        <button class="btn sm plain" data-techkyc="verified" type="button">Verify KYC</button>
+        <button class="btn sm plain" data-techkyc="none" type="button" style="color:var(--bad)">Reset KYC</button>
+      </span>
+    </div>`).join("");
+}
+
+document.getElementById("techFindForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const t = token();
+  if (!t) return lockOut();
+  const q = document.getElementById("techFindQ").value.trim();
+  const el = document.getElementById("techFound");
+  el.innerHTML = `<div class="empty">Searching…</div>`;
+  try {
+    const data = await rpc("api_admin_find_user", { p_token: t, p_q: q });
+    drawTechFound(data.rows || []);
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    el.innerHTML = `<div class="empty">${esc(e2.message)}</div>`;
+  }
+});
+
+document.getElementById("techFound").addEventListener("click", async (e) => {
+  const row = e.target.closest("[data-techid]");
+  if (!row) return;
+  const t = token();
+  if (!t) return lockOut();
+  const id = row.dataset.techid;
+  try {
+    if (e.target.closest("[data-techlist]")) {
+      const nowListed = row.dataset.listed === "1";
+      await rpc("api_admin_tech_set_listed", { p_token: t, p_id: id, p_listed: !nowListed });
+    }
+    const kycBtn = e.target.closest("[data-techkyc]");
+    if (kycBtn) await rpc("api_admin_tech_set_kyc", { p_token: t, p_id: id, p_kyc: kycBtn.dataset.techkyc });
+    document.getElementById("techFindForm").requestSubmit();
+  } catch (e2) {
+    if (e2.status === 401 || /sign in again/i.test(e2.message)) return lockOut();
+    alert(e2.message);
+  }
+});
+
+/* ══ formatting ═══════════════════════════════════════════════════════ */
+const naira = (kobo) => "₦" + Math.round((Number(kobo) || 0) / 100).toLocaleString("en-NG");
+const num = (n) => (Number(n) || 0).toLocaleString("en-NG");
+function shortNaira(kobo) {
+  const n = Math.round((Number(kobo) || 0) / 100);
+  if (n >= 1e6) return "₦" + (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "m";
+  if (n >= 1e3) return "₦" + (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + "k";
+  return "₦" + n;
+}
+const dayName = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("en-NG",
+  { day: "numeric", month: "short" });
+function ago(iso) {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 90) return "just now";
+  if (s < 3600) return Math.round(s / 60) + " min ago";
+  if (s < 86400) return Math.round(s / 3600) + " hr ago";
+  return Math.round(s / 86400) + " d ago";
+}
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
+  (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* ══ the door ═════════════════════════════════════════════════════════ */
+const gate = document.getElementById("gate");
+const app = document.getElementById("app");
+const gateMsg = document.getElementById("gateMsg");
+const goBtn = document.getElementById("go");
+
+function gateSay(kind, words) {
+  gateMsg.className = words ? "msg " + kind : "";
+  gateMsg.textContent = words || "";
+}
+
+document.getElementById("gateForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pw = document.getElementById("pw").value;
+  if (!pw) return gateSay("bad", "Type the passphrase.");
+  goBtn.disabled = true;
+  gateSay("", "");
+  try {
+    const r = await rpc("api_admin_open", { p_password: pw });
+    if (!r || !r.ok) {
+      // It RETURNS a refusal rather than raising one — see admin.sql for why
+      // that is what makes the lockout work at all.
+      gateSay(r && r.why === "locked" ? "warn" : "bad",
+              (r && r.says) || "That did not work.");
+      return;
+    }
+    setToken(r.token);
+    document.getElementById("pw").value = "";
+    show(r.expires_at);
+  } catch (err) {
+    gateSay("bad", err.message);
+  } finally {
+    goBtn.disabled = false;
+  }
+});
+
+document.getElementById("out").addEventListener("click", async () => {
+  const t = token();
+  setToken(null);
+  if (t) { try { await rpc("api_admin_close", { p_token: t }); } catch (e) { /* gone anyway */ } }
+  location.reload();
+});
+
+document.getElementById("refresh").addEventListener("click", () => load());
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pic]");
+  if (b) hidePhoto(b.dataset.pic, b.dataset.hide === "1");
+  const p = e.target.closest("[data-payout]");
+  if (p) markPayoutPaid(p.dataset.payout);
+});
+
+function show(expires) {
+  gate.style.display = "none";
+  app.style.display = "block";
+  if (expires) {
+    document.getElementById("who").textContent =
+      "signed in until " + new Date(expires).toLocaleTimeString("en-NG",
+        { hour: "2-digit", minute: "2-digit" });
+  }
+  load();
+  careOff = false;
+  careLoadList();
+  alertsPaint();
+  alertsRefresh();
+  goToPage(location.hash.slice(1));
+}
+
+/* ══ alerts on this phone ════════════════════════════════════════════
+   Kamsy, 12 Oct 2026: "i want to receive notifications every time someone
+   requests a withdrawal, a refund is due, a customer care message, and any
+   other thing that needs my attention".
+
+   They arrive as Web Push on the home-screen copy of this page. The admin
+   sign-in is a passphrase, not an account, so the phone is filed under the
+   owner through api_admin_register_device (admin-alerts.sql), and the server
+   sends through the same notification queue the apps use. This is the public
+   half of the push key pair, the same one app.html carries. */
+const ALERT_VAPID = "BPXrpPfNAAGjOVPjDuMnXjIhJVcedu-3erpAYW9io90wBXs4HhD4mgcb-OAgq5jbV6McT92MY5YOg2Aw8l10KEs";
+const ALERT_FLAG = "oma-admin-alerts";
+const alertsBtn = document.getElementById("alerts");
+const alertsOffBtn = document.getElementById("alertsOff");
+const alertsMsg = document.getElementById("alertsMsg");
+
+function alertsSay(words) { alertsMsg.textContent = words || ""; }
+function alertsWanted() { try { return localStorage.getItem(ALERT_FLAG) === "1"; } catch (e) { return false; } }
+function alertsRemember(on) {
+  try { on ? localStorage.setItem(ALERT_FLAG, "1") : localStorage.removeItem(ALERT_FLAG); }
+  catch (e) { /* private mode */ }
+}
+function alertsBytes(b64) {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+function alertsLabel() {
+  const ua = navigator.userAgent || "";
+  const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android phone"
+           : /Mac OS X/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows PC" : "device";
+  return "Oma admin on " + os;
+}
+
+/* Can this page show alerts at all, and if not, say what to do about it. On an
+   iPhone, Apple only allows it for a page opened from its Home Screen icon. */
+function alertsCan() {
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent || "");
+  const installed = navigator.standalone === true ||
+    (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  if (ios && !installed) {
+    return { ok: false, says: "Open this page from its Home Screen icon. If it opens in Safari, delete the old shortcut, then Share, Add to Home Screen, and open that." };
+  }
+  if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return { ok: false, says: "This browser cannot show alerts. Use Chrome on Android, or the Home Screen icon on iPhone." };
+  }
+  if (Notification.permission === "denied") {
+    return { ok: false, says: "Alerts are blocked for this page. Turn them on in your phone's Settings, Notifications, Oma Admin." };
+  }
+  return { ok: true };
+}
+
+/* The address the phone gave. Reused when it exists: a new one on every visit
+   would fill the database with dead rows. */
+async function alertsAddress(askFirst) {
+  if (askFirst) {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") throw new Error("not allowed");
+  } else if (Notification.permission !== "granted") {
+    throw new Error("not allowed");
+  }
+  await navigator.serviceWorker.register("/sw.js");
+  const reg = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((_, no) => setTimeout(() => no(new Error("the phone did not start its notification helper")), 12000)),
+  ]);
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: alertsBytes(ALERT_VAPID),
+    });
+  }
+  return JSON.stringify(sub);
+}
+
+function alertsPaint() {
+  const on = alertsWanted();
+  alertsBtn.textContent = on ? "Alerts on · send test" : "Turn on alerts";
+  alertsOffBtn.hidden = !on;
+}
+
+function alertsFail(e) {
+  const m = (e && e.message) || "";
+  if (m === "not allowed") return "No alerts then. Allow them in your phone's Settings, Notifications, Oma Admin.";
+  if (/push_platform/.test(m)) {
+    return "The database still has the old alerts SQL. In Supabase, open a NEW query tab, paste admin-alerts-fix.sql and run it.";
+  }
+  if (e && (e.status === 404 || /api_admin_register_device|Could not find/i.test(m))) {
+    return "The alerts SQL has not been run yet. Run \"Admin alerts\" in Supabase first.";
+  }
+  return m || "That did not work.";
+}
+
+async function alertsTurnOn() {
+  const can = alertsCan();
+  if (!can.ok) return alertsSay(can.says);
+  const t = token();
+  if (!t) return lockOut();
+  alertsSay("Asking your phone…");
+  try {
+    const address = await alertsAddress(true);
+    await rpc("api_admin_register_device", {
+      p_token: t, p_platform: "web", p_device: address, p_label: alertsLabel() });
+    alertsRemember(true);
+    alertsPaint();
+    await rpc("api_admin_test_push", { p_token: t });
+    alertsSay("On. A test alert is on its way, it can take up to a minute.");
+  } catch (e) {
+    if (e && e.status === 401) return lockOut();
+    alertsSay(alertsFail(e));
+  }
+}
+
+async function alertsTest() {
+  const t = token();
+  if (!t) return lockOut();
+  alertsSay("Sending a test…");
+  try {
+    const r = await rpc("api_admin_test_push", { p_token: t });
+    alertsSay(r && r.phones === 0
+      ? "No phone is registered yet. Tap Off, then turn alerts on again."
+      : "Test sent, it can take up to a minute.");
+  } catch (e) { alertsSay(alertsFail(e)); }
+}
+
+async function alertsTurnOff() {
+  const t = token();
+  try {
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration("/");
+      const sub = reg && await reg.pushManager.getSubscription();
+      if (sub) {
+        if (t) { try { await rpc("api_admin_forget_device", { p_token: t, p_device: JSON.stringify(sub) }); } catch (e) { /* gone anyway */ } }
+        await sub.unsubscribe();
+      }
+    }
+  } catch (e) { /* the server stops sending when the row is gone */ }
+  alertsRemember(false);
+  alertsPaint();
+  alertsSay("Alerts are off on this phone.");
+}
+
+/* Every time the page opens signed in: hand the server the phone's current
+   address again, quietly. Phones change it now and then. */
+async function alertsRefresh() {
+  if (!alertsWanted() || !alertsCan().ok || Notification.permission !== "granted") return;
+  const t = token();
+  if (!t) return;
+  try {
+    const address = await alertsAddress(false);
+    await rpc("api_admin_register_device", {
+      p_token: t, p_platform: "web", p_device: address, p_label: alertsLabel() });
+  } catch (e) { /* not worth interrupting her; the button still works */ }
+}
+
+alertsBtn.addEventListener("click", () => (alertsWanted() ? alertsTest() : alertsTurnOn()));
+alertsOffBtn.addEventListener("click", () => alertsTurnOff());
+alertsPaint();
+
+/* Tapping an alert opens the right tab: the service worker either opens
+   /admin.html#finances or tells an already open page where to go. */
+function goToPage(name) {
+  const b = /^[a-z]+$/.test(name || "") && document.querySelector('.navbtn[data-page="' + name + '"]');
+  if (b) b.click();
+}
+window.addEventListener("hashchange", () => goToPage(location.hash.slice(1)));
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (e.data && e.data.oma === "admin") goToPage(e.data.page);
+  });
+}
+
+function lockOut(why) {
+  try { closeSheet(); } catch (e) { /* sheet code not reached yet */ }
+  setToken(null);
+  try { phraseClear(); } catch (e) { /* team code not reached yet */ }
+  app.style.display = "none";
+  gate.style.display = "grid";
+  gateSay("warn", why || "That session has ended. Sign in again.");
+}
+
+/* ══ drawing ══════════════════════════════════════════════════════════ */
+
+/* Charts, by hand. A dropdown on each card picks how the same thirty days
+   are drawn: bars, line, area, dots, running total, or a plain table. The
+   choice is remembered in this browser.
+   Bars are thin marks with 4px rounded tops anchored to the baseline, a 2px
+   gap between neighbours, one recessive gridline at the top, and a hover
+   tooltip — which an HTML chart gets by default, because it can. No number
+   printed on every mark: thirty labels is not a chart, it is a table that
+   has been made hard to read (and when you do want the numbers, the Table
+   choice is exactly that). */
+const CHART_KINDS = [["bars", "Bars"], ["line", "Line"], ["area", "Area"],
+  ["dots", "Dots"], ["total", "Running total"], ["table", "Table"]];
+const CHARTS = {};
+
+function chartKindGet(id) {
+  try {
+    const k = localStorage.getItem("oma-admin-chart-" + id);
+    if (CHART_KINDS.some((x) => x[0] === k)) return k;
+  } catch (e) { /* no storage here: bars */ }
+  return "bars";
+}
+function chartKindSet(id, k) {
+  try { localStorage.setItem("oma-admin-chart-" + id, k); } catch (e) { /* fine */ }
+}
+
+function drawChart(rootId, rows, valueOf, labelOf, subEl, unit) {
+  const root = document.getElementById(rootId);
+  const sel = root.querySelector("select.kind");
+  CHARTS[rootId] = { rows, valueOf, labelOf, unit: unit || "Total" };
+  if (!sel.options.length) {
+    sel.innerHTML = CHART_KINDS.map((k) => `<option value="${k[0]}">${k[1]}</option>`).join("");
+    sel.addEventListener("change", () => { chartKindSet(rootId, sel.value); paintChart(rootId); });
+  }
+  sel.value = chartKindGet(rootId);
+  paintChart(rootId);
+  if (subEl) {
+    const total = rows.reduce((a, r) => a + valueOf(r), 0);
+    subEl.textContent = labelOf(total) + " in " + rows.length + " days";
+  }
+}
+
+function paintChart(rootId) {
+  const { rows, valueOf, labelOf, unit } = CHARTS[rootId];
+  const root = document.getElementById(rootId);
+  const svg = root.querySelector("svg");
+  const tip = root.querySelector(".tip");
+  const tab = root.querySelector(".ctab");
+  let kind = root.querySelector("select.kind").value;
+  tip.classList.remove("on");
+
+  if (kind === "table") {
+    svg.style.display = "none";
+    tab.hidden = false;
+    tab.innerHTML = rows.length
+      ? `<table><thead><tr><th>Day</th><th class="r">${esc(unit)}</th></tr></thead><tbody>`
+        + rows.slice().reverse().map((r) =>
+            `<tr><td>${esc(dayName(r.day))}</td><td class="r tnum">${esc(labelOf(valueOf(r)))}</td></tr>`
+          ).join("")
+        + "</tbody></table>"
+      : '<div class="empty">No days yet.</div>';
+    return;
+  }
+  svg.style.display = "";
+  tab.hidden = true;
+  tab.innerHTML = "";
+
+  const W = 600, H = 150, PAD_B = 20, PAD_T = 14;
+  const n = rows.length || 1;
+  const slot = W / n;
+  const raw = rows.map(valueOf);
+  let run = 0;
+  const vals = kind === "total" ? raw.map((v) => (run += v)) : raw;
+  // One point cannot make a line: show it as a dot instead of nothing.
+  if (rows.length < 2 && kind !== "bars") kind = "dots";
+  const top = Math.max(1, ...vals);
+  const base = H - PAD_B;
+  const y = (v) => PAD_T + (H - PAD_T - PAD_B) * (1 - v / top);
+  const cx = (i) => i * slot + slot / 2;
+  const f = (v) => v.toFixed(1);
+  const parts = [];
+
+  // One line at the top of the scale. More would be furniture.
+  parts.push(`<line class="gridline" x1="0" y1="${PAD_T}" x2="${W}" y2="${PAD_T}"/>`);
+  parts.push(`<text class="axt" x="2" y="${PAD_T - 4}">${esc(labelOf(top))}</text>`);
+  parts.push(`<line class="gridline" x1="0" y1="${base}" x2="${W}" y2="${base}"/>`);
+
+  if (kind === "bars") {
+    // Thin marks, centred in the slot. Filling the slot made thirty bars into
+    // a solid block with slits in it; a capped width leaves the ground
+    // visible between them, which is what makes a shape readable at a glance.
+    const bw = Math.min(11, Math.max(2, slot - 2));
+    const off = (slot - bw) / 2;
+    vals.forEach((v, i) => {
+      const h = Math.max(v > 0 ? 3 : 2, (H - PAD_T - PAD_B) * (v / top));
+      // rx on the whole rect, anchored to the baseline: the rounding reads at
+      // the data end and the bar still sits flat on the axis.
+      parts.push(`<rect class="bar${v ? "" : " z"}" x="${f(i * slot + off)}" y="${f(base - h)}"
+        width="${f(bw)}" height="${f(h)}" rx="3"/>`);
+    });
+  } else if (kind === "dots") {
+    vals.forEach((v, i) => {
+      parts.push(`<path class="dot${v ? "" : " z"}" d="M${f(cx(i))} ${f(y(v))}h.01"/>`);
+    });
+  } else {   // line, area, running total
+    const pts = vals.map((v, i) => [cx(i), y(v)]);
+    const d = pts.map((p, i) => (i ? "L" : "M") + f(p[0]) + " " + f(p[1])).join(" ");
+    if (kind !== "line") {
+      parts.push(`<path class="ar" d="${d} L${f(pts[pts.length - 1][0])} ${base} L${f(pts[0][0])} ${base} Z"/>`);
+    }
+    parts.push(`<path class="ln" d="${d}"/>`);
+  }
+  // The point the finger or pointer is on (not for bars: the bar is the point).
+  if (kind !== "bars") parts.push('<path class="dot hov" d="M-9 -9h.01" style="visibility:hidden"/>');
+
+  // A hit target the full slot and the full height, so an empty day and a
+  // 3px mark are both easy to point at with a finger.
+  vals.forEach((v, i) => {
+    parts.push(`<rect class="hit" x="${f(i * slot)}" y="0" width="${f(slot)}" height="${H}" data-i="${i}"/>`);
+  });
+
+  // First and last date only. Every date would collide at this width.
+  if (rows.length) {
+    parts.push(`<text class="axt" x="0" y="${H - 5}">${esc(dayName(rows[0].day))}</text>`);
+    parts.push(`<text class="axt" x="${W}" y="${H - 5}" text-anchor="end"
+      >${esc(dayName(rows[rows.length - 1].day))}</text>`);
+  }
+  svg.innerHTML = parts.join("");
+
+  const hov = svg.querySelector(".hov");
+  const total = root.querySelector("select.kind").value === "total";
+  svg.onpointermove = (e) => {
+    const t = e.target.closest("[data-i]");
+    if (!t) { tip.classList.remove("on"); if (hov) hov.style.visibility = "hidden"; return; }
+    const i = +t.dataset.i;
+    tip.innerHTML = `<div>${esc(labelOf(vals[i]))}${total ? " so far" : ""}</div>
+      <div class="d">${esc(dayName(rows[i].day))}</div>`;
+    const b = svg.getBoundingClientRect();
+    tip.style.left = (e.clientX - b.left) + "px";
+    tip.style.top = (e.clientY - b.top) + "px";
+    tip.classList.add("on");
+    if (hov) {
+      hov.setAttribute("d", `M${f(cx(i))} ${f(y(vals[i]))}h.01`);
+      hov.style.visibility = "visible";
+    }
+  };
+  svg.onpointerleave = () => { tip.classList.remove("on"); if (hov) hov.style.visibility = "hidden"; };
+}
+
+function tile(k, v, s) {
+  return `<div class="card tile"><div class="k">${esc(k)}</div>
+    <div class="v tnum">${esc(v)}</div>
+    ${s ? `<div class="s">${esc(s)}</div>` : ""}</div>`;
+}
+function kv(k, v) {
+  return `<div class="kv"><span class="k">${esc(k)}</span>
+    <span class="v tnum">${esc(v)}</span></div>`;
+}
+
+/* Only the rows that are actually a problem, plus one reassuring line when
+   none of them are. A wall of zeroes is a dashboard nobody reads twice. */
+function drawTrouble(t) {
+  const rows = [];
+  const add = (n, kind, words) => { if (n > 0) rows.push({ n, kind, words }); };
+  add(t.disputed, "bad", "disputed — money stuck in escrow");
+  add(t.unscanned, "bad",
+      "paid but never scanned" + (t.oldest_unscanned_days
+        ? " · oldest " + t.oldest_unscanned_days + " days" : ""));
+  add(t.notif_giving_up, "bad", "notifications that gave up");
+  add(t.payouts_waiting, "warn",
+      "payouts waiting · " + naira(t.payouts_kobo));
+  add(t.kyc_pending, "warn", "ID checks pending");
+  add(t.kyc_failed, "warn", "ID checks failed");
+  add(t.notif_unsent, "warn", "notifications still queued");
+  add(t.expired_unpaid, "warn", "bookings that expired unpaid");
+  document.getElementById("trouble").innerHTML = rows.length
+    ? rows.map((r) => `<div class="tr ${r.kind}">${esc(r.words)}<b>${num(r.n)}</b></div>`).join("")
+    : `<div class="tr ok">Nothing stuck<b>✓</b></div>`;
+}
+
+/* ══ deleting somebody ════════════════════════════════════════════════
+   Kamsy, 16 Sep 2026: "i want to be able to delete a user forever in the
+   admin page."
+
+   THE SHAPE OF THIS SCREEN IS THE SAFETY FEATURE. Deleting is not a button
+   on a row — a button on a row is one mis-tap from ending somebody's
+   account, and the rows are small and a phone is a phone. It takes three
+   deliberate acts: search for a person, open their panel, and TYPE THEIR
+   EMAIL ADDRESS back.
+
+   And the typing is not theatre the page performs and then discards: the
+   address is sent to the database, and api_admin_delete_user compares it
+   to the account before it does anything. So the guard holds even for a
+   request that never came from this page at all.
+
+   A row that cannot be deleted says why instead of offering a button that
+   fails. The reasons are always money or a dispute — see the SQL. */
+let FOUND = [], OPEN = null;
+
+async function findUsers(q, openMatch) {
+  const slot = document.getElementById("found");
+  slot.innerHTML = '<div class="sub" style="font-size:13px">Looking…</div>';
+  let r;
+  try { r = await rpc("api_admin_find_user", { p_token: token(), p_q: q }); }
+  catch (e) {
+    slot.innerHTML = '<div class="sub" style="font-size:13px">'
+      + esc(/find_user/.test(e.message) || /does not exist/.test(e.message)
+            ? "Run admin-delete-user.sql in the SQL editor to switch this on."
+            : e.message) + "</div>";
+    return;
+  }
+  FOUND = (r && r.rows) || [];
+  // A tap on "Delete…" in the People list hands this the exact email, so
+  // rather than making her tap "Delete…" a second time here, open the one
+  // row it matches straight away. A manual search still lands closed.
+  OPEN = (openMatch && FOUND.length === 1) ? 0 : null;
+  drawFound((r && r.note) || null);
+}
+
+/* The "Delete…" button on a row in the People list above. Same search, same
+   panel, same database guard — this just saves the second lookup. */
+function quickDelete(email) {
+  const q = document.getElementById("findQ");
+  if (q) q.value = email;
+  document.getElementById("findForm").scrollIntoView({ behavior: "smooth", block: "start" });
+  findUsers(email, true);
+}
+
+/* The list of reasons somebody cannot be deleted, in words. Each one is a
+   real amount of somebody's money or a decision a human has not made yet. */
+function blockerWords(b) {
+  if (!b) return [];
+  const out = [];
+  const n = (k) => Number(b[k] || 0);
+  if (n("bookings_in_escrow")) out.push(n("bookings_in_escrow") + " booking(s) paid for and not finished");
+  if (n("jobs_in_escrow")) out.push(n("jobs_in_escrow") + " job(s) paid for and not finished");
+  if (n("disputes")) out.push(n("disputes") + " open dispute(s)");
+  if (n("wallet_kobo")) out.push(naira(n("wallet_kobo")) + " still in their wallet");
+  if (n("payouts_pending")) out.push(n("payouts_pending") + " payout(s) in flight");
+  return out;
+}
+
+function drawFound(note) {
+  const slot = document.getElementById("found");
+  if (note) { slot.innerHTML = '<div class="sub" style="font-size:13px">' + esc(note) + "</div>"; return; }
+  if (!FOUND.length) {
+    slot.innerHTML = '<div class="sub" style="font-size:13px">Nobody matches that.</div>';
+    return;
+  }
+  slot.innerHTML = FOUND.map((u, i) => {
+    const stops = blockerWords(u.blockers);
+    const gone = !!u.deleted_at;
+    return '<div style="padding:12px 0;border-top:1px solid var(--line)">'
+      + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+      +   '<div style="flex:1;min-width:200px">'
+      +     '<div style="font-weight:700">' + esc(u.verified ? u.real_name : (u.name || "(no name)"))
+      +       (u.verified ? ' <span class="chip ok" style="vertical-align:1px">verified</span>' : "")
+      +       (u.is_tech ? ' <span class="sub" style="font-weight:600;font-size:12px">· nail tech'
+                           + (u.listed ? ", listed" : "") + "</span>" : "")
+      +     "</div>"
+      +     (u.verified && u.name && u.name !== u.real_name
+            ? '<div class="sub" style="font-size:12px">goes by ' + esc(u.name) + "</div>"
+            : "")
+      +     '<div class="sub" style="font-size:12.5px">' + esc(u.email || "") + "</div>"
+      +   "</div>"
+      +   (gone
+          ? '<span class="sub" style="font-size:12.5px">Deleted ' + esc(ago(u.deleted_at)) + "</span>"
+          : stops.length
+            ? '<span class="sub" style="font-size:12.5px;max-width:280px;text-align:right">Cannot be deleted — '
+              + esc(stops.join("; ")) + "</span>"
+            : '<button class="btn plain" data-del="' + i + '">Delete…</button>')
+      + "</div>"
+      + (OPEN === i ? deletePanel(u) : "")
+      + "</div>";
+  }).join("");
+}
+
+function deletePanel(u) {
+  return '<div style="margin-top:12px;padding:14px;border-radius:14px;'
+    + 'background:var(--bg);border:1px solid var(--line)">'
+    + '<div style="font-weight:700;margin-bottom:6px">This cannot be undone.</div>'
+    + '<div class="sub" style="font-size:12.5px;line-height:1.55;margin-bottom:12px">'
+    + 'Signing in becomes impossible and every personal detail is overwritten. '
+    + 'Bookings, payments and Oma\'s own records stay — they belong to the other '
+    + 'person in them too — but they will no longer have a name on them.'
+    + '</div>'
+    + '<label class="sub" style="font-size:12.5px;display:block;margin-bottom:6px">'
+    + 'Type <b>' + esc(u.email) + '</b> to confirm</label>'
+    + '<input id="delConfirm" autocomplete="off" spellcheck="false" '
+    + 'placeholder="' + esc(u.email) + '" style="width:100%;margin-bottom:10px">'
+    + '<input id="delReason" autocomplete="off" '
+    + 'placeholder="Why (kept in the admin log)" style="width:100%;margin-bottom:12px">'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn" id="delGo" data-go="' + esc(u.id) + '" '
+    + 'style="background:var(--bad);box-shadow:none">Delete this account</button>'
+    + '<button class="btn plain" data-del="x">Cancel</button>'
+    + '</div><div id="delMsg" class="sub" style="font-size:12.5px;margin-top:10px"></div></div>';
+}
+
+async function doDelete(id) {
+  const c = document.getElementById("delConfirm");
+  const r = document.getElementById("delReason");
+  const m = document.getElementById("delMsg");
+  const btn = document.getElementById("delGo");
+  if (!c || !m) return;
+  btn.disabled = true;
+  m.textContent = "Working…";
+  let out;
+  try {
+    out = await rpc("api_admin_delete_user", {
+      p_token: token(), p_user: id,
+      p_confirm: c.value, p_reason: r ? r.value : null,
+    });
+  } catch (e) { btn.disabled = false; m.textContent = e.message; return; }
+
+  if (!out || out.ok !== true) {
+    btn.disabled = false;
+    // The database refuses for exactly two kinds of reason, and both are
+    // worth saying in full rather than as "could not delete".
+    const stops = blockerWords(out && out.blockers);
+    m.textContent = stops.length ? "Cannot be deleted — " + stops.join("; ")
+                  : (out && out.reason) ? out.reason
+                  : (out && out.already) ? "That account was already deleted."
+                  : "That did not work.";
+    return;
+  }
+  m.textContent = "Deleted.";
+  // Re-run the search rather than patching the row, so what is on screen
+  // is what the database says and not what this page hoped happened.
+  const q = document.getElementById("findQ");
+  setTimeout(() => findUsers(q ? q.value : ""), 600);
+}
+
+document.getElementById("findForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const q = document.getElementById("findQ").value.trim();
+  if (q.length < 3) {
+    document.getElementById("found").innerHTML =
+      '<div class="sub" style="font-size:13px">Type at least three characters.</div>';
+    return;
+  }
+  findUsers(q);
+});
+
+document.addEventListener("click", (e) => {
+  const quick = e.target.closest("[data-quickdel]");
+  if (quick) { quickDelete(quick.dataset.quickdel); return; }
+  const open = e.target.closest("[data-del]");
+  if (open) {
+    OPEN = open.dataset.del === "x" ? null : Number(open.dataset.del);
+    drawFound();
+    const box = document.getElementById("delConfirm");
+    if (box) box.focus();
+    return;
+  }
+  const go = e.target.closest("[data-go]");
+  if (go) doDelete(go.dataset.go);
+});
+
+/* ══ the globe ════════════════════════════════════════════════════════
+   Kamsy, 16 Sep 2026: "a 3d map of the earth then i can zoom in to see our
+   users around the world … for aesthetic." Then: "add all the users and if i
+   tap the dot let is bring out the username and email and let who ever is
+   reported have a red dot", and "let me also be able to see streets".
+
+   So it names people now, and it zooms to streets. Three things keep it
+   honest, none of them optional:
+
+   1. ELEVEN KILOMETRES, HOWEVER FAR YOU ZOOM. api_admin_globe hands this
+      page one row per person with a name and an address on it — an operator
+      has to be able to see who is in her own marketplace, and the
+      delete-a-user search on this same page already shows exactly that. What
+      keeps it safe is not the query but the COLUMN: signup_lat is
+      numeric(4,1), rounded by the server, written once. Zooming to a street
+      does not sharpen the dot, and the caption and the tap panel both say so.
+
+   2. THE CAPTION SAYS HOW MANY IT IS MISSING. Most accounts will have no
+      location: anybody who never granted it, and everybody who signed up
+      before this existed. A globe with forty dots beside a "900 users" tile
+      invites exactly the wrong reading, so the number is on the picture.
+
+   3. IT LOADS ITSELF, LATE, AND FAILS QUIETLY. globe.gl carries three.js and
+      is about a megabyte; the dashboard is a thing to glance at on a phone in
+      a taxi, and it must not wait on a megabyte of WebGL for numbers that are
+      already in hand. The script is fetched after the first draw, and if the
+      CDN is unreachable the card says so and nothing else on the page
+      notices. The map tiles are later still — nothing is fetched from CARTO
+      until somebody actually zooms in. */
+/* Kamsy, 16 Sep 2026: "let tech accounts be purple and customers pink."
+   The violet is not from Oma's palette, because Oma's palette is entirely
+   pinks — a second pink would be a shade nobody can name at eight pixels.
+   This one is far enough round the wheel to be told apart at a glance and
+   still cool against the pink rather than fighting it. */
+const TECH_PINK   = "#f0518d";
+// Reported beats everything. A person who is both a nail tech and the subject
+// of an open report is drawn red, because the question "who has been reported"
+// is the one somebody scans this globe for, and a purple dot hiding a report
+// is the failure mode worth designing against.
+const TECH_RED    = "#e0352f";
+const TECH_PURPLE = "#8b5cf6";
+const colourOf = (d) => d.reported ? TECH_RED : d.tech ? TECH_PURPLE : TECH_PINK;
+
+/* ══ two globes, and why ══════════════════════════════════════════════
+   Kamsy, 16 Sep 2026: "let me also be able to see streets too in countries
+   yh like so detailed."
+
+   One picture painted on the sphere cannot do that, and no bigger picture
+   can either. earth-oma.png is 8192 pixels round the equator — about five
+   kilometres a pixel — so zooming into it finds no streets, only larger
+   squares. Streets have to be fetched for the patch you are looking at.
+   That is what a slippy map does, and three-globe can put slippy tiles on
+   a sphere, so below MAP_FROM this stops being a drawn earth and becomes a
+   real map.
+
+   FAR — above MAP_FROM: the black-and-white earth she chose. No network,
+   no third party, and it reads as Oma's world rather than as a map widget.
+   People are 3D dots that scale with the sphere.
+
+   NEAR — below MAP_FROM: live tiles, down to about zoom 14: the road
+   network, named streets, the lot. People become fixed-size pins. Both
+   halves of that are forced. A 3D dot is a cylinder that globe.gl will not
+   draw shorter than six kilometres, so at street range the camera ends up
+   INSIDE it and the dot vanishes; and a dot that keeps growing as you zoom
+   would bury the very streets she zoomed in to see.
+
+   WHAT DOES NOT CHANGE IS WHAT IS KNOWN. signup_lat is rounded to 0.1° by
+   the column type itself — about eleven kilometres — so a pin sitting on a
+   particular road is not evidence that anybody is on that road. The panel
+   says so when you tap, and the streets under it are context, not
+   precision. Zooming cannot reveal what was never collected.
+
+   The tiles were CARTO's Positron, which was the right picture — pale, quiet,
+   the streets legible without the map shouting over the dots. CARTO now
+   answers an unkeyed request with a tile that has API KEY REQUIRED printed
+   diagonally across it, so the map arrived, drew, and said so a hundred times
+   over. A watermark is not an error: nothing failed, nothing threw, the
+   tilesAvailable() check below was perfectly satisfied, and the only thing
+   that told us was looking at it.
+
+   So the tiles are OpenStreetMap's own now, which need no key and never will.
+   The cost is the palette: OSM standard is a full-colour map, greener and
+   busier than Positron, so the streets no longer sit as quietly under the
+   pins as they did. That is a real loss and it is the price of not having an
+   account to lose. Attribution is required and the caption carries it; it is
+   not decoration and it does not come out. */
+const MAP_FROM = 0.6;    // altitude, in globe radii, where the map takes over
+const HOME_ALT = 1.85;   // the opening view
+const DOT      = 0.5;    // dot radius in degrees, at the opening view
+const CELL     = 0.05;   // and the floor: half of the 0.1° the data actually has
+const TILE_URL = (x, y, l) =>
+  "https://tile.openstreetmap.org/" + l + "/" + x + "/" + y + ".png";
+
+let GLOBE = null, globeLib = null, GLOBE_MAP = false, GLOBE_ROWS = [];
+let dotR = DOT, dotAlt = 0.02, spreadAt = 0;
+
+/* Ask for one tile before betting the picture on the tile server. If CARTO is
+   blocked — a network that filters it, an outage, a licence change years from
+   now — three-globe hides the drawn sphere and draws nothing over it, and the
+   card goes black with no explanation. So the first time somebody zooms in,
+   one 256-pixel tile is fetched on its own; the map only takes over if it
+   arrives, and if it does not the globe stays the drawn earth and the caption
+   says why. Asked once per page load, not once per zoom. */
+let tilesOk = null;
+function tilesAvailable() {
+  if (tilesOk !== null) return Promise.resolve(tilesOk);
+  return new Promise((res) => {
+    const done = (v) => { if (tilesOk === null) { tilesOk = v; res(v); } };
+    const im = new Image();
+    im.onload = () => done(true);
+    im.onerror = () => done(false);
+    im.src = TILE_URL(0, 0, 0);
+    setTimeout(() => done(false), 8000);   // a tile that slow is a tile that failed
+  });
+}
+
+function loadGlobeLib() {
+  if (window.Globe) return Promise.resolve();
+  if (globeLib) return globeLib;
+  globeLib = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/globe.gl@2/dist/globe.gl.min.js";
+    s.onload = res;
+    s.onerror = () => { globeLib = null; rej(new Error("no globe")); };
+    document.head.appendChild(s);
+  });
+  return globeLib;
+}
+
+/* Several people share one rounded coordinate and would be one dot. Each is
+   pushed onto a small ring around the shared point so every one of them is
+   separately tappable — the ring is sized against whatever is being drawn,
+   never against the world, and the coordinate shown when you tap is the real
+   one. The first person stays put so the true point is always occupied. */
+function spread(rows, ring) {
+  const at = {};
+  rows.forEach((p) => {
+    const k = p.lat + "," + p.lng;
+    const i = (at[k] = (at[k] || 0) + 1) - 1;
+    // Six to a ring, then a wider one. A radius of a whole dot DIAMETER, not
+    // half of one, or six neighbours sit on each other.
+    const r = i === 0 ? 0 : ring * (1 + Math.floor((i - 1) / 6) * 0.85);
+    const a = i === 0 ? 0 : ((i - 1) % 6) * (Math.PI / 3);
+    p.dLat = p.lat + r * Math.sin(a);
+    p.dLng = p.lng + r * Math.cos(a);
+  });
+  return rows;
+}
+
+function pinFor(d) {
+  const e = document.createElement("div");
+  e.className = "pin";
+  e.style.background = colourOf(d);
+  e.title = d.name + (d.reported ? " · reported" : "");
+  e.addEventListener("click", () => showPerson(d));
+  return e;
+}
+
+/* One dot per person. The earlier version drew grouped cells with counts and
+   no names; see globe.sql for why that changed. */
+async function drawGlobe(g) {
+  const slot = document.getElementById("globe");
+  const cap = document.getElementById("globeCap");
+  const who = document.getElementById("globeWho");
+  if (!slot || !cap) return;
+  if (who) { who.style.display = "none"; who.innerHTML = ""; }
+
+  if (!g) {
+    slot.innerHTML = '<div style="color:#8a8296;font-size:13px;padding:24px;text-align:center">'
+      + 'Run <b>globe.sql</b> in the SQL editor to switch this on.</div>';
+    cap.textContent = "";
+    return;
+  }
+
+  // An older globe.sql is still installed: it returns `cells`, not `people`.
+  // Say which file rather than drawing nothing and looking broken.
+  if (!g.people && g.cells) {
+    slot.innerHTML = '<div style="color:#8a8296;font-size:13px;padding:24px;text-align:center">'
+      + 'Re-run <b>globe.sql</b> — this is the older version, which grouped people '
+      + 'instead of naming them.</div>';
+    cap.textContent = "";
+    return;
+  }
+
+  const people = (g.people || []).filter(p => p && p.lat != null && p.lng != null);
+  const total = Number(g.total || 0);
+  const reported = Number(g.reported || 0);
+
+  const key = (colour, word, n) =>
+    '<span style="display:inline-flex;align-items:center;gap:6px;margin-right:14px">'
+    + '<i style="width:9px;height:9px;border-radius:50%;background:' + colour
+    + ';display:inline-block"></i>' + n + " " + word + (n === 1 ? "" : "s") + "</span>";
+
+  const techs = people.filter(p => p.tech && !p.reported).length;
+  const custs = people.filter(p => !p.tech && !p.reported).length;
+  const missing = Math.max(0, total - people.length);
+
+  // OpenStreetMap's licence wants naming, and the sentence about eleven
+  // kilometres is here for the same reason: a page that draws a pin on a
+  // named street has to say what the pin does not know.
+  const credit =
+    '<div class="sub" style="font-size:11.5px;margin-top:6px">'
+    + 'Zoom in past a country for streets · every dot is accurate to about 11 km, '
+    + 'however far you zoom · map '
+    + '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">'
+    + '&copy; OpenStreetMap</a> contributors'
+    + "</div>";
+
+  cap.innerHTML = people.length
+    ? key(TECH_PINK, "customer", custs)
+      + key(TECH_PURPLE, "nail tech", techs)
+      + (reported ? key(TECH_RED, "reported", reported) : "")
+      + '<span class="sub">tap a dot for who it is'
+      // The people who are NOT drawn matter as much as the ones who are, or a
+      // sparse globe reads as a sparse marketplace.
+      + (missing ? " · " + missing + " not shown (no location yet)" : "")
+      + "</span>" + credit
+    : "Nobody has a location yet. It is recorded the first time somebody opens "
+      + "Oma signed in, and only if they have already allowed location.";
+
+  if (!people.length) {
+    slot.innerHTML = '<div style="color:#8a8296;font-size:13px;padding:24px;text-align:center">'
+      + 'No dots yet.</div>';
+    return;
+  }
+
+  try { await loadGlobeLib(); }
+  catch (e) {
+    slot.innerHTML = '<div style="color:#8a8296;font-size:13px;padding:24px;text-align:center">'
+      + 'The globe could not be downloaded. Everything else on this page is fine.</div>';
+    return;
+  }
+
+  GLOBE_ROWS = people.map(p => ({
+    id: p.id, name: p.name, real_name: p.real_name, verified: !!p.verified,
+    email: p.email,
+    tech: !!p.tech, reported: !!p.reported, joined: p.joined,
+    lat: Number(p.lat), lng: Number(p.lng),
+    dLat: Number(p.lat), dLng: Number(p.lng),
+  }));
+
+  if (!GLOBE) {
+    slot.innerHTML = "";
+    GLOBE = Globe()(slot)
+      .backgroundColor("rgba(0,0,0,0)")
+      .globeImageUrl("/earth-oma.png")
+      .globeTileEngineMaxLevel(17)
+      .atmosphereColor("#b9b6c2")
+      .atmosphereAltitude(0.18)
+      // far: dots drawn on the sphere
+      .pointLat("dLat").pointLng("dLng")
+      .pointColor(colourOf)
+      .pointRadius(() => dotR)
+      .pointAltitude(() => dotAlt)
+      .pointLabel(d => '<div style="background:#17131e;color:#f7f4f9;border-radius:10px;'
+        + 'padding:7px 11px;font:600 12px system-ui">'
+        // A checked name over a nickname, same rule as the People list —
+        // never presented so that the two look the same on the globe either.
+        + esc(d.verified ? d.real_name : d.name) + (d.verified ? " ✓" : "")
+        + (d.reported ? " · reported" : "") + "</div>")
+      .onPointClick(showPerson)
+      // near: pins floating over the map
+      .htmlLat("dLat").htmlLng("dLng").htmlAltitude(0)
+      .htmlTransitionDuration(0)
+      .htmlElement(pinFor)
+      .onZoom(onGlobeZoom);
+
+    GLOBE.onGlobeReady(relightGlobe);
+
+    GLOBE.controls().autoRotate = true;
+    GLOBE.controls().autoRotateSpeed = 0.35;
+    GLOBE.pointOfView({ lat: 9, lng: 8, altitude: HOME_ALT }, 0);
+
+    const fit = () => { if (GLOBE) GLOBE.width(slot.clientWidth).height(slot.clientHeight); };
+    fit();
+    window.addEventListener("resize", fit);
+  }
+
+  spreadAt = 0;                       // force a re-lay for the new rows
+  onGlobeZoom(GLOBE.pointOfView());
+}
+
+/* Kamsy, 19 Sep 2026: "when someones device is deleted let it not show here
+   and let me tap users and delete them from here." Deleted accounts are now
+   dropped from the list entirely rather than shown greyed, and the counts
+   below are worked out from the still-live rows so nothing here can
+   disagree with what is on screen. Deleting still goes through the same
+   safety the search panel above already has (a re-typed email address, kept
+   by the database) — a "Delete..." tap here just fills that search box with
+   this person's email and opens their panel, rather than putting a
+   one-tap kill switch on a small row on a phone. */
+/* Visits: one row per person, found by id or, failing that, by email. */
+let visitsData = null, visitsIdx = {};
+function setVisits(v) {
+  visitsData = v || null;
+  visitsIdx = {};
+  ((v && v.by_person) || []).forEach((r) => {
+    if (r.id) visitsIdx["id:" + r.id] = r;
+    if (r.email) visitsIdx["e:" + String(r.email).toLowerCase()] = r;
+  });
+}
+
+function visitCell(p) {
+  if (!visitsData) return '<span class="sub">—</span>';
+  const r = visitsIdx["id:" + p.id] || visitsIdx["e:" + String(p.email || "").toLowerCase()];
+  if (!r) return '<span class="sub">none yet</span>';
+  return "<b>" + esc(num(r.visits)) + "</b>"
+    + '<div class="sub" style="font-size:12px;margin-top:2px">last ' + esc(ago(r.last_at)) + "</div>";
+}
+
+function drawUserTiles(o, v) {
+  const el = document.getElementById("userTiles");
+  const cap = document.getElementById("userTilesCap");
+  if (!el || !cap) return;
+  const pe = (o && o.people) || {};
+  const tiles = [tile("Total users", num(pe.users), num(pe.users_7d) + " new this week")];
+  if (v) {
+    const since = v.since
+      ? new Date(v.since + "T00:00:00").toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })
+      : "";
+    tiles.push(tile("Total visits", num(v.total), v.since ? "since " + since : "none counted yet"));
+    const ppl = (n) => num(n) + (Number(n) === 1 ? " person" : " people");
+    tiles.push(tile("Visits today", num(v.today), ppl(v.people_today)));
+    tiles.push(tile("Visits, last 7 days", num(v.last7), ppl(v.people_seen) + " counted so far"));
+    cap.textContent = "A visit is one time a signed-in person opens Oma; opening it again within 30 minutes is the same visit. "
+      + "Only the web app and phone apps that have been updated are counted, so these numbers start low and climb as people update.";
+  } else {
+    tiles.push(tile("Total visits", "—", "not loaded yet"));
+    cap.innerHTML = "Visits are not loaded yet &mdash; run <b>Visits count</b> in Supabase.";
+  }
+  el.innerHTML = tiles.join("");
+}
+
+function drawPeople(g) {
+  const slot = document.getElementById("folk");
+  const cap = document.getElementById("folkCap");
+  if (!slot || !cap) return;
+
+  if (!g) {
+    slot.innerHTML = '<div class="empty">Run <b>people.sql</b> in the SQL '
+      + 'editor to switch this on.</div>';
+    cap.textContent = "";
+    return;
+  }
+
+  const rows = (g.people || []).filter((p) => !p.deleted);
+  if (!rows.length) {
+    slot.innerHTML = '<div class="empty">Nobody has signed up yet.</div>';
+    cap.textContent = "";
+    return;
+  }
+
+  slot.innerHTML =
+    '<table><thead><tr><th>Name</th><th>Email</th><th>Kind</th><th>Area</th>'
+    + "<th>On the globe</th><th>Visits</th><th>Joined</th><th></th></tr></thead><tbody>"
+    + rows.map((p) =>
+        "<tr>"
+        // Kamsy, 20 Sep 2026: "the admin, we see only the real name" \u2014 but
+        // most accounts never verify at all (KYC is only required for home
+        // service), so a real name is the exception, not the rule. Rather
+        // than leaving most rows blank, the checked name leads when there
+        // is one, with a checkmark, and the nickname sits underneath in
+        // small type \u2014 so it is never mistaken for a checked identity, but
+        // it also is not thrown away as the only way to tell rows apart.
+        // A name nobody actually typed is still greyed and says so on
+        // hover, exactly as before.
+        + "<td>" + (p.verified
+                    ? "<b>" + esc(p.real_name) + "</b> "
+                      + '<span class="chip ok" title="Matches a NIN or vNIN check that passed">verified</span>'
+                      + (p.name && p.name !== p.real_name
+                          ? '<div class="sub" style="font-size:12px;margin-top:2px">goes by '
+                            + esc(p.name) + "</div>"
+                          : "")
+                    : (p.named
+                        ? "<b>" + esc(p.name) + "</b>"
+                        : '<span class="sub" title="No name on the account \u2014 this is '
+                          + 'taken from their email or business name">' + esc(p.name)
+                          + "</span>"))
+        + (p.reported ? ' <span class="chip no">reported</span>' : "") + "</td>"
+        + "<td>" + esc(p.email || "—") + "</td>"
+        + "<td>" + (p.tech ? "nail tech" : "customer")
+        + (p.tech && p.listed ? " · listed" : "") + "</td>"
+        + "<td>" + esc(p.area || "—") + "</td>"
+        // The whole reason this column exists: it answers "why is she not a
+        // dot" on the row where the question occurs.
+        + "<td>" + (p.located ? "yes"
+                   : '<span class="sub">no location</span>') + "</td>"
+        + "<td>" + visitCell(p) + "</td>"
+        + "<td>" + esc(ago(p.joined)) + "</td>"
+        + "<td>" + (p.email
+                    ? '<button class="btn plain" data-quickdel="' + esc(p.email) + '">Delete…</button>'
+                    : '<span class="sub" title="No email on this account to confirm a delete with">—</span>')
+        + "</td></tr>").join("")
+    + "</tbody></table>";
+
+  const total = Number(g.live || rows.length);
+  const located = Number(g.located || 0);
+  const named = Number(g.named || 0);
+  cap.textContent = total + " signed up · " + located + " on the globe · "
+    + Math.max(0, total - located)
+    + " with no location, which is normal: Oma records where somebody is only "
+    + "if they open it signed in having already allowed location, and it never asks."
+    // The number that says whether the name fix has taken. It was zero for
+    // everybody until people.sql created the function the app had been
+    // calling into the void — see the header of that file.
+    + (named < total
+        ? "  ·  " + named + " of " + total + " have given a name; the greyed "
+          + "ones are worked out from an email or a business name, and fill in "
+          + "as people open the updated app."
+        : "");
+}
+
+/* Everything that depends on how close the camera is: which earth, how big a
+   dot, how far apart people standing in the same town are drawn. */
+function onGlobeZoom(pov) {
+  if (!GLOBE || !pov) return;
+  const alt = pov.altitude;
+  const close = alt < MAP_FROM;
+
+  if (close && tilesOk === null) {
+    tilesAvailable().then((ok) => {
+      if (!ok) {
+        const cap = document.getElementById("globeCap");
+        if (cap) cap.insertAdjacentHTML("beforeend",
+          '<div class="sub" style="font-size:11.5px;margin-top:4px">The street map '
+          + "could not be reached, so this stays the drawn earth. Nothing else on "
+          + "this page is affected.</div>");
+      }
+      if (GLOBE) onGlobeZoom(GLOBE.pointOfView());
+    });
+  }
+  const map = close && tilesOk === true;
+
+  if (map !== GLOBE_MAP) {
+    GLOBE_MAP = map;
+    GLOBE.globeTileEngineUrl(map ? TILE_URL : null);
+    relightGlobe();
+    // The two modes lay people out at different scales, so a mode change is
+    // always a re-lay — without this, coming back out of the map leaves the
+    // pins up and never restores the dots.
+    spreadAt = 0;
+    // A map spinning under your nose at street level is unusable. It picks up
+    // again on the way back out, unless a panel is open.
+    GLOBE.controls().autoRotate = !map && !panelOpen();
+  }
+
+  if (map) {
+    // Pins are a fixed size on screen, so their ring has to be a fixed size on
+    // screen too: degrees per pixel scale with altitude, so the ring does.
+    const ring = Math.min(1.5, 2.2 * alt);
+    if (!spreadAt || ring / spreadAt > 1.2 || spreadAt / ring > 1.2) {
+      spreadAt = ring;
+      GLOBE.pointsData([]).htmlElementsData(spread(GLOBE_ROWS, ring));
+    }
+    return;
+  }
+
+  // A dot holds its size on screen as you zoom — until it reaches CELL, which
+  // is half of the 0.1° the coordinate actually resolves. Past that it grows,
+  // and it should: it is showing you the area the answer covers.
+  const r = Math.max(CELL, Math.min(DOT, DOT * (alt / HOME_ALT)));
+  const a = Math.min(0.02, alt * 0.011);
+  if (!spreadAt || r / dotR > 1.2 || dotR / r > 1.2 || a / dotAlt > 1.2 || dotAlt / a > 1.2) {
+    dotR = r; dotAlt = a; spreadAt = r;
+    GLOBE.htmlElementsData([]).pointsData(spread(GLOBE_ROWS, r * 2.3));
+  }
+}
+
+/* The texture is moved to the material's EMISSIVE channel and the directional
+   light killed, which is what makes the earth read as drawn rather than as a
+   lit ball. The ambient light has to stay up regardless: globe.gl's dots and
+   its map tiles are both lit materials, and at 5.4 they come out the colour
+   they were given. There is no material map while tiles are drawing, which is
+   what the guard is for. */
+function relightGlobe() {
+  if (!GLOBE) return;
+  const m = GLOBE.globeMaterial();
+  if (m && m.map) {
+    if (m.emissive) m.emissive.setRGB(1, 1, 1);
+    if (m.color) m.color.setRGB(0, 0, 0);
+    m.emissiveMap = m.map;
+    m.emissiveIntensity = 1;
+    m.needsUpdate = true;
+  }
+  (GLOBE.lights() || []).forEach((l) => {
+    if (l.isDirectionalLight) l.intensity = 0;
+    else if (l.isAmbientLight) l.intensity = 5.4;
+  });
+}
+
+function panelOpen() {
+  const who = document.getElementById("globeWho");
+  return !!(who && who.style.display === "block");
+}
+
+/* Who that dot is. The spinning stops on a tap — reading an email address off
+   a rotating globe is a small cruelty — and starts again when the panel is
+   closed. */
+function showPerson(d) {
+  const who = document.getElementById("globeWho");
+  if (!who || !d) return;
+  if (GLOBE) GLOBE.controls().autoRotate = false;
+  const dot = d.reported ? TECH_RED : d.tech ? TECH_PURPLE : TECH_PINK;
+  who.style.display = "block";
+  who.innerHTML =
+    '<div style="display:flex;align-items:flex-start;gap:11px">'
+    + '<i style="width:11px;height:11px;border-radius:50%;background:' + dot
+    + ';display:block;margin-top:5px;flex:none"></i>'
+    + '<div style="flex:1;min-width:0">'
+    +   '<div style="font-weight:700">' + esc(d.verified ? d.real_name : d.name)
+    +     (d.verified ? ' <span class="chip ok" style="vertical-align:1px">verified</span>' : "")
+    +     ' <span class="sub" style="font-weight:600;font-size:12.5px">· '
+    +     (d.tech ? "nail tech" : "customer") + "</span></div>"
+    +   (d.verified && d.name && d.name !== d.real_name
+        ? '<div class="sub" style="font-size:12px">goes by ' + esc(d.name) + "</div>"
+        : "")
+    +   '<div class="sub" style="font-size:12.5px">' + esc(d.email || "") + "</div>"
+    +   (d.reported
+        ? '<div style="color:' + TECH_RED + ';font-size:12.5px;font-weight:700;margin-top:4px">'
+          + "Has an open or actioned report against them</div>"
+        : "")
+    +   '<div class="sub" style="font-size:12px;margin-top:4px">Joined '
+    +     esc(ago(d.joined)) + " · " + d.lat.toFixed(1) + ", " + d.lng.toFixed(1)
+    +     " (to about 11 km)</div>"
+    + "</div>"
+    + '<button class="btn plain sm" data-globe-close="1">Close</button>'
+    + "</div>";
+}
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("[data-globe-close]")) return;
+  const who = document.getElementById("globeWho");
+  if (who) { who.style.display = "none"; who.innerHTML = ""; }
+  // …but not while the map is up: a street view spinning under your nose is
+  // not a view of anything.
+  if (GLOBE) GLOBE.controls().autoRotate = !GLOBE_MAP;
+});
+
+/* ══ loading ══════════════════════════════════════════════════════════ */
+let timer = null;
+
+async function load() {
+  const t = token();
+  if (!t) return lockOut("");
+  try {
+    const [o, tr, series, recent, mail, pix, globe, folk, payouts, visits, listings] = await Promise.all([
+      rpc("api_admin_overview", { p_token: t }),
+      rpc("api_admin_trouble", { p_token: t }),
+      rpc("api_admin_series", { p_token: t, p_days: 30 }),
+      // Ask for more than we show: deleted techs are hidden below, and hiding
+      // them must not leave the list short.
+      rpc("api_admin_recent", { p_token: t, p_limit: 40 }),
+      // contact.sql may not be loaded yet. A missing inbox must not take the
+      // whole dashboard down with it.
+      rpc("api_admin_messages", { p_token: t, p_limit: 30 }).catch(() => null),
+      // photo.sql may not be loaded yet either. A missing gallery must not
+      // take the whole dashboard down with it.
+      rpc("api_admin_photos", { p_token: t, p_limit: 40 }).catch(() => null),
+      // globe.sql may not be loaded yet. A missing globe must not take the
+      // whole dashboard down with it — same rule as the inbox and the gallery.
+      rpc("api_admin_globe", { p_token: t }).catch(() => null),
+      // people.sql may not be loaded yet. A missing list must not take the
+      // whole dashboard down with it.
+      rpc("api_admin_people", { p_token: t, p_limit: 200 }).catch(() => null),
+      // payout-bank.sql may not be loaded yet. A missing queue must not take
+      // the whole dashboard down with it.
+      rpc("api_admin_payouts", { p_token: t, p_status: "requested" }).catch(() => null),
+      // visits.sql may not be loaded yet. Missing visit counts must not take
+      // the whole dashboard down with it.
+      rpc("api_admin_visits", { p_token: t }).catch(() => null),
+      // listing-owners.sql may not be loaded yet: without it the list simply has
+      // no owner names (and the deleted techs are still hidden below).
+      rpc("api_admin_listings", { p_token: t, p_limit: 12 }).catch(() => null),
+    ]);
+
+    drawTrouble(tr);
+    drawGlobe(globe);
+    setVisits(visits);
+    drawPeople(folk);
+    drawUserTiles(o, visits);
+    drawPayouts(payouts);
+    loadPayouts();
+
+    document.getElementById("tiles").innerHTML = [
+      tile("Nail techs listed", num(o.people.listed),
+           num(o.people.techs) + " signed up · " + num(o.people.awaiting_kyc) + " awaiting ID"),
+      tile("Bookings this week", num(o.bookings.week),
+           num(o.bookings.all) + " ever · " + num(o.bookings.at_home) + " at home"),
+      tile("In escrow now", naira(o.money.in_escrow_kobo), "waiting on a scan"),
+      tile("Oma earned, 30 days", naira(o.oma.earned_30d_kobo),
+           naira(o.oma.earned_kobo) + " all time"),
+    ].join("");
+
+    drawChart("chartBookings", series, (r) => Number(r.bookings), num,
+              document.getElementById("csBookings"), "Bookings");
+    drawChart("chartMoney", series, (r) => Number(r.gross_kobo), shortNaira,
+              document.getElementById("csMoney"), "Paid in");
+    drawChart("chartOma", series, (r) => Number(r.oma_kobo), shortNaira,
+              document.getElementById("csOma"), "Oma earned");
+
+    document.getElementById("people").innerHTML =
+      kv("People signed up", num(o.people.users)) +
+      kv("New this week", num(o.people.users_7d)) +
+      kv("Techs, ID verified", num(o.people.verified)) +
+      kv("Techs who travel", num(o.people.travelling)) +
+      kv("Offer home visits", num(o.people.home_service)) +
+      kv("Listed with no services", num(o.people.no_services));
+
+    document.getElementById("money").innerHTML =
+      kv("Ever paid in", naira(o.money.paid_in_kobo)) +
+      kv("Released to techs", naira(o.money.released_kobo)) +
+      kv("Refunded", naira(o.money.refunded_kobo)) +
+      kv("Held (not yet scanned)", naira(o.money.held_kobo)) +
+      kv("Techs' available balance", naira(o.money.available_kobo));
+
+    document.getElementById("oma").innerHTML =
+      kv("Earned, all time", naira(o.oma.earned_kobo)) +
+      kv("Earned, 30 days", naira(o.oma.earned_30d_kobo)) +
+      kv("Services charged", num(o.oma.services_charged)) +
+      kv("Travel not charged on", naira(o.oma.travel_kobo)) +
+      kv("Reviews", num(o.reviews.count) +
+         (o.reviews.mean ? " · " + o.reviews.mean + "★" : ""));
+
+    // A deleted nail tech stays in the database as "A former nail tech" (their
+    // past bookings are financial records), but there is nothing to manage
+    // there, so they never show in this list - now or after any future delete.
+    const former = (x) => /^\s*a former nail tech\s*$/i.test(String(x.name || ""));
+    const haveOwners = Array.isArray(listings);
+    const liveTechs = (haveOwners ? listings : (recent.techs || []))
+      .filter((x) => !former(x))
+      .slice(0, 12);
+    // Kamsy, 9 Oct 2026: "let me see the name behind listing". The checked
+    // real name leads when there is one (with the same "verified" chip as the
+    // people list), otherwise the name they typed, otherwise the email in grey.
+    const ownerCell = (x) => {
+      if (!haveOwners) return '<span class="sub">\u2014</span>';
+      const nm = x.real_name || x.full_name;
+      if (!nm) {
+        return x.email
+          ? '<span class="sub" title="No name on the account \u2014 this is the email">' + esc(x.email) + "</span>"
+          : '<span class="sub">\u2014</span>';
+      }
+      return "<b>" + esc(nm) + "</b>"
+        + (x.real_name && x.owner_verified
+            ? ' <span class="chip ok" title="Matches a NIN or vNIN check that passed">verified</span>' : "")
+        + (x.email ? '<div class="sub" style="font-size:12px;margin-top:2px">' + esc(x.email) + "</div>" : "");
+    };
+    document.getElementById("techs").innerHTML = liveTechs.length
+      ? `<table><thead><tr><th>Business</th><th>Owner</th><th>Area</th><th>State</th>
+           <th>ID</th><th>Listed</th><th>Services</th><th>Joined</th></tr></thead>
+         <tbody>${liveTechs.map((x) => `<tr>
+           <td><b>${esc(x.name)}</b>${x.has_salon === true ? ' <span title="Has a shop">🏪</span>' : ""}${
+                x.home_service ? ' <span title="Does home visits">🚗</span>' : ""}${
+                x.has_salon === false ? ' <span title="No shop: works from wherever she is">📍</span>' : ""}</td>
+           <td>${ownerCell(x)}</td>
+           <td>${esc(x.area || "—")}</td>
+           <td>${esc(x.state || "—")}</td>
+           <td><span class="chip ${x.kyc === "verified" ? "ok" : "no"}">${esc(x.kyc)}</span></td>
+           <td>${x.listed ? "yes" : "no"}</td>
+           <td class="tnum">${num(x.services)}</td>
+           <td>${esc(ago(x.created_at))}</td></tr>`).join("")}</tbody></table>`
+      : `<div class="empty">No nail techs have signed up yet.</div>`;
+    if (!haveOwners && liveTechs.length) {
+      document.getElementById("techs").insertAdjacentHTML("beforeend",
+        '<div class="sub" style="padding:10px 4px 0">To see who owns each listing, run '
+        + "<b>Listing owners</b> in the Supabase SQL editor.</div>");
+    }
+
+    document.getElementById("states").innerHTML = (recent.states || []).length
+      ? (recent.states || []).map((s) => kv(s.state, num(s.techs))).join("")
+      : `<div class="empty">Nothing listed anywhere yet.</div>`;
+
+    document.getElementById("mail").innerHTML = mail === null
+      ? `<div class="empty">The contact form's tables are not loaded yet —
+           run <b>contact.sql</b> in Supabase.</div>`
+      : (mail.length
+        ? mail.map((m) => `<div class="mail">
+            <div class="h"><span class="n">${esc(m.name)}</span>
+              <span class="e">${esc(m.email)}</span>
+              <span class="w">${esc(ago(m.created_at))}</span></div>
+            <p>${esc(m.body)}</p></div>`).join("")
+        : `<div class="empty">No messages yet.</div>`);
+
+    document.getElementById("photos").innerHTML = pix === null
+      ? `<div class="empty">The photo tables are not loaded yet —
+           run <b>photo.sql</b> in Supabase.</div>`
+      : (pix.length
+        ? `<div class="pix">${pix.map((p) => `
+            <div class="pic${p.hidden ? " gone" : ""}">
+              ${p.reports ? `<span class="rep">${num(p.reports)}</span>` : ""}
+              <img src="${esc(photoSrc(p.path))}" alt="" loading="lazy">
+              <div class="m"><b>${esc(p.tech)}</b>
+                <span>${esc(p.service)} · ${esc(ago(p.created_at))}</span>
+                ${p.why ? `<span style="color:var(--bad)">${esc(p.why)}</span>` : ""}
+                ${p.own_work ? "" : `<span>not declared as their own</span>`}</div>
+              <button class="act${p.hidden ? "" : " hide"}"
+                      data-hide="${p.hidden ? "0" : "1"}" data-pic="${esc(p.id)}"
+                >${p.hidden ? "Put it back" : "Hide it"}</button>
+            </div>`).join("")}</div>`
+        : `<div class="empty">No photos yet.</div>`);
+
+  } catch (err) {
+    if (err.status === 401 || /sign in again/i.test(err.message)) return lockOut();
+    // Anything else is worth seeing rather than swallowing — a dashboard that
+    // silently shows yesterday's numbers is worse than one that says it broke.
+    document.getElementById("trouble").innerHTML =
+      `<div class="tr bad">${esc(err.message)}<b>!</b></div>`;
+  }
+}
+
+/* A minute is often enough to notice a booking arrive, and rare enough not to
+   be a background job. Paused while the tab is hidden. */
+function tick() {
+  clearInterval(timer);
+  timer = setInterval(() => {
+    if (document.visibilityState === "visible" && token()) load();
+  }, 60000);
+}
+tick();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && token()) load();
+});
+
+/* ══ customer care, 4 Oct 2026 ═══════════════════════════════════════════
+   "A customer care where they can live chat me and I reply them from the
+   admin dashboard." Visitors write on omanails.com (no sign-in); each chat
+   lands here, and customer-care.sql also queues a push to her phone.
+
+   Every call goes through the same door as the rest of this page: the token
+   from the sign-in, checked by admin_ok() in the database. A session that has
+   ended answers "sign in again" and lockOut() takes over, exactly as it
+   does elsewhere. Visitor text only ever reaches the page through esc() or
+   textContent — a stranger typed it. */
+const careBadge = document.getElementById("careBadge");
+const careBox = document.getElementById("careBox");
+const careListEl = document.getElementById("careList");
+const careThreadEl = document.getElementById("careThread");
+const adminTitle = document.title;
+let careRows = [], careOpen = null, careAfter = 0, careClosed = false;
+const careSeen = new Set();
+let careOff = false, careTicks = 0;
+
+const careOnPage = () => {
+  const p = document.querySelector('.page[data-page="care"]');
+  return !!p && p.classList.contains("on");
+};
+const careLost = (e) => e && (e.status === 401 || /sign in again/i.test(e.message));
+// The database functions are not there until customer-care.sql has been run.
+const careMissing = (e) => e && (e.status === 404 || /could not find the function/i.test(e.message));
+function careTime(iso) {
+  const d = new Date(iso), now = new Date();
+  const hm = d.toLocaleTimeString("en-NG", { hour: "numeric", minute: "2-digit" });
+  return d.toDateString() === now.toDateString()
+    ? hm : d.toLocaleDateString("en-NG", { day: "numeric", month: "short" }) + ", " + hm;
+}
+
+function careBadgeUpdate() {
+  const n = careRows.filter((r) => r.unread > 0).length;
+  careBadge.hidden = !n;
+  careBadge.textContent = n;
+  document.title = n ? "(" + n + ") " + adminTitle : adminTitle;
+}
+
+function careDrawList() {
+  if (careOff) {
+    careListEl.innerHTML = '<div class="empty" style="padding:16px">Customer care is not '
+      + 'switched on yet. Run the <b>Customer care chat</b> query (customer-care.sql) '
+      + 'in the Supabase SQL editor, then open this page again.</div>';
+    return;
+  }
+  if (!careRows.length) {
+    careListEl.innerHTML = '<div class="empty" style="padding:16px">No chats yet. When '
+      + 'someone writes on omanails.com it shows up here, and on your phone.</div>';
+    return;
+  }
+  careListEl.innerHTML = careRows.map((r) => `
+    <button type="button" class="cc${r.unread > 0 ? " unread" : ""}${r.id === careOpen ? " on" : ""}" data-chat="${esc(r.id)}">
+      <div class="cch"><span class="ccn">${esc(r.name)}</span><span class="ccw">${esc(ago(r.last_at))}</span></div>
+      <div class="ccp">${r.last_from === "admin" ? "You: " : ""}${esc(r.preview || "")}</div>
+      <div class="ccm">${r.unread > 0 ? `<span class="chip warn">${esc(r.unread)} new</span>` : ""}${r.closed ? '<span class="chip">done</span>' : ""}</div>
+    </button>`).join("");
+}
+
+async function careLoadList() {
+  const t = token();
+  if (!t || careOff) return;
+  try {
+    careRows = (await rpc("api_admin_support_list", { p_token: t, p_limit: 80 })) || [];
+    careBadgeUpdate();
+    careDrawList();
+  } catch (e) {
+    if (careLost(e)) return lockOut();
+    if (careMissing(e)) { careOff = true; careDrawList(); return; }
+    if (careOnPage()) {
+      careListEl.innerHTML = `<div class="empty" style="padding:16px">${esc(e.message)}</div>`;
+    }
+  }
+}
+
+function careAddMsg(m) {
+  if (careSeen.has(m.id)) return;
+  careSeen.add(m.id);
+  const log = document.getElementById("careLogA");
+  if (!log) return;
+  const stick = log.scrollHeight - log.scrollTop - log.clientHeight < 90;
+  const row = document.createElement("div");
+  row.className = "cmsg " + (m.admin ? "mine" : "theirs");
+  const b = document.createElement("div"); b.className = "cb"; b.textContent = m.body;
+  const t = document.createElement("div"); t.className = "ct"; t.textContent = careTime(m.at);
+  row.append(b, t);
+  log.append(row);
+  if (stick || m.admin) log.scrollTop = log.scrollHeight;
+}
+
+function careDrawHeader(c) {
+  careClosed = !!c.closed;
+  document.getElementById("careWho").textContent = c.name;
+  const bits = [];
+  if (c.contact) bits.push(c.contact);
+  if (c.page) bits.push("from " + (c.page === "/" || c.page === "/index.html" ? "the home page" : c.page));
+  bits.push("started " + ago(c.created_at));
+  document.getElementById("careMeta").textContent = bits.join(" · ");
+  document.getElementById("careClose").textContent = careClosed ? "Reopen" : "Mark done";
+}
+
+function careOpenChat(id) {
+  careOpen = id; careAfter = 0; careSeen.clear();
+  careThreadEl.innerHTML = `
+    <div class="cth">
+      <button class="btn sm plain back" type="button" id="careBack">← All chats</button>
+      <div class="ctw"><div class="ctn" id="careWho"></div><div class="cts" id="careMeta"></div></div>
+      <button class="btn sm plain" type="button" id="careClose" style="margin-left:auto">Mark done</button>
+    </div>
+    <div class="ctlog" id="careLogA"></div>
+    <form class="ctreply" id="careReply" novalidate>
+      <textarea id="careText" rows="2" maxlength="2000" placeholder="Reply…" aria-label="Your reply"></textarea>
+      <button class="btn sm" type="submit" id="careSendA">Send</button>
+    </form>
+    <div class="errline" id="careErr"></div>`;
+  careBox.classList.add("open");
+  careDrawList();
+
+  document.getElementById("careBack").addEventListener("click", () => {
+    careBox.classList.remove("open");
+  });
+  document.getElementById("careClose").addEventListener("click", async () => {
+    const t = token(); if (!t) return lockOut();
+    try {
+      await rpc("api_admin_support_close", { p_token: t, p_chat: careOpen, p_closed: !careClosed });
+      await careLoadList();
+      await careLoadThread();
+    } catch (e) {
+      if (careLost(e)) return lockOut();
+      document.getElementById("careErr").textContent = e.message;
+    }
+  });
+  const text = document.getElementById("careText");
+  const form = document.getElementById("careReply");
+  text.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing
+        && window.matchMedia("(pointer:fine)").matches) {
+      e.preventDefault();
+      form.requestSubmit ? form.requestSubmit() : document.getElementById("careSendA").click();
+    }
+  });
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = text.value.trim();
+    const t = token();
+    if (!body) return;
+    if (!t) return lockOut();
+    const btn = document.getElementById("careSendA");
+    btn.disabled = true;
+    document.getElementById("careErr").textContent = "";
+    try {
+      await rpc("api_admin_support_reply", { p_token: t, p_chat: careOpen, p_body: body });
+      text.value = "";
+      await careLoadThread();
+      careLoadList();
+    } catch (err) {
+      if (careLost(err)) return lockOut();
+      document.getElementById("careErr").textContent = err.message;
+    } finally {
+      btn.disabled = false;
+      text.focus();
+    }
+  });
+  careLoadThread();
+}
+
+async function careLoadThread() {
+  const t = token(), id = careOpen;
+  if (!t || !id) return;
+  try {
+    const d = await rpc("api_admin_support_thread", { p_token: t, p_chat: id, p_after: careAfter });
+    if (id !== careOpen) return;                       // she switched while this loaded
+    if (!d || d.ok === false) {
+      careOpen = null;
+      careThreadEl.innerHTML = '<div class="empty" style="padding:24px">That chat no longer exists.</div>';
+      careBox.classList.remove("open");
+      careLoadList();
+      return;
+    }
+    careDrawHeader(d.chat);
+    for (const m of d.messages || []) {
+      careAddMsg(m);
+      if (m.id > careAfter) careAfter = m.id;
+    }
+    // Opening it is what reads it — but only while she can actually see it.
+    if (d.chat.unread > 0 && careOnPage() && document.visibilityState === "visible") {
+      await rpc("api_admin_support_read", { p_token: t, p_chat: id });
+      const row = careRows.find((r) => r.id === id);
+      if (row) { row.unread = 0; careBadgeUpdate(); careDrawList(); }
+    }
+  } catch (e) {
+    if (careLost(e)) return lockOut();
+    const el = document.getElementById("careErr");
+    if (el) el.textContent = e.message;
+  }
+}
+
+careListEl.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-chat]");
+  if (b) careOpenChat(b.dataset.chat);
+});
+document.querySelector('.navbtn[data-page="care"]').addEventListener("click", () => {
+  careOff = false;                                     // retry: the SQL may just have been run
+  careLoadList();
+});
+
+// A new chat is worth noticing within seconds on this page, within half a
+// minute from any other tab; an open conversation refreshes every four. The
+// push to her phone is what covers everything when this page is closed.
+setInterval(() => {
+  if (document.visibilityState !== "visible" || !token() || careOff) return;
+  careTicks++;
+  if (careOnPage() || careTicks % 3 === 0) careLoadList();
+}, 10000);
+setInterval(() => {
+  if (document.visibilityState === "visible" && token() && careOpen && careOnPage()) careLoadThread();
+}, 4000);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && token() && !careOff) {
+    careLoadList();
+    if (careOpen && careOnPage()) careLoadThread();
+  }
+});
+
+
+/* ══ Team: admin accounts and their seed phrases, 15 Oct 2026 ═════════════
+   Kamsy: "in the master sees all the admin account and creates their seed
+   phrase". Eight words from the standard 2048-word list is 88 bits, far past
+   anything that can be guessed, and easy to read out or write down. The words
+   are drawn HERE with crypto.getRandomValues. The database keeps only a
+   SHA-256 of them (see admin-accounts.sql), so not even she can read a phrase
+   back later: lost means "New seed phrase". */
+const TEAM_DEPTS = [["care", "Customer care"], ["finance", "Finance"], ["damage", "Damage control"]];
+const PHRASE_WORDS = "abandon ability able about above absent absorb abstract absurd abuse access accident account accuse achieve acid acoustic acquire across act action actor actress actual adapt add addict address adjust admit adult advance advice aerobic affair afford afraid again age agent agree ahead aim air airport aisle alarm album alcohol alert alien all alley allow almost alone alpha already also alter always amateur amazing among amount amused analyst anchor ancient anger angle angry animal ankle announce annual another answer antenna antique anxiety any apart apology appear apple approve april arch arctic area arena argue arm armed armor army around arrange arrest arrive arrow art artefact artist artwork ask aspect assault asset assist assume asthma athlete atom attack attend attitude attract auction audit august aunt author auto autumn average avocado avoid awake aware away awesome awful awkward axis baby bachelor bacon badge bag balance balcony ball bamboo banana banner bar barely bargain barrel base basic basket battle beach bean beauty because become beef before begin behave behind believe below belt bench benefit best betray better between beyond bicycle bid bike bind biology bird birth bitter black blade blame blanket blast bleak bless blind blood blossom blouse blue blur blush board boat body boil bomb bone bonus book boost border boring borrow boss bottom bounce box boy bracket brain brand brass brave bread breeze brick bridge brief bright bring brisk broccoli broken bronze broom brother brown brush bubble buddy budget buffalo build bulb bulk bullet bundle bunker burden burger burst bus business busy butter buyer buzz cabbage cabin cable cactus cage cake call calm camera camp can canal cancel candy cannon canoe canvas canyon capable capital captain car carbon card cargo carpet carry cart case cash casino castle casual cat catalog catch category cattle caught cause caution cave ceiling celery cement census century cereal certain chair chalk champion change chaos chapter charge chase chat cheap check cheese chef cherry chest chicken chief child chimney choice choose chronic chuckle chunk churn cigar cinnamon circle citizen city civil claim clap clarify claw clay clean clerk clever click client cliff climb clinic clip clock clog close cloth cloud clown club clump cluster clutch coach coast coconut code coffee coil coin collect color column combine come comfort comic common company concert conduct confirm congress connect consider control convince cook cool copper copy coral core corn correct cost cotton couch country couple course cousin cover coyote crack cradle craft cram crane crash crater crawl crazy cream credit creek crew cricket crime crisp critic crop cross crouch crowd crucial cruel cruise crumble crunch crush cry crystal cube culture cup cupboard curious current curtain curve cushion custom cute cycle dad damage damp dance danger daring dash daughter dawn day deal debate debris decade december decide decline decorate decrease deer defense define defy degree delay deliver demand demise denial dentist deny depart depend deposit depth deputy derive describe desert design desk despair destroy detail detect develop device devote diagram dial diamond diary dice diesel diet differ digital dignity dilemma dinner dinosaur direct dirt disagree discover disease dish dismiss disorder display distance divert divide divorce dizzy doctor document dog doll dolphin domain donate donkey donor door dose double dove draft dragon drama drastic draw dream dress drift drill drink drip drive drop drum dry duck dumb dune during dust dutch duty dwarf dynamic eager eagle early earn earth easily east easy echo ecology economy edge edit educate effort egg eight either elbow elder electric elegant element elephant elevator elite else embark embody embrace emerge emotion employ empower empty enable enact end endless endorse enemy energy enforce engage engine enhance enjoy enlist enough enrich enroll ensure enter entire entry envelope episode equal equip era erase erode erosion error erupt escape essay essence estate eternal ethics evidence evil evoke evolve exact example excess exchange excite exclude excuse execute exercise exhaust exhibit exile exist exit exotic expand expect expire explain expose express extend extra eye eyebrow fabric face faculty fade faint faith fall false fame family famous fan fancy fantasy farm fashion fat fatal father fatigue fault favorite feature february federal fee feed feel female fence festival fetch fever few fiber fiction field figure file film filter final find fine finger finish fire firm first fiscal fish fit fitness fix flag flame flash flat flavor flee flight flip float flock floor flower fluid flush fly foam focus fog foil fold follow food foot force forest forget fork fortune forum forward fossil foster found fox fragile frame frequent fresh friend fringe frog front frost frown frozen fruit fuel fun funny furnace fury future gadget gain galaxy gallery game gap garage garbage garden garlic garment gas gasp gate gather gauge gaze general genius genre gentle genuine gesture ghost giant gift giggle ginger giraffe girl give glad glance glare glass glide glimpse globe gloom glory glove glow glue goat goddess gold good goose gorilla gospel gossip govern gown grab grace grain grant grape grass gravity great green grid grief grit grocery group grow grunt guard guess guide guilt guitar gun gym habit hair half hammer hamster hand happy harbor hard harsh harvest hat have hawk hazard head health heart heavy hedgehog height hello helmet help hen hero hidden high hill hint hip hire history hobby hockey hold hole holiday hollow home honey hood hope horn horror horse hospital host hotel hour hover hub huge human humble humor hundred hungry hunt hurdle hurry hurt husband hybrid ice icon idea identify idle ignore ill illegal illness image imitate immense immune impact impose improve impulse inch include income increase index indicate indoor industry infant inflict inform inhale inherit initial inject injury inmate inner innocent input inquiry insane insect inside inspire install intact interest into invest invite involve iron island isolate issue item ivory jacket jaguar jar jazz jealous jeans jelly jewel job join joke journey joy judge juice jump jungle junior junk just kangaroo keen keep ketchup key kick kid kidney kind kingdom kiss kit kitchen kite kitten kiwi knee knife knock know lab label labor ladder lady lake lamp language laptop large later latin laugh laundry lava law lawn lawsuit layer lazy leader leaf learn leave lecture left leg legal legend leisure lemon lend length lens leopard lesson letter level liar liberty library license life lift light like limb limit link lion liquid list little live lizard load loan lobster local lock logic lonely long loop lottery loud lounge love loyal lucky luggage lumber lunar lunch luxury lyrics machine mad magic magnet maid mail main major make mammal man manage mandate mango mansion manual maple marble march margin marine market marriage mask mass master match material math matrix matter maximum maze meadow mean measure meat mechanic medal media melody melt member memory mention menu mercy merge merit merry mesh message metal method middle midnight milk million mimic mind minimum minor minute miracle mirror misery miss mistake mix mixed mixture mobile model modify mom moment monitor monkey monster month moon moral more morning mosquito mother motion motor mountain mouse move movie much muffin mule multiply muscle museum mushroom music must mutual myself mystery myth naive name napkin narrow nasty nation nature near neck need negative neglect neither nephew nerve nest net network neutral never news next nice night noble noise nominee noodle normal north nose notable note nothing notice novel now nuclear number nurse nut oak obey object oblige obscure observe obtain obvious occur ocean october odor off offer office often oil okay old olive olympic omit once one onion online only open opera opinion oppose option orange orbit orchard order ordinary organ orient original orphan ostrich other outdoor outer output outside oval oven over own owner oxygen oyster ozone pact paddle page pair palace palm panda panel panic panther paper parade parent park parrot party pass patch path patient patrol pattern pause pave payment peace peanut pear peasant pelican pen penalty pencil people pepper perfect permit person pet phone photo phrase physical piano picnic picture piece pig pigeon pill pilot pink pioneer pipe pistol pitch pizza place planet plastic plate play please pledge pluck plug plunge poem poet point polar pole police pond pony pool popular portion position possible post potato pottery poverty powder power practice praise predict prefer prepare present pretty prevent price pride primary print priority prison private prize problem process produce profit program project promote proof property prosper protect proud provide public pudding pull pulp pulse pumpkin punch pupil puppy purchase purity purpose purse push put puzzle pyramid quality quantum quarter question quick quit quiz quote rabbit raccoon race rack radar radio rail rain raise rally ramp ranch random range rapid rare rate rather raven raw razor ready real reason rebel rebuild recall receive recipe record recycle reduce reflect reform refuse region regret regular reject relax release relief rely remain remember remind remove render renew rent reopen repair repeat replace report require rescue resemble resist resource response result retire retreat return reunion reveal review reward rhythm rib ribbon rice rich ride ridge rifle right rigid ring riot ripple risk ritual rival river road roast robot robust rocket romance roof rookie room rose rotate rough round route royal rubber rude rug rule run runway rural sad saddle sadness safe sail salad salmon salon salt salute same sample sand satisfy satoshi sauce sausage save say scale scan scare scatter scene scheme school science scissors scorpion scout scrap screen script scrub sea search season seat second secret section security seed seek segment select sell seminar senior sense sentence series service session settle setup seven shadow shaft shallow share shed shell sheriff shield shift shine ship shiver shock shoe shoot shop short shoulder shove shrimp shrug shuffle shy sibling sick side siege sight sign silent silk silly silver similar simple since sing siren sister situate six size skate sketch ski skill skin skirt skull slab slam sleep slender slice slide slight slim slogan slot slow slush small smart smile smoke smooth snack snake snap sniff snow soap soccer social sock soda soft solar soldier solid solution solve someone song soon sorry sort soul sound soup source south space spare spatial spawn speak special speed spell spend sphere spice spider spike spin spirit split spoil sponsor spoon sport spot spray spread spring spy square squeeze squirrel stable stadium staff stage stairs stamp stand start state stay steak steel stem step stereo stick still sting stock stomach stone stool story stove strategy street strike strong struggle student stuff stumble style subject submit subway success such sudden suffer sugar suggest suit summer sun sunny sunset super supply supreme sure surface surge surprise surround survey suspect sustain swallow swamp swap swarm swear sweet swift swim swing switch sword symbol symptom syrup system table tackle tag tail talent talk tank tape target task taste tattoo taxi teach team tell ten tenant tennis tent term test text thank that theme then theory there they thing this thought three thrive throw thumb thunder ticket tide tiger tilt timber time tiny tip tired tissue title toast tobacco today toddler toe together toilet token tomato tomorrow tone tongue tonight tool tooth top topic topple torch tornado tortoise toss total tourist toward tower town toy track trade traffic tragic train transfer trap trash travel tray treat tree trend trial tribe trick trigger trim trip trophy trouble truck true truly trumpet trust truth try tube tuition tumble tuna tunnel turkey turn turtle twelve twenty twice twin twist two type typical ugly umbrella unable unaware uncle uncover under undo unfair unfold unhappy uniform unique unit universe unknown unlock until unusual unveil update upgrade uphold upon upper upset urban urge usage use used useful useless usual utility vacant vacuum vague valid valley valve van vanish vapor various vast vault vehicle velvet vendor venture venue verb verify version very vessel veteran viable vibrant vicious victory video view village vintage violin virtual virus visa visit visual vital vivid vocal voice void volcano volume vote voyage wage wagon wait walk wall walnut want warfare warm warrior wash wasp waste water wave way wealth weapon wear weasel weather web wedding weekend weird welcome west wet whale what wheat wheel when where whip whisper wide width wife wild will win window wine wing wink winner winter wire wisdom wise wish witness wolf woman wonder wood wool word work world worry worth wrap wreck wrestle wrist write wrong yard year yellow you young youth zebra zero zone zoo".split(" ");
+let TEAM_ROWS = [];
+
+function newPhrase() {
+  const buf = new Uint16Array(8);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (n) => PHRASE_WORDS[n & 2047]).join(" ");   // 2048 divides 65536: no bias
+}
+
+const teamMsg = document.getElementById("teamMsg");
+function teamSay(kind, words) {
+  teamMsg.className = words ? "msg " + kind : "";
+  teamMsg.textContent = words || "";
+}
+document.getElementById("teamLink").textContent = location.origin + "/admin.html";
+
+async function teamCall(fn, args) {
+  const t = token();
+  if (!t) { lockOut(); return null; }
+  try {
+    return await rpc(fn, Object.assign({ p_token: t }, args || {}));
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) { lockOut(); return null; }
+    teamSay("bad", sqlMissing(e)
+      ? "Run “Admin accounts and departments” in the Supabase SQL editor first."
+      : e.message);
+    return null;
+  }
+}
+
+function teamDraw() {
+  const el = document.getElementById("teamList");
+  if (!TEAM_ROWS.length) {
+    el.innerHTML = `<div class="empty">No admin accounts yet. Add the first one below.</div>`;
+    return;
+  }
+  el.innerHTML = `<table><thead><tr><th>Name</th><th>Departments</th><th>Status</th>
+    <th>Last signed in</th><th></th></tr></thead><tbody>${TEAM_ROWS.map((r) => `
+    <tr data-sid="${esc(r.id)}">
+      <td><b>${esc(r.name)}</b><div class="faint" style="font-size:12px;margin-top:2px">phrase made ${esc(ago(r.phrase_set_at))}</div></td>
+      <td><div class="dtogs">${TEAM_DEPTS.map(([k, label]) =>
+        `<button type="button" class="dtog${r.depts.includes(k) ? " on" : ""}" data-dtog="${k}"
+           aria-pressed="${r.depts.includes(k)}">${label}</button>`).join("")}</div></td>
+      <td><span class="chip ${r.active ? "ok" : "no"}">${r.active ? "active" : "switched off"}</span></td>
+      <td>${r.last_open_at ? esc(ago(r.last_open_at)) : '<span class="faint">never</span>'}</td>
+      <td class="tact">
+        <button class="btn sm plain" type="button" data-tact="reset">New seed phrase</button>
+        <button class="btn sm plain" type="button" data-tact="toggle">${r.active ? "Switch off" : "Switch on"}</button>
+        <button class="btn sm plain danger" type="button" data-tact="remove">Remove</button>
+      </td></tr>`).join("")}</tbody></table>`;
+}
+
+async function teamLoad() {
+  const r = await teamCall("api_master_staff_list");
+  if (!r) {
+    document.getElementById("teamList").innerHTML = `<div class="empty">Could not load.</div>`;
+    return;
+  }
+  teamSay("", "");
+  TEAM_ROWS = r;
+  teamDraw();
+}
+document.querySelector('.navbtn[data-page="team"]').addEventListener("click", teamLoad);
+
+/* The popup */
+let phraseNow = "";
+function phraseShow(name, phrase) {
+  phraseNow = phrase;
+  document.getElementById("pmWho").textContent = name;
+  const ol = document.getElementById("pmWords");
+  ol.innerHTML = "";
+  phrase.split(" ").forEach((w) => { const li = document.createElement("li"); li.textContent = w; ol.appendChild(li); });
+  document.getElementById("pmNote").textContent = "";
+  document.getElementById("phraseModal").hidden = false;
+  document.getElementById("pmCopy").focus();
+}
+function phraseClear() {
+  phraseNow = "";
+  document.getElementById("pmWords").innerHTML = "";
+  document.getElementById("phraseModal").hidden = true;
+}
+document.getElementById("pmDone").addEventListener("click", phraseClear);
+document.getElementById("pmPrint").addEventListener("click", () => window.print());
+document.getElementById("pmCopy").addEventListener("click", async () => {
+  const note = document.getElementById("pmNote");
+  try {
+    await navigator.clipboard.writeText(phraseNow);
+    note.textContent = "Copied.";
+  } catch (e) {
+    const ta = document.createElement("textarea");
+    ta.value = phraseNow; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); note.textContent = "Copied."; }
+    catch (e2) { note.textContent = "Could not copy. Write the words down or print them."; }
+    ta.remove();
+  }
+});
+
+/* Create */
+document.getElementById("teamForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = document.getElementById("teamName").value.trim();
+  const depts = [...document.querySelectorAll("#teamDepts input:checked")].map((i) => i.value);
+  if (!name) return teamSay("bad", "Type the person's name.");
+  if (!depts.length) return teamSay("bad", "Tick at least one department.");
+  const go = document.getElementById("teamGo");
+  go.disabled = true;
+  teamSay("", "");
+  try {
+    for (let i = 0; i < 3; i++) {                       // a clash is a one-in-trillions fluke; retry anyway
+      const phrase = newPhrase();
+      const r = await teamCall("api_master_staff_create", { p_name: name, p_depts: depts, p_phrase: phrase });
+      if (!r) return;
+      if (r.ok) {
+        document.getElementById("teamForm").reset();
+        phraseShow(name, phrase);
+        teamLoad();
+        return;
+      }
+      if (!/already in use/i.test(r.says || "")) return teamSay("bad", r.says || "That did not save.");
+    }
+    teamSay("bad", "Could not make a phrase that was not already in use. Try again.");
+  } finally {
+    go.disabled = false;
+  }
+});
+
+/* Row buttons */
+document.getElementById("teamList").addEventListener("click", async (e) => {
+  const tr = e.target.closest("tr[data-sid]");
+  if (!tr) return;
+  const row = TEAM_ROWS.find((r) => r.id === tr.dataset.sid);
+  if (!row) return;
+  const tog = e.target.closest("[data-dtog]");
+  const act = e.target.closest("[data-tact]");
+  teamSay("", "");
+  if (tog) {
+    const k = tog.dataset.dtog;
+    const next = row.depts.includes(k) ? row.depts.filter((d) => d !== k) : row.depts.concat(k);
+    if (!next.length) return teamSay("warn", "Keep at least one department, or switch the account off.");
+    tog.disabled = true;
+    const r = await teamCall("api_master_staff_set", { p_id: row.id, p_depts: next });
+    if (r && !r.ok) teamSay("bad", r.says || "That did not save.");
+    return teamLoad();
+  }
+  if (!act) return;
+  const a = act.dataset.tact;
+  if (a === "reset") {
+    if (!confirm("Make a new seed phrase for " + row.name + "?\n\nTheir old words stop working and they are signed out everywhere.")) return;
+    const phrase = newPhrase();
+    const r = await teamCall("api_master_staff_reset", { p_id: row.id, p_phrase: phrase });
+    if (!r) return;
+    if (!r.ok) return teamSay("bad", r.says || "That did not save.");
+    phraseShow(row.name, phrase);
+    return teamLoad();
+  }
+  if (a === "toggle") {
+    const r = await teamCall("api_master_staff_set", { p_id: row.id, p_active: !row.active });
+    if (r && !r.ok) teamSay("bad", r.says || "That did not save.");
+    return teamLoad();
+  }
+  if (a === "remove") {
+    if (!confirm("Remove " + row.name + "?\n\nThey are signed out and their seed phrase stops working for good.")) return;
+    const r = await teamCall("api_master_staff_delete", { p_id: row.id });
+    if (r && !r.ok) teamSay("bad", "That did not remove.");
+    return teamLoad();
+  }
+});
+
+// Already signed in on this tab? Straight through.
+if (token()) show(null);
+</script>
+</body>
+</html>
