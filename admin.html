@@ -231,13 +231,6 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
 .pic .act.hide{background:var(--badbg);color:var(--bad)}
 .pic .rep{position:absolute;top:6px;left:6px;padding:2px 8px;border-radius:99px;
   background:var(--bad);color:#fff;font-size:11px;font-weight:800}
-.mail{border-top:1px solid var(--line);padding:14px 0}
-.mail:first-of-type{border-top:0}
-.mail .h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
-.mail .n{font-weight:800}
-.mail .e{color:var(--faint);font-size:12.5px}
-.mail .w{color:var(--faint);font-size:12.5px;margin-left:auto}
-.mail p{margin:6px 0 0;color:var(--sub);white-space:pre-wrap}
 .empty{color:var(--faint);font-size:14px;padding:10px 0}
 
 /* ── sidebar, 22 Sep 2026 ──────────────────────────────────────────────
@@ -664,11 +657,6 @@ body.dept-finance .page[data-page="finances"] textarea{display:none!important}
           <section>
             <div class="lbl">Photos</div>
             <div class="card" id="photos"></div>
-          </section>
-
-          <section>
-            <div class="lbl">Messages</div>
-            <div class="card" id="mail"></div>
           </section>
 
         </div>
@@ -3092,9 +3080,8 @@ async function load() {
   if (!DEPT) return;
   try {
     if (DEPT === "damage") {
-      const [series, mail, pix] = await Promise.all([
+      const [series, pix] = await Promise.all([
         rpc("api_admin_series", { p_token: t, p_days: 30 }),
-        rpc("api_admin_messages", { p_token: t, p_limit: 30 }).catch(() => null),
         rpc("api_admin_photos", { p_token: t, p_limit: 40 }).catch(() => null),
       ]);
     drawChart("chartBookings", series, (r) => Number(r.bookings), num,
@@ -3103,17 +3090,6 @@ async function load() {
               document.getElementById("csMoney"), "Paid in");
     drawChart("chartOma", series, (r) => Number(r.oma_kobo), shortNaira,
               document.getElementById("csOma"), "Oma earned");
-
-    document.getElementById("mail").innerHTML = mail === null
-      ? `<div class="empty">The contact form's tables are not loaded yet —
-           run <b>contact.sql</b> in Supabase.</div>`
-      : (mail.length
-        ? mail.map((m) => `<div class="mail">
-            <div class="h"><span class="n">${esc(m.name)}</span>
-              <span class="e">${esc(m.email)}</span>
-              <span class="w">${esc(ago(m.created_at))}</span></div>
-            <p>${esc(m.body)}</p></div>`).join("")
-        : `<div class="empty">No messages yet.</div>`);
 
     document.getElementById("photos").innerHTML = pix === null
       ? `<div class="empty">The photo tables are not loaded yet —
