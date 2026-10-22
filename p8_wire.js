@@ -1690,7 +1690,7 @@ addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink
      started by a stale flag on a phone. See p20_live.js. */
   if (typeof liveResume === "function") liveResume();
 
-  noteWhereTheyJoined();
+  // (the position note, noteWhereTheyAre, runs from a timer further down)
   // The ten names already sitting in localStorage on ten phones, carried up
   // the first time each of those people opens Oma again. See people.sql.
   pushProfile();
@@ -1718,10 +1718,14 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") logVisit();
 });
 
-/* ══ where somebody joined from ══════════════════════
-   One dot on the admin globe, and nothing else in Oma reads it. The server
-   rounds it to 0.1 degrees — about eleven kilometres — and refuses to
-   overwrite it afterwards; globe.sql is where that is enforced and argued.
+/* ══ where somebody is, each time they open Oma ══════════
+   One dot on the admin globe, and nothing else in Oma reads it. Until 22 Oct
+   2026 it was where somebody JOINED from, written once and never moved, so a
+   person who signed up on a laptop in one city stayed there for ever. Kamsy:
+   "every time a user opens the app their location at that point should be at
+   the globe". So it is sent each time somebody opens Oma or comes back to it,
+   and the server keeps the latest. It still rounds to 0.1 degrees (about
+   eleven kilometres) by itself, so nothing finer ever reaches the database.
 
    THE PART THAT MATTERS IS WHAT THIS DOES NOT DO: it never causes a
    permission prompt. It asks the Permissions API first and gives up unless
@@ -1732,28 +1736,37 @@ document.addEventListener("visibilitychange", () => {
    you sign in is the kind that gets answered "block" forever, which would
    cost Oma the location it actually needs for distances.
 
-   Everything here is best effort. No await, no toast, no error — if any part
-   of it fails the app is unchanged, because nothing in the app depends on it.
-   The local flag only saves a round trip; the server is the real guard. */
-function noteWhereTheyJoined() {
+   Sent at most once every ten minutes, the same as the visit count above, so
+   flicking between apps does not wake the GPS each time. Everything here is
+   best effort. No await, no toast, no error — if any part of it fails the app
+   is unchanged, because nothing in the app depends on it. */
+let lastPlacePing = 0;
+function noteWhereTheyAre() {
   try {
     if (!API.signedIn() || !API.live()) return;
-    if (localStorage.getItem("oma-joined-from")) return;
+    if (Date.now() - lastPlacePing < 10 * 60 * 1000) return;
     if (!navigator.geolocation || !navigator.permissions) return;
+    lastPlacePing = Date.now();
+    const retry = () => { lastPlacePing = 0; };   // not sent: try again next time
 
     navigator.permissions.query({ name: "geolocation" }).then((st) => {
-      if (st.state !== "granted") return;          // never prompt. see above.
+      if (st.state !== "granted") return retry();   // never prompt. see above.
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          API.setSignupPlace(pos.coords.latitude, pos.coords.longitude)
-            .then(() => { try { localStorage.setItem("oma-joined-from", "1"); } catch (e) {} })
-            .catch(() => { /* try again next launch; nothing is waiting on it */ });
+          Promise.resolve(API.setSignupPlace(pos.coords.latitude, pos.coords.longitude))
+            .catch(retry);                          // nothing is waiting on it
         },
-        () => { /* she moved indoors, or the fix timed out. Not a problem. */ },
-        // A cached fix from the last half hour is fine — this is a dot on a
-        // globe, not a distance, so there is no reason to wake the GPS for it.
-        { timeout: 8000, maximumAge: 1800000, enableHighAccuracy: false }
+        retry,                                      // indoors, or the fix timed out
+        // A fix from the last two minutes is fine — this is a dot on a globe,
+        // not a distance, so there is no reason to wake the GPS for it.
+        { timeout: 8000, maximumAge: 120000, enableHighAccuracy: false }
       );
-    }).catch(() => { /* Permissions API missing. Then no dot, and no prompt. */ });
+    }).catch(retry);                                // Permissions API missing. No dot, no prompt.
   } catch (e) { /* storage blocked, private window, anything at all */ }
 }
+// A moment after load, so a sign-in that has just come back from Google has a
+// session; and again whenever somebody comes back to the app.
+setTimeout(noteWhereTheyAre, 2500);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") noteWhereTheyAre();
+});
