@@ -118,7 +118,7 @@ self.addEventListener("push", (e) => {
     badge: "/icons/icon-180.png",
     // Two messages in one thread replace each other rather than stacking into
     // a wall of the same conversation.
-    tag: n.data && n.data.admin ? "oma-admin-" + (n.data.note_id || Date.now())
+    tag: n.data && n.data.admin ? (n.data.staff ? "oma-team-" : "oma-admin-") + (n.data.note_id || Date.now())
        : n.data && n.data.booking_id ? "oma-" + n.data.booking_id : "oma",
     renotify: true,
     data: n.data || {},
@@ -131,18 +131,21 @@ self.addEventListener("notificationclick", (e) => {
 
   /* Alerts for the Oma owner (new withdrawal, refund to pay, a care message...)
      carry admin:true. They open the MASTER page (the owner's; admin.html is the
-     staff page since 15 Oct 2026), on the right tab, never the customer app. */
+     staff page since 15 Oct 2026), on the right tab, never the customer app.
+     Alerts for a team member also carry staff:true and open admin.html, the team
+     page, instead. */
   if (d.admin) {
     const page = typeof d.page === "string" ? d.page.replace(/[^a-z]/g, "") : "";
+    const dest = d.staff ? "/admin.html" : "/master.html";
     e.waitUntil((async () => {
       const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const c of all) {
-        if (c.url.indexOf("/master.html") !== -1 && "focus" in c) {
+        if (c.url.indexOf(dest) !== -1 && "focus" in c) {
           c.postMessage({ oma: "admin", page });
           return c.focus();
         }
       }
-      if (self.clients.openWindow) return self.clients.openWindow("/master.html" + (page ? "#" + page : ""));
+      if (self.clients.openWindow) return self.clients.openWindow(dest + (page ? "#" + page : ""));
     })());
     return;
   }

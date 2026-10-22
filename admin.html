@@ -405,7 +405,6 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
 .dcard span{display:block;color:var(--sub);font-size:13px;margin-top:2px}
 .deptname{margin:-8px 0 14px 38px;color:var(--faint);font-size:12.5px;font-weight:700}
 @media (max-width:860px){.deptname{display:none}}
-#alerts,#alertsOff{display:none!important}
 .viewonly{display:none}
 body.dept-finance .viewonly{display:block}
 /* View only: nothing in Finance can be pressed or typed into. The database refuses the
@@ -1987,9 +1986,15 @@ async function show(expires) {
   const have = (STAFF.depts || []).filter((d) => DEPTS[d]);
   let want = null;
   try { want = sessionStorage.getItem(DEPT_KEY); } catch (e) { /* fine */ }
-  if (have.length === 1) enter(have[0]);
+  // Opened from an alert (admin.html#care, #finances ...): go straight to the
+  // department that page belongs to, if this person has it.
+  const landed = have.find((k) => DEPTS[k].pages.includes(location.hash.slice(1)));
+  if (landed) enter(landed);
+  else if (have.length === 1) enter(have[0]);
   else if (want && have.includes(want)) enter(want);
   else showPick();
+  alertsPaint();
+  alertsRefresh();
 }
 
 /* ══ alerts on this phone ════════════════════════════════════════════
@@ -1999,9 +2004,10 @@ async function show(expires) {
 
    They arrive as Web Push on the home-screen copy of this page. The admin
    sign-in is a passphrase, not an account, so the phone is filed under the
-   owner through api_admin_register_device (admin-alerts.sql), and the server
-   sends through the same notification queue the apps use. This is the public
-   half of the push key pair, the same one app.html carries. */
+   team member through api_staff_register_device (team-alerts.sql), and the
+   server sends through the team's own alert queue. Each person gets alerts only
+   for their own departments, and care chats only for the chats they have.
+   This is the public half of the push key pair, the same one app.html carries. */
 const ALERT_VAPID = "BPXrpPfNAAGjOVPjDuMnXjIhJVcedu-3erpAYW9io90wBXs4HhD4mgcb-OAgq5jbV6McT92MY5YOg2Aw8l10KEs";
 const ALERT_FLAG = "oma-admin-alerts";
 const alertsBtn = document.getElementById("alerts");
@@ -2009,9 +2015,12 @@ const alertsOffBtn = document.getElementById("alertsOff");
 const alertsMsg = document.getElementById("alertsMsg");
 
 function alertsSay(words) { alertsMsg.textContent = words || ""; }
-function alertsWanted() { try { return localStorage.getItem(ALERT_FLAG) === "1"; } catch (e) { return false; } }
+/* Remembered per person, not per browser: if someone else signs in on this phone
+   the button asks again instead of quietly switching alerts on for them. */
+function alertsWho() { return (STAFF && STAFF.name) || ""; }
+function alertsWanted() { try { return !!alertsWho() && localStorage.getItem(ALERT_FLAG) === alertsWho(); } catch (e) { return false; } }
 function alertsRemember(on) {
-  try { on ? localStorage.setItem(ALERT_FLAG, "1") : localStorage.removeItem(ALERT_FLAG); }
+  try { on ? localStorage.setItem(ALERT_FLAG, alertsWho()) : localStorage.removeItem(ALERT_FLAG); }
   catch (e) { /* private mode */ }
 }
 function alertsBytes(b64) {
@@ -2025,7 +2034,7 @@ function alertsLabel() {
   const ua = navigator.userAgent || "";
   const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android phone"
            : /Mac OS X/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows PC" : "device";
-  return "Oma admin on " + os;
+  return "Oma team on " + os;
 }
 
 /* Can this page show alerts at all, and if not, say what to do about it. On an
@@ -2079,11 +2088,8 @@ function alertsPaint() {
 function alertsFail(e) {
   const m = (e && e.message) || "";
   if (m === "not allowed") return "No alerts then. Allow them in your phone's Settings, Notifications, Oma Admin.";
-  if (/push_platform/.test(m)) {
-    return "The database still has the old alerts SQL. In Supabase, open a NEW query tab, paste admin-alerts-fix.sql and run it.";
-  }
-  if (e && (e.status === 404 || /api_admin_register_device|Could not find/i.test(m))) {
-    return "The alerts SQL has not been run yet. Run \"Admin alerts\" in Supabase first.";
+  if (e && (e.status === 404 || /api_staff_register_device|Could not find/i.test(m))) {
+    return "Team alerts are not switched on yet. Ask the owner.";
   }
   return m || "That did not work.";
 }
@@ -2096,11 +2102,11 @@ async function alertsTurnOn() {
   alertsSay("Asking your phone…");
   try {
     const address = await alertsAddress(true);
-    await rpc("api_admin_register_device", {
+    await rpc("api_staff_register_device", {
       p_token: t, p_platform: "web", p_device: address, p_label: alertsLabel() });
     alertsRemember(true);
     alertsPaint();
-    await rpc("api_admin_test_push", { p_token: t });
+    await rpc("api_staff_test_push", { p_token: t });
     alertsSay("On. A test alert is on its way, it can take up to a minute.");
   } catch (e) {
     if (e && e.status === 401) return lockOut();
@@ -2113,7 +2119,7 @@ async function alertsTest() {
   if (!t) return lockOut();
   alertsSay("Sending a test…");
   try {
-    const r = await rpc("api_admin_test_push", { p_token: t });
+    const r = await rpc("api_staff_test_push", { p_token: t });
     alertsSay(r && r.phones === 0
       ? "No phone is registered yet. Tap Off, then turn alerts on again."
       : "Test sent, it can take up to a minute.");
@@ -2127,7 +2133,7 @@ async function alertsTurnOff() {
       const reg = await navigator.serviceWorker.getRegistration("/");
       const sub = reg && await reg.pushManager.getSubscription();
       if (sub) {
-        if (t) { try { await rpc("api_admin_forget_device", { p_token: t, p_device: JSON.stringify(sub) }); } catch (e) { /* gone anyway */ } }
+        if (t) { try { await rpc("api_staff_forget_device", { p_token: t, p_device: JSON.stringify(sub) }); } catch (e) { /* gone anyway */ } }
         await sub.unsubscribe();
       }
     }
@@ -2145,7 +2151,7 @@ async function alertsRefresh() {
   if (!t) return;
   try {
     const address = await alertsAddress(false);
-    await rpc("api_admin_register_device", {
+    await rpc("api_staff_register_device", {
       p_token: t, p_platform: "web", p_device: address, p_label: alertsLabel() });
   } catch (e) { /* not worth interrupting her; the button still works */ }
 }
@@ -2157,7 +2163,15 @@ alertsPaint();
 /* Tapping an alert opens the right tab: the service worker either opens
    /admin.html#finances or tells an already open page where to go. */
 function goToPage(name) {
-  const b = /^[a-z]+$/.test(name || "") && document.querySelector('.navbtn[data-page="' + name + '"]');
+  if (!STAFF || !/^[a-z]+$/.test(name || "")) return;
+  let b = document.querySelector('.navbtn[data-page="' + name + '"]');
+  if (b && b.classList.contains("gone")) {
+    // The alert is for another department this person has: switch to it first.
+    const k = Object.keys(DEPTS).find((x) => DEPTS[x].pages.includes(name) && (STAFF.depts || []).includes(x));
+    if (!k) return;
+    enter(k);
+    b = document.querySelector('.navbtn[data-page="' + name + '"]');
+  }
   if (b && !b.classList.contains("gone")) b.click();
 }
 window.addEventListener("hashchange", () => goToPage(location.hash.slice(1)));
@@ -3181,8 +3195,8 @@ const careIsMaster = TOKEN_KEY === "oma-master-token";
 let careAssignKey = "", careAgents = null, careAgentsAt = 0;
 
 // The list is grouped so each agent's chats are kept apart from the rest.
-// Agent: their own chats, then the shared queue (only used when no agent was
-// available). Owner: the queue, then one group per agent.
+// Agent: only their own chats, nothing else is ever sent to them. Owner: the
+// chats nobody has, then one group per agent.
 function careGroups() {
   const g = [];
   if (careIsMaster) {
@@ -3196,10 +3210,7 @@ function careGroups() {
     });
     [...by.keys()].sort().forEach((k) => g.push(["With " + k, by.get(k)]));
   } else {
-    const mine = careRows.filter((r) => r.mine);
-    const rest = careRows.filter((r) => !r.mine);
-    if (mine.length) g.push(["Your chats", mine]);
-    if (rest.length) g.push(["Unclaimed (reply to take it)", rest]);
+    if (careRows.length) g.push(["Your chats", careRows]);
   }
   return g;
 }
@@ -3270,7 +3281,7 @@ function careDrawHeader(c) {
 }
 
 
-// Who has this chat. Owner: a menu of the customer care agents. Agent: Take, or Give back.
+// Who has this chat. Owner: a menu of the customer care agents. Agent: Give back to the owner.
 async function careAgentList() {
   if (careAgents && Date.now() - careAgentsAt < 60000) return careAgents;
   const t = token();
@@ -3307,12 +3318,9 @@ function careDrawAssign(c) {
       + '<select id="careWhoSel"><option value="">Unclaimed</option></select>';
     careFillAgents(c);
     document.getElementById("careWhoSel").addEventListener("change", (e) => careMove("api_admin_support_assign", { p_staff: e.target.value || null }));
-  } else if (c.mine) {
-    box.innerHTML = '<span class="chip ok">Yours</span><button class="btn sm plain" type="button" id="careGive">Give back</button>';
-    document.getElementById("careGive").addEventListener("click", () => careMove("api_admin_support_assign", { p_staff: null }));
   } else {
-    box.innerHTML = '<span class="chip warn">Unclaimed</span><button class="btn sm" type="button" id="careTake">Take this chat</button>';
-    document.getElementById("careTake").addEventListener("click", () => careMove("api_admin_support_take", {}));
+    box.innerHTML = '<span class="chip ok">Yours</span><button class="btn sm plain" type="button" id="careGive" title="Hands this chat back to the owner. You will no longer see it.">Give back to owner</button>';
+    document.getElementById("careGive").addEventListener("click", () => careMove("api_admin_support_assign", { p_staff: null }));
   }
 }
 
@@ -3323,6 +3331,14 @@ async function careMove(fn, extra) {
   if (err) err.textContent = "";
   try {
     await rpc(fn, Object.assign({ p_token: t, p_chat: careOpen }, extra));
+    if (!careIsMaster) {
+      // An agent giving a chat back no longer has it: close it, it is not theirs to see.
+      careOpen = null; careAssignKey = "";
+      careThreadEl.innerHTML = '<div class="empty" style="padding:24px">Handed back to the owner.</div>';
+      careBox.classList.remove("open");
+      await careLoadList();
+      return;
+    }
   } catch (e) {
     if (careLost(e)) return lockOut();
     if (err) err.textContent = e.message;

@@ -3315,8 +3315,8 @@ const careIsMaster = TOKEN_KEY === "oma-master-token";
 let careAssignKey = "", careAgents = null, careAgentsAt = 0;
 
 // The list is grouped so each agent's chats are kept apart from the rest.
-// Agent: their own chats, then the shared queue (only used when no agent was
-// available). Owner: the queue, then one group per agent.
+// Agent: only their own chats, nothing else is ever sent to them. Owner: the
+// chats nobody has, then one group per agent.
 function careGroups() {
   const g = [];
   if (careIsMaster) {
@@ -3330,10 +3330,7 @@ function careGroups() {
     });
     [...by.keys()].sort().forEach((k) => g.push(["With " + k, by.get(k)]));
   } else {
-    const mine = careRows.filter((r) => r.mine);
-    const rest = careRows.filter((r) => !r.mine);
-    if (mine.length) g.push(["Your chats", mine]);
-    if (rest.length) g.push(["Unclaimed (reply to take it)", rest]);
+    if (careRows.length) g.push(["Your chats", careRows]);
   }
   return g;
 }
@@ -3404,7 +3401,7 @@ function careDrawHeader(c) {
 }
 
 
-// Who has this chat. Owner: a menu of the customer care agents. Agent: Take, or Give back.
+// Who has this chat. Owner: a menu of the customer care agents. Agent: Give back to the owner.
 async function careAgentList() {
   if (careAgents && Date.now() - careAgentsAt < 60000) return careAgents;
   const t = token();
@@ -3441,12 +3438,9 @@ function careDrawAssign(c) {
       + '<select id="careWhoSel"><option value="">Unclaimed</option></select>';
     careFillAgents(c);
     document.getElementById("careWhoSel").addEventListener("change", (e) => careMove("api_admin_support_assign", { p_staff: e.target.value || null }));
-  } else if (c.mine) {
-    box.innerHTML = '<span class="chip ok">Yours</span><button class="btn sm plain" type="button" id="careGive">Give back</button>';
-    document.getElementById("careGive").addEventListener("click", () => careMove("api_admin_support_assign", { p_staff: null }));
   } else {
-    box.innerHTML = '<span class="chip warn">Unclaimed</span><button class="btn sm" type="button" id="careTake">Take this chat</button>';
-    document.getElementById("careTake").addEventListener("click", () => careMove("api_admin_support_take", {}));
+    box.innerHTML = '<span class="chip ok">Yours</span><button class="btn sm plain" type="button" id="careGive" title="Hands this chat back to the owner. You will no longer see it.">Give back to owner</button>';
+    document.getElementById("careGive").addEventListener("click", () => careMove("api_admin_support_assign", { p_staff: null }));
   }
 }
 
@@ -3457,6 +3451,14 @@ async function careMove(fn, extra) {
   if (err) err.textContent = "";
   try {
     await rpc(fn, Object.assign({ p_token: t, p_chat: careOpen }, extra));
+    if (!careIsMaster) {
+      // An agent giving a chat back no longer has it: close it, it is not theirs to see.
+      careOpen = null; careAssignKey = "";
+      careThreadEl.innerHTML = '<div class="empty" style="padding:24px">Handed back to the owner.</div>';
+      careBox.classList.remove("open");
+      await careLoadList();
+      return;
+    }
   } catch (e) {
     if (careLost(e)) return lockOut();
     if (err) err.textContent = e.message;
