@@ -349,6 +349,9 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
   text-overflow:ellipsis;white-space:nowrap}
 .cc .ccm{margin-top:5px;display:flex;gap:6px;flex-wrap:wrap}
 .cc .ccm:empty{display:none}
+.cgl{padding:8px 16px;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);background:var(--fill);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1}
+.cth .cas{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cth .cas select{padding:8px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:13.5px}
 .carethread{display:flex;flex-direction:column;min-width:0;max-height:72vh}
 .cth{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;
   align-items:center;flex-wrap:wrap}
@@ -3174,6 +3177,33 @@ function careBadgeUpdate() {
   document.title = n ? "(" + n + ") " + adminTitle : adminTitle;
 }
 
+const careIsMaster = TOKEN_KEY === "oma-master-token";
+let careAssignKey = "", careAgents = null, careAgentsAt = 0;
+
+// The list is grouped so each agent's chats are kept apart from the rest.
+// Agent: their own chats, then the shared queue (only used when no agent was
+// available). Owner: the queue, then one group per agent.
+function careGroups() {
+  const g = [];
+  if (careIsMaster) {
+    const q = careRows.filter((r) => r.queue);
+    if (q.length) g.push(["Unclaimed", q]);
+    const by = new Map();
+    careRows.filter((r) => !r.queue).forEach((r) => {
+      const k = r.assigned_name || "An agent";
+      if (!by.has(k)) by.set(k, []);
+      by.get(k).push(r);
+    });
+    [...by.keys()].sort().forEach((k) => g.push(["With " + k, by.get(k)]));
+  } else {
+    const mine = careRows.filter((r) => r.mine);
+    const rest = careRows.filter((r) => !r.mine);
+    if (mine.length) g.push(["Your chats", mine]);
+    if (rest.length) g.push(["Unclaimed (reply to take it)", rest]);
+  }
+  return g;
+}
+
 function careDrawList() {
   if (careOff) {
     careListEl.innerHTML = '<div class="empty" style="padding:16px">Customer care is not '
@@ -3182,16 +3212,18 @@ function careDrawList() {
     return;
   }
   if (!careRows.length) {
-    careListEl.innerHTML = '<div class="empty" style="padding:16px">No chats yet. When '
-      + 'someone writes on omanails.com it shows up here, and on your phone.</div>';
+    careListEl.innerHTML = '<div class="empty" style="padding:16px">' + (careIsMaster
+      ? 'No chats yet. When someone writes on omanails.com it shows up here, and on your phone.'
+      : 'No chats right now. A new one appears here as soon as a visitor writes to you.') + '</div>';
     return;
   }
-  careListEl.innerHTML = careRows.map((r) => `
+  careListEl.innerHTML = careGroups().map(([label, rows]) =>
+    `<div class="cgl">${esc(label)} · ${rows.length}</div>` + rows.map((r) => `
     <button type="button" class="cc${r.unread > 0 ? " unread" : ""}${r.id === careOpen ? " on" : ""}" data-chat="${esc(r.id)}">
       <div class="cch"><span class="ccn">${esc(r.name)}</span><span class="ccw">${esc(ago(r.last_at))}</span></div>
       <div class="ccp">${r.last_from === "admin" ? "You: " : ""}${esc(r.preview || "")}</div>
-      <div class="ccm">${r.unread > 0 ? `<span class="chip warn">${esc(r.unread)} new</span>` : ""}${r.closed ? '<span class="chip">done</span>' : ""}</div>
-    </button>`).join("");
+      <div class="ccm">${r.unread > 0 ? `<span class="chip warn">${esc(r.unread)} new</span>` : ""}${r.closed ? '<span class="chip">done</span>' : ""}${careIsMaster && r.queue && r.assigned_name ? `<span class="chip">was with ${esc(r.assigned_name)}</span>` : ""}</div>
+    </button>`).join("")).join("");
 }
 
 async function careLoadList() {
@@ -3219,7 +3251,7 @@ function careAddMsg(m) {
   const row = document.createElement("div");
   row.className = "cmsg " + (m.admin ? "mine" : "theirs");
   const b = document.createElement("div"); b.className = "cb"; b.textContent = m.body;
-  const t = document.createElement("div"); t.className = "ct"; t.textContent = careTime(m.at);
+  const t = document.createElement("div"); t.className = "ct"; t.textContent = (m.admin && m.by ? m.by + " · " : "") + careTime(m.at);
   row.append(b, t);
   log.append(row);
   if (stick || m.admin) log.scrollTop = log.scrollHeight;
@@ -3234,15 +3266,80 @@ function careDrawHeader(c) {
   bits.push("started " + ago(c.created_at));
   document.getElementById("careMeta").textContent = bits.join(" · ");
   document.getElementById("careClose").textContent = careClosed ? "Reopen" : "Mark done";
+  careDrawAssign(c);
+}
+
+
+// Who has this chat. Owner: a menu of the customer care agents. Agent: Take, or Give back.
+async function careAgentList() {
+  if (careAgents && Date.now() - careAgentsAt < 60000) return careAgents;
+  const t = token();
+  if (!t) return [];
+  try {
+    const rows = await rpc("api_master_staff_list", { p_token: t });
+    careAgents = (rows || []).filter((r) => r.active && (r.depts || []).includes("care"));
+    careAgentsAt = Date.now();
+  } catch (e) {
+    if (careLost(e)) lockOut();
+    careAgents = careAgents || [];
+  }
+  return careAgents;
+}
+
+async function careFillAgents(c) {
+  const sel = document.getElementById("careWhoSel");
+  if (!sel) return;
+  const rows = await careAgentList();
+  if (document.getElementById("careWhoSel") !== sel) return;
+  sel.innerHTML = '<option value="">Unclaimed</option>'
+    + rows.map((r) => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join("");
+  sel.value = c.queue ? "" : (c.assigned_to || "");
+}
+
+function careDrawAssign(c) {
+  const box = document.getElementById("careAssign");
+  if (!box) return;
+  const key = careIsMaster ? String(c.assigned_to || "") + "|" + (c.queue ? 1 : 0) : (c.mine ? "mine" : "queue");
+  if (key === careAssignKey) return;
+  careAssignKey = key;
+  if (careIsMaster) {
+    box.innerHTML = '<label class="faint" style="font-size:12.5px" for="careWhoSel">Handled by</label>'
+      + '<select id="careWhoSel"><option value="">Unclaimed</option></select>';
+    careFillAgents(c);
+    document.getElementById("careWhoSel").addEventListener("change", (e) => careMove("api_admin_support_assign", { p_staff: e.target.value || null }));
+  } else if (c.mine) {
+    box.innerHTML = '<span class="chip ok">Yours</span><button class="btn sm plain" type="button" id="careGive">Give back</button>';
+    document.getElementById("careGive").addEventListener("click", () => careMove("api_admin_support_assign", { p_staff: null }));
+  } else {
+    box.innerHTML = '<span class="chip warn">Unclaimed</span><button class="btn sm" type="button" id="careTake">Take this chat</button>';
+    document.getElementById("careTake").addEventListener("click", () => careMove("api_admin_support_take", {}));
+  }
+}
+
+async function careMove(fn, extra) {
+  const t = token();
+  if (!t) return lockOut();
+  const err = document.getElementById("careErr");
+  if (err) err.textContent = "";
+  try {
+    await rpc(fn, Object.assign({ p_token: t, p_chat: careOpen }, extra));
+  } catch (e) {
+    if (careLost(e)) return lockOut();
+    if (err) err.textContent = e.message;
+  }
+  careAssignKey = "";
+  await careLoadList();
+  await careLoadThread();
 }
 
 function careOpenChat(id) {
-  careOpen = id; careAfter = 0; careSeen.clear();
+  careOpen = id; careAfter = 0; careSeen.clear(); careAssignKey = "";
   careThreadEl.innerHTML = `
     <div class="cth">
       <button class="btn sm plain back" type="button" id="careBack">← All chats</button>
       <div class="ctw"><div class="ctn" id="careWho"></div><div class="cts" id="careMeta"></div></div>
-      <button class="btn sm plain" type="button" id="careClose" style="margin-left:auto">Mark done</button>
+      <div class="cas" id="careAssign"></div>
+      <button class="btn sm plain" type="button" id="careClose">Mark done</button>
     </div>
     <div class="ctlog" id="careLogA"></div>
     <form class="ctreply" id="careReply" novalidate>
@@ -3327,6 +3424,13 @@ async function careLoadThread() {
     }
   } catch (e) {
     if (careLost(e)) return lockOut();
+    if (/belongs to another agent/i.test(e.message)) {
+      careOpen = null;
+      careThreadEl.innerHTML = '<div class="empty" style="padding:24px">That chat now belongs to another agent.</div>';
+      careBox.classList.remove("open");
+      careLoadList();
+      return;
+    }
     const el = document.getElementById("careErr");
     if (el) el.textContent = e.message;
   }

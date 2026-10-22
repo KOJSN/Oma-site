@@ -226,7 +226,7 @@
     const stick = el.log.scrollHeight - el.log.scrollTop - el.log.clientHeight < 90;
     el.log.append(h("div", { class: "oc-m " + (m.admin ? "them" : "me") }, [
       h("div", { class: "oc-b", text: m.body }),
-      h("div", { class: "oc-ts", text: (m.admin ? "Oma · " : "") + fmt(m.at) })]));
+      h("div", { class: "oc-ts", text: (m.admin ? (m.by ? m.by + " · Oma · " : "Oma · ") : "") + fmt(m.at) })]));
     if (stick || !m.admin) el.log.scrollTop = el.log.scrollHeight;
     return true;
   }
@@ -263,7 +263,7 @@
         if (m.id > after) after = m.id;
       }
       if (fresh) lastActive = Date.now();
-      el.state.textContent = p.closed ? "Closed. Write again to reopen it." : "";
+      el.state.textContent = p.closed ? "Closed. Write again to reopen it." : (p.agent ? "You are chatting with " + p.agent : "");
       if (fromOma && !open) { unread += fromOma; badge(); }
       if (fromOma && document.hidden) {
         titleCount += fromOma;
