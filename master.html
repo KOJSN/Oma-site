@@ -549,7 +549,15 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
                in for. It says per row who is not on the map, so the gap is
                explained where it is noticed. See people.sql. -->
           <section>
-            <div class="lbl">Everyone who has signed up</div>
+            <!-- 22 Oct 2026, Kamsy: "add a refresh button close to everyone who
+                 has signed up so it refreshes just the users and their locations
+                 on the globe". The top Refresh redraws the whole dashboard; this
+                 one asks only for the people list and the globe. -->
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px">
+              <div class="lbl" style="margin:0">Everyone who has signed up</div>
+              <button class="btn sm plain" id="refreshPeople" type="button">Refresh</button>
+              <span class="sub" id="refreshPeopleAt" style="font-size:12px"></span>
+            </div>
             <div class="card scroll" id="folk"></div>
             <div id="folkCap" class="sub" style="font-size:12.5px;margin-top:8px"></div>
           </section>
@@ -1941,6 +1949,49 @@ document.getElementById("out").addEventListener("click", async () => {
 });
 
 document.getElementById("refresh").addEventListener("click", () => load());
+
+/* Refresh only the people list and the globe (22 Oct 2026). Same three calls
+   load() makes for them, and nothing else, so the rest of the dashboard is left
+   exactly as it is. A session that has run out must lock the page, not be
+   swallowed into "run globe.sql": load() gets that for free from its other
+   calls failing, so here every one of the three lets a 401 through. */
+let refreshingPeople = false;
+async function refreshPeople() {
+  if (refreshingPeople) return;
+  const t = token();
+  if (!t) return lockOut("");
+  const btn = document.getElementById("refreshPeople");
+  const at = document.getElementById("refreshPeopleAt");
+  const folk = document.getElementById("folk");
+  const expired = (e) => e && (e.status === 401 || /sign in again/i.test(e.message || ""));
+  // These may not be installed yet (globe.sql, people.sql, visits.sql): a
+  // missing one draws its own "run this file" note, the same as load() does.
+  const soft = (e) => { if (expired(e)) throw e; return null; };
+  refreshingPeople = true;
+  if (btn) { btn.disabled = true; btn.textContent = "Refreshing…"; }
+  if (at) at.textContent = "";
+  try {
+    const [globe, people, visits] = await Promise.all([
+      rpc("api_admin_globe", { p_token: t }).catch(soft),
+      rpc("api_admin_people", { p_token: t, p_limit: 200 }).catch(soft),
+      rpc("api_admin_visits", { p_token: t }).catch(soft),
+    ]);
+    const x = folk ? folk.scrollLeft : 0;
+    setVisits(visits);
+    drawGlobe(globe);
+    drawPeople(people);
+    if (folk) folk.scrollLeft = x;
+    if (at) at.textContent = "Updated " + new Date().toLocaleTimeString("en-NG",
+      { hour: "2-digit", minute: "2-digit" });
+  } catch (err) {
+    if (expired(err)) return lockOut();
+    if (at) at.textContent = "Could not refresh: " + err.message;
+  } finally {
+    refreshingPeople = false;
+    if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+  }
+}
+document.getElementById("refreshPeople").addEventListener("click", refreshPeople);
 
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-pic]");
