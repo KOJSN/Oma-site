@@ -549,7 +549,7 @@ body.dept-finance .page[data-page="finances"] textarea{display:none!important}
                11 km however far you zoom — which is a property of the
                column, not of this page. See globe.sql. -->
           <section>
-            <div class="lbl">Where people joined from</div>
+            <div class="lbl">Where people last opened Oma</div>
             <div class="card" style="padding:0;overflow:hidden">
               <div id="globe" style="height:440px;display:flex;align-items:center;
                    justify-content:center;background:var(--card)"></div>
@@ -2769,7 +2769,7 @@ async function drawGlobe(g) {
   GLOBE_ROWS = people.map(p => ({
     id: p.id, name: p.name, real_name: p.real_name, verified: !!p.verified,
     email: p.email,
-    tech: !!p.tech, reported: !!p.reported, joined: p.joined,
+    tech: !!p.tech, reported: !!p.reported, joined: p.joined, seen: p.seen,
     lat: Number(p.lat), lng: Number(p.lng),
     dLat: Number(p.lat), dLng: Number(p.lng),
   }));
@@ -3055,7 +3055,7 @@ function showPerson(d) {
           + "Has an open or actioned report against them</div>"
         : "")
     +   '<div class="sub" style="font-size:12px;margin-top:4px">Joined '
-    +     esc(ago(d.joined)) + " · " + d.lat.toFixed(1) + ", " + d.lng.toFixed(1)
+    +     esc(ago(d.joined)) + (d.seen ? " · last opened here " + esc(ago(d.seen)) : "") + " · " + d.lat.toFixed(1) + ", " + d.lng.toFixed(1)
     +     " (to about 11 km)</div>"
     + "</div>"
     + '<button class="btn plain sm" data-globe-close="1">Close</button>'
