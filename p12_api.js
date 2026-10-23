@@ -148,7 +148,19 @@ const API = (() => {
       const msg = [p.message, p.msg, p.error_description, p.error, p.error_code]
         .find(v => typeof v === "string" && v.trim())
         || `request failed (${r.status})`;
-      const e = new Error(msg);
+      // A person Oma has banned (admin page, "Ban users"). Supabase says "User is
+      // banned" at sign-in, and "Database error saving new user" when a banned
+      // email tries to sign up (which can also be a real fault, so that one is
+      // worded neutrally). One plain sentence and an address, not an accusation on
+      // a screen somebody may be reading over her shoulder.
+      const isAuth = path.indexOf("/auth/v1/") === 0;
+      const banned = isAuth && (p.error_code === "user_banned" || /\bbanned\b/i.test(msg));
+      const noSignup = isAuth && !banned && /Database error saving new user/i.test(msg);
+      const e = new Error(banned
+        ? "This account can't be used on Oma. If you think that's a mistake, email hello@omanails.com."
+        : noSignup
+          ? "We couldn't create that account. If you think that's a mistake, email hello@omanails.com."
+          : msg);
       e.status = r.status;
       throw e;
     }

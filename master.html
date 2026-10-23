@@ -570,6 +570,13 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
             <div class="card scroll" id="techs"></div>
           </section>
 
+          <!-- Ban a user, 23 Oct 2026. Backed by ban-users.sql ("Ban users").
+               Milder than deleting and reversible, so it sits above it. -->
+          <section>
+            <div class="lbl">Ban a user</div>
+            <div class="card" data-banbox></div>
+          </section>
+
           <!-- The one destructive thing on this page, and it stays last on
                purpose: far below the list, so nobody arrives at it by
                scrolling idly. -->
@@ -2383,6 +2390,240 @@ function drawTrouble(t) {
     : `<div class="tr ok">Nothing stuck<b>✓</b></div>`;
 }
 
+/* ══ banning somebody ═════════════════════════════════════════════════
+   Kamsy, 23 Oct 2026: "i want to be able to ban users in the admin page
+   either their email or their name." Backed by ban-users.sql ("Ban users").
+
+   ONE BOX. Type an email address or a full name and press Check. Nothing is
+   banned yet: the page shows who that would catch, asks for a reason, and
+   only then bans. Lifting a ban asks why as well. Everything that matters is
+   enforced by the database (and a ban is checked there again when somebody
+   signs up or saves a name); this page only asks and shows.
+
+   An email ban also stops the same address from signing up again, and
+   treats Gmail look-alikes (dots, +something) as the same address. A name
+   ban needs a first and a last name and catches anyone whose name has all
+   the words, now or when they type it later. Money is never touched. */
+const BANBOXES = [];
+
+function banSay(e) {
+  const m = (e && e.message) || "That did not work.";
+  if (e && (e.status === 404 || /api_admin_ban|Could not find the function/i.test(m))) {
+    return 'Banning is not switched on yet. Run "Ban users" in the Supabase SQL editor.';
+  }
+  return m;
+}
+
+function banMount(root) {
+  root.innerHTML =
+      '<form class="banform" style="display:flex;gap:8px;flex-wrap:wrap">'
+    +   '<input class="banq" placeholder="Their email address, or their full name" '
+    +          'autocomplete="off" spellcheck="false" style="flex:1;min-width:220px">'
+    +   '<button class="btn banchk" type="submit">Check</button>'
+    + '</form>'
+    + '<div class="sub" style="font-size:12.5px;line-height:1.55;margin-top:10px">'
+    +   'An <b>email</b> stops that address signing in or signing up again. A <b>name</b> '
+    +   '(first and last) stops anyone whose name has both words, now or when they type it later. '
+    +   'Nothing is deleted and no money moves.</div>'
+    + '<div class="banpv" style="margin-top:14px"></div>'
+    + '<div class="lbl" style="margin:22px 0 4px">Banned now</div>'
+    + '<div class="banlist"></div>'
+    + '<div class="banold" style="margin-top:10px"></div>';
+
+  const $ = (s) => root.querySelector(s);
+  const q = $(".banq"), pvEl = $(".banpv"), listEl = $(".banlist"), oldEl = $(".banold");
+  let PV = null, LIST = null, LIFT = null;
+
+  const fail = (e) => {
+    if (e && (e.status === 401 || /sign in again/i.test(e.message || ""))) { lockOut(); return true; }
+    return false;
+  };
+  const kindChip = (k) => '<span class="chip ' + (k === "email" ? "ok" : "no") + '">' + esc(k) + "</span>";
+
+  function drawPv() {
+    if (!PV) { pvEl.innerHTML = ""; return; }
+    const accs = PV.accounts || [];
+    const owner = accs.some((a) => a.owner);
+    const what = PV.kind === "email"
+      ? "the email address <b>" + esc(PV.shown) + "</b>"
+      : "the name <b>" + esc(PV.shown) + "</b>";
+    const rule = PV.kind === "email"
+      ? "That address can no longer sign in or sign up. Gmail look-alikes count as the same address."
+      : "Anyone whose name contains " + esc(PV.value.split(" ").join(" and ")) + " (any order, any capitals).";
+    let html = '<div style="padding:14px;border-radius:14px;background:var(--bg);border:1px solid var(--line)">'
+      + '<div style="font-weight:700;margin-bottom:4px">Ban ' + what + "?</div>"
+      + '<div class="sub" style="font-size:12.5px;line-height:1.55;margin-bottom:10px">' + rule + "</div>";
+    if (accs.length) {
+      html += '<div class="sub" style="font-size:12.5px;margin-bottom:4px">This would catch '
+        + accs.length + (accs.length === 1 ? " account right now:" : " accounts right now:") + "</div>"
+        + accs.map((a) => '<div style="padding:6px 0;border-top:1px solid var(--line)">'
+            + '<span style="font-weight:700">' + esc(a.name || "(no name)") + "</span> "
+            + '<span class="sub" style="font-size:12.5px">' + esc(a.email || "") + "</span> "
+            + (a.is_tech ? '<span class="chip ok">nail tech' + (a.listed ? ", listed" : "") + "</span> " : "")
+            + (a.banned ? '<span class="chip bad">already banned</span> ' : "")
+            + (a.owner ? '<span class="chip warn">this is the owner</span>' : "")
+            + "</div>").join("");
+    } else {
+      html += '<div class="sub" style="font-size:12.5px">Nobody has this yet. It will stop anyone from using it from now on.</div>';
+    }
+    if (PV.already) {
+      html += '<div style="margin-top:12px;font-weight:600">That is already banned. See the list below.</div>'
+        + '<div style="margin-top:10px"><button class="btn plain sm" type="button" data-bancancel>Close</button></div>';
+    } else if (owner) {
+      html += '<div style="margin-top:12px;font-weight:600">The owner’s own account cannot be banned.</div>'
+        + '<div style="margin-top:10px"><button class="btn plain sm" type="button" data-bancancel>Close</button></div>';
+    } else {
+      html += '<div class="sub" style="font-size:12.5px;line-height:1.55;margin:12px 0">'
+        + 'They are signed out and cannot sign back in, and a nail tech’s listing is hidden. '
+        + 'Money already paid stays in escrow and follows the usual refund rules. '
+        + 'You can lift the ban any time.</div>'
+        + '<input class="banwhy" autocomplete="off" placeholder="Why (kept with the ban)" style="width:100%;margin-bottom:12px">'
+        + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        + '<button class="btn banyes" type="button" data-banyes style="background:var(--bad);box-shadow:none">Ban</button>'
+        + '<button class="btn plain" type="button" data-bancancel>Cancel</button></div>';
+    }
+    html += '<div class="bansay sub" style="font-size:12.5px;margin-top:10px"></div></div>';
+    pvEl.innerHTML = html;
+  }
+
+  function say(words) { const el = pvEl.querySelector(".bansay"); if (el) el.textContent = words || ""; }
+
+  async function check(v) {
+    const t = token();
+    if (!t) return lockOut();
+    v = (v || "").trim();
+    if (!v) { PV = null; drawPv(); return; }
+    pvEl.innerHTML = '<div class="sub" style="font-size:13px">Checking…</div>';
+    try {
+      PV = await rpc("api_admin_ban_preview", { p_token: t, p_what: v });
+      drawPv();
+    } catch (e) {
+      if (fail(e)) return;
+      PV = null;
+      pvEl.innerHTML = '<div class="sub" style="font-size:13px">' + esc(banSay(e)) + "</div>";
+    }
+  }
+
+  async function doBan() {
+    const t = token();
+    if (!t) return lockOut();
+    const why = pvEl.querySelector(".banwhy");
+    const btn = pvEl.querySelector(".banyes");
+    if (btn) btn.disabled = true;
+    say("Working…");
+    try {
+      const r = await rpc("api_admin_ban_add", { p_token: t, p_what: PV.shown, p_reason: why ? why.value : "" });
+      if (!r || r.ok !== true) { if (btn) btn.disabled = false; say((r && r.says) || "That did not work."); return; }
+      pvEl.innerHTML = '<div class="sub" style="font-size:13px;font-weight:600">Banned. '
+        + (r.caught ? r.caught + (r.caught === 1 ? " account was" : " accounts were") + " signed out and locked."
+                    : "Nobody has it yet; it is blocked from now on.") + "</div>";
+      PV = null; q.value = "";
+      await refresh(true);
+    } catch (e) {
+      if (fail(e)) return;
+      if (btn) btn.disabled = false;
+      say(banSay(e));
+    }
+  }
+
+  function drawList() {
+    if (!LIST) { listEl.innerHTML = ""; oldEl.innerHTML = ""; return; }
+    const act = LIST.active || [];
+    listEl.innerHTML = act.length ? act.map((b) => {
+      const accs = b.accounts || [];
+      return '<div style="padding:12px 0;border-top:1px solid var(--line)">'
+        + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+        +   '<div style="flex:1;min-width:200px">'
+        +     '<div style="font-weight:700">' + kindChip(b.kind) + " " + esc(b.shown) + "</div>"
+        +     '<div class="sub" style="font-size:12.5px">' + esc(b.reason) + " · " + esc(b.by_who) + " · " + esc(ago(b.created_at)) + "</div>"
+        +     '<div class="sub" style="font-size:12.5px">'
+        +       (accs.length ? "Caught: " + accs.map((a) => esc(a.name || a.email || "an account")).join(", ")
+                             : "No account has it yet. It is blocked from signing up.")
+        +     "</div>"
+        +   "</div>"
+        +   '<button class="btn plain sm" type="button" data-lift="' + esc(b.id) + '">Lift…</button>'
+        + "</div>"
+        + (LIFT === String(b.id)
+            ? '<div style="margin-top:10px;padding:12px;border-radius:14px;background:var(--bg);border:1px solid var(--line)">'
+              + '<input class="liftwhy" autocomplete="off" placeholder="Why are you lifting it?" style="width:100%;margin-bottom:10px">'
+              + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+              + '<button class="btn sm" type="button" data-liftgo="' + esc(b.id) + '">Lift this ban</button>'
+              + '<button class="btn plain sm" type="button" data-liftno>Cancel</button></div>'
+              + '<div class="liftsay sub" style="font-size:12.5px;margin-top:8px"></div></div>'
+            : "")
+        + "</div>";
+    }).join("") : '<div class="sub" style="font-size:13px;padding-top:6px">Nobody is banned.</div>';
+
+    const gone = LIST.lifted || [];
+    oldEl.innerHTML = gone.length
+      ? '<details><summary class="sub" style="font-size:12.5px;cursor:pointer">Lifted recently (' + gone.length + ")</summary>"
+        + gone.map((b) => '<div class="sub" style="font-size:12.5px;padding:6px 0;border-top:1px solid var(--line)">'
+            + esc(b.shown) + " · lifted by " + esc(b.lifted_by || "") + " " + esc(ago(b.lifted_at))
+            + " · " + esc(b.lifted_why || "") + "</div>").join("")
+        + "</details>"
+      : "";
+  }
+
+  // force: redraw even while a "Lift…" box is open (our own actions). The page's
+  // timer must not wipe a reason somebody is in the middle of typing.
+  async function refresh(force) {
+    const t = token();
+    if (!t) return;
+    try {
+      LIST = await rpc("api_admin_ban_list", { p_token: t, p_limit: 60 });
+      if (force || LIFT === null) drawList();
+    }
+    catch (e) {
+      if (fail(e)) return;
+      LIST = null;
+      listEl.innerHTML = '<div class="sub" style="font-size:13px">' + esc(banSay(e)) + "</div>";
+      oldEl.innerHTML = "";
+    }
+  }
+
+  async function doLift(id) {
+    const t = token();
+    if (!t) return lockOut();
+    const why = listEl.querySelector(".liftwhy");
+    const msg = listEl.querySelector(".liftsay");
+    if (msg) msg.textContent = "Working…";
+    try {
+      const r = await rpc("api_admin_ban_lift", { p_token: t, p_ban: Number(id), p_why: why ? why.value : "" });
+      if (!r || r.ok !== true) { if (msg) msg.textContent = (r && r.says) || "That did not work."; return; }
+      LIFT = null;
+      await refresh(true);
+    } catch (e) {
+      if (fail(e)) return;
+      if (msg) msg.textContent = banSay(e);
+    }
+  }
+
+  $(".banform").addEventListener("submit", (e) => { e.preventDefault(); check(q.value); });
+  root.addEventListener("click", (e) => {
+    if (e.target.closest("[data-banyes]")) return doBan();
+    if (e.target.closest("[data-bancancel]")) { PV = null; drawPv(); return; }
+    const l = e.target.closest("[data-lift]");
+    if (l) { LIFT = l.dataset.lift; drawList(); const w = listEl.querySelector(".liftwhy"); if (w) w.focus(); return; }
+    if (e.target.closest("[data-liftno]")) { LIFT = null; drawList(); return; }
+    const g = e.target.closest("[data-liftgo]");
+    if (g) doLift(g.dataset.liftgo);
+  });
+
+  root.banStart = (v) => { q.value = v || ""; root.scrollIntoView({ behavior: "smooth", block: "start" }); check(v); };
+  root.banRefresh = () => refresh(false);
+  BANBOXES.push(root);
+  refresh(true);
+}
+
+function banRefreshAll() { BANBOXES.forEach((b) => b.banRefresh && b.banRefresh()); }
+
+// "Ban…" next to somebody in a list: put them in the box and check.
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-quickban]");
+  if (b && BANBOXES[0]) BANBOXES[0].banStart(b.dataset.quickban);
+});
+document.querySelectorAll("[data-banbox]").forEach(banMount);
+
 /* ══ deleting somebody ════════════════════════════════════════════════
    Kamsy, 16 Sep 2026: "i want to be able to delete a user forever in the
    admin page."
@@ -2474,6 +2715,7 @@ function drawFound(note) {
             ? '<span class="sub" style="font-size:12.5px;max-width:280px;text-align:right">Cannot be deleted — '
               + esc(stops.join("; ")) + "</span>"
             : '<button class="btn plain" data-del="' + i + '">Delete…</button>')
+      + (!gone && u.email ? '<button class="btn plain" data-quickban="' + esc(u.email) + '">Ban…</button>' : "")
       + "</div>"
       + (OPEN === i ? deletePanel(u) : "")
       + "</div>";
@@ -2952,7 +3194,8 @@ function drawPeople(g) {
         + "<td>" + visitCell(p) + "</td>"
         + "<td>" + esc(ago(p.joined)) + "</td>"
         + "<td>" + (p.email
-                    ? '<button class="btn plain" data-quickdel="' + esc(p.email) + '">Delete…</button>'
+                    ? '<button class="btn plain" data-quickban="' + esc(p.email) + '">Ban…</button> '
+                      + '<button class="btn plain" data-quickdel="' + esc(p.email) + '">Delete…</button>'
                     : '<span class="sub" title="No email on this account to confirm a delete with">—</span>')
         + "</td></tr>").join("")
     + "</tbody></table>";
@@ -3106,6 +3349,7 @@ let timer = null;
 async function load() {
   const t = token();
   if (!t) return lockOut("");
+  try { banRefreshAll(); } catch (e) { /* the ban box is not built yet */ }
   try {
     const [o, tr, series, recent, pix, globe, folk, payouts, visits, listings] = await Promise.all([
       rpc("api_admin_overview", { p_token: t }),
