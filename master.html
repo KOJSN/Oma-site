@@ -148,6 +148,21 @@ section{padding:26px 0}
 .tr.warn{background:var(--warnbg);color:var(--warn)}
 .tr.ok{background:var(--goodbg);color:var(--good)}
 .tr b{margin-left:auto;font-variant-numeric:tabular-nums;font-size:16px}
+/* the round tick: tick a row off and it goes away until its number grows */
+.tr{transition:opacity .2s,transform .2s}
+.tr.gone{opacity:0;transform:scale(.97)}
+.trk{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid currentColor;color:inherit;
+  background:transparent;padding:0;cursor:pointer;position:relative;opacity:.8;
+  transition:background .15s,opacity .15s}
+.trk::before{content:"";position:absolute;inset:-9px}      /* a bigger target for a thumb */
+.trk::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;
+  border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg);
+  opacity:0;transition:opacity .15s}
+.trk:hover,.trk:focus-visible{opacity:1;background:currentColor}
+.trk:hover::after,.trk:focus-visible::after{opacity:1}
+.trnote{grid-column:1/-1;font-size:12.5px;color:var(--faint)}
+.trnote button{background:none;border:0;padding:0;font:inherit;color:var(--sub);
+  text-decoration:underline;cursor:pointer}
 
 /* ── charts ──────────────────────────────────────────────────────────
    Two charts, never one with two y-axes. Bookings are a count and money is
@@ -2371,24 +2386,75 @@ function kv(k, v) {
 
 /* Only the rows that are actually a problem, plus one reassuring line when
    none of them are. A wall of zeroes is a dashboard nobody reads twice. */
+/* A round tick on each row. Ticking one hides it, and it stays hidden until
+   its number GOES UP (3 disputed becomes 4 → it is back), so a tick means
+   "I have seen these", never "never tell me about this again". If the number
+   falls, the tick falls with it, so the next one to appear is not swallowed
+   by an old tick. Kept in this browser only. */
+const TR_KEY = "oma_trouble_ticked";
+function trSeen() {
+  try { return JSON.parse(localStorage.getItem(TR_KEY) || "{}") || {}; } catch (e) { return {}; }
+}
+function trSave(o) {
+  try { localStorage.setItem(TR_KEY, JSON.stringify(o)); } catch (e) { /* private window */ }
+}
+let TROUBLE_LAST = null;
+
 function drawTrouble(t) {
+  TROUBLE_LAST = t;
   const rows = [];
-  const add = (n, kind, words) => { if (n > 0) rows.push({ n, kind, words }); };
-  add(t.disputed, "bad", "disputed — money stuck in escrow");
-  add(t.unscanned, "bad",
+  const add = (key, n, kind, words) => { if (n > 0) rows.push({ key, n, kind, words }); };
+  add("disputed", t.disputed, "bad", "disputed — money stuck in escrow");
+  add("unscanned", t.unscanned, "bad",
       "paid but never scanned" + (t.oldest_unscanned_days
         ? " · oldest " + t.oldest_unscanned_days + " days" : ""));
-  add(t.notif_giving_up, "bad", "notifications that gave up");
-  add(t.payouts_waiting, "warn",
+  add("gave_up", t.notif_giving_up, "bad", "notifications that gave up");
+  add("payouts", t.payouts_waiting, "warn",
       "payouts waiting · " + naira(t.payouts_kobo));
-  add(t.kyc_pending, "warn", "ID checks pending");
-  add(t.kyc_failed, "warn", "ID checks failed");
-  add(t.notif_unsent, "warn", "notifications still queued");
-  add(t.expired_unpaid, "warn", "bookings that expired unpaid");
-  document.getElementById("trouble").innerHTML = rows.length
-    ? rows.map((r) => `<div class="tr ${r.kind}">${esc(r.words)}<b>${num(r.n)}</b></div>`).join("")
-    : `<div class="tr ok">Nothing stuck<b>✓</b></div>`;
+  add("kyc_pending", t.kyc_pending, "warn", "ID checks pending");
+  add("kyc_failed", t.kyc_failed, "warn", "ID checks failed");
+  add("unsent", t.notif_unsent, "warn", "notifications still queued");
+  add("expired", t.expired_unpaid, "warn", "bookings that expired unpaid");
+
+  const seen = trSeen();
+  let moved = false;
+  Object.keys(seen).forEach((k) => {
+    const r = rows.find((x) => x.key === k);
+    const now = r ? r.n : 0;
+    if (now < seen[k]) { if (now === 0) delete seen[k]; else seen[k] = now; moved = true; }
+  });
+  if (moved) trSave(seen);
+
+  const shown = rows.filter((r) => !(seen[r.key] >= r.n));
+  const hidden = rows.length - shown.length;
+  document.getElementById("trouble").innerHTML =
+    (shown.length
+      ? shown.map((r) => `<div class="tr ${r.kind}">
+          <button type="button" class="trk" data-trk="${esc(r.key)}" data-n="${r.n}"
+            aria-label="Tick off: ${esc(r.words)}"
+            title="Tick off. It comes back if it gets worse."></button>
+          <span>${esc(r.words)}</span><b>${num(r.n)}</b></div>`).join("")
+      : `<div class="tr ok">${hidden ? "All ticked off" : "Nothing stuck"}<b>✓</b></div>`)
+    + (hidden
+      ? `<div class="trnote">${hidden} ticked off · <button type="button" data-trshow>Show again</button></div>`
+      : "");
 }
+
+document.getElementById("trouble").addEventListener("click", (e) => {
+  if (e.target.closest("[data-trshow]")) {
+    trSave({});
+    if (TROUBLE_LAST) drawTrouble(TROUBLE_LAST);
+    return;
+  }
+  const b = e.target.closest("[data-trk]");
+  if (!b || !TROUBLE_LAST) return;
+  const seen = trSeen();
+  seen[b.dataset.trk] = Number(b.dataset.n) || 0;
+  trSave(seen);
+  const row = b.closest(".tr");
+  if (row) row.classList.add("gone");
+  setTimeout(() => drawTrouble(TROUBLE_LAST), 220);
+});
 
 /* ══ banning somebody ═════════════════════════════════════════════════
    Kamsy, 23 Oct 2026: "i want to be able to ban users in the admin page
