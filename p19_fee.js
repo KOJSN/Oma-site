@@ -91,7 +91,7 @@ function paidBill(row) {
       ${line(row.travel_kobo ? "Client paid" : "Price", kobo(row.total_kobo),
              row.travel_kobo ? { rule: true } : null)}
       ${line("Oma's fee" + (row.travel_kobo ? " (on services)" : ""), "−" + kobo(row.oma_kobo))}
-      ${line("Paystack", "−" + kobo(row.paystack_kobo))}
+      ${line("Paystack fee", "−" + kobo(row.paystack_kobo))}
       ${line("You got", kobo(row.net_kobo), { strong: true, rule: true })}
       <!-- The sentence, not just the columns. This screen exists because a
            tech looking at ₦8,515 after quoting ₦9,000 deserves the reason in
@@ -99,7 +99,7 @@ function paidBill(row) {
            wonder whether she was short-changed. -->
       <div class="tiny faint" style="margin-top:8px">
         ${kobo(row.total_kobo)} came in; ${kobo(Number(row.oma_kobo) + Number(row.paystack_kobo))}
-        went to Oma and the card, so ${kobo(row.net_kobo)} is yours.</div>
+        went to Oma and Paystack (its fee), so ${kobo(row.net_kobo)} is yours.</div>
     </div>`;
 }
 
