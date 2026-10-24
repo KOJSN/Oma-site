@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as 3fed63c550/customer. -->
+     (start_url /techapp.html) — same fix shape as 9eee060dcd/customer. -->
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1426,7 +1426,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "3fed63c550";
+const BUILD_ID = "9eee060dcd";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -6574,10 +6574,7 @@ function svcEditor(list, cur) {
          invitation, never an apology or a row of grey boxes. -->
     ${svcPhotoRow(s, i)}
 
-    <!-- "All": one tap for a service that suits every shape, instead of
-         seven taps. It reads "on" when every shape is chosen, and tapping it
-         again clears them. Kamsy, 24 Oct 2026. -->
-    <div class="pills mt12"><button class="pill ${SERVICE_SHAPES.every(sh => (s.sh || []).includes(sh)) ? "on" : ""}" data-a="svcShapeAll" data-i="${i}">All</button>${SERVICE_SHAPES.map(sh =>
+    <div class="pills mt12">${SERVICE_SHAPES.map(sh =>
       `<button class="pill ${(s.sh || []).includes(sh) ? "on" : ""}" data-a="svcShape" data-i="${i}" data-sh="${sh}"
         style="text-transform:capitalize">${sh}</button>`).join("")}</div>
     <div class="tiny faint" style="margin-top:8px">Which shapes this service suits — customers see it against their scan.</div>
@@ -9481,10 +9478,8 @@ function vJob(bookingId) {
              <button class="btn ghost" data-a="noshow" data-id="${esc(b.id)}">Client didn't come</button>` : ""}
         <div id="checkinSlot"></div>
         ${asTech && b.status === "paid"
-          ? `<div class="note"><div>Not going to be free that day? Reject this appointment and the
-               client is refunded straight away. You are not paid for it.</div></div>
-             <button class="btn ghost" data-a="cantmake" data-id="${esc(b.id)}"
-               style="color:var(--bad)">Reject appointment (I can't make it)</button>` : ""}
+          ? `<div style="text-align:center"><button class="tag" data-a="cantmake" data-id="${esc(b.id)}"
+               style="color:var(--bad)">I can't make this appointment</button></div>` : ""}
         <!-- No cancel button, deliberately. An unpaid hold expires on its own
              after 30 minutes, and a paid one is escrow's problem: the tech
              scans at the end, and money nobody scanned auto-refunds 12 hours
@@ -11016,7 +11011,7 @@ function paidBill(row) {
       ${line(row.travel_kobo ? "Client paid" : "Price", kobo(row.total_kobo),
              row.travel_kobo ? { rule: true } : null)}
       ${line("Oma's fee" + (row.travel_kobo ? " (on services)" : ""), "−" + kobo(row.oma_kobo))}
-      ${line("Paystack fee", "−" + kobo(row.paystack_kobo))}
+      ${line("Paystack", "−" + kobo(row.paystack_kobo))}
       ${line("You got", kobo(row.net_kobo), { strong: true, rule: true })}
       <!-- The sentence, not just the columns. This screen exists because a
            tech looking at ₦8,515 after quoting ₦9,000 deserves the reason in
@@ -11024,7 +11019,7 @@ function paidBill(row) {
            wonder whether she was short-changed. -->
       <div class="tiny faint" style="margin-top:8px">
         ${kobo(row.total_kobo)} came in; ${kobo(Number(row.oma_kobo) + Number(row.paystack_kobo))}
-        went to Oma and Paystack (its fee), so ${kobo(row.net_kobo)} is yours.</div>
+        went to Oma and the card, so ${kobo(row.net_kobo)} is yours.</div>
     </div>`;
 }
 
@@ -13355,9 +13350,9 @@ document.getElementById("shell").addEventListener("click", e => {
   }
   // …and the nail tech who cannot make a paid appointment: the client is refunded at once.
   if (a === "cantmake") {
-    if (!confirm("Reject this appointment? The client gets her money back straight away and you are not paid for it.")) return;
+    if (!confirm("Cancel this appointment? The client gets her money back straight away and you are not paid for it.")) return;
     return API.cannotMakeIt(id).then(() => {
-      toast("Appointment rejected. The client has been refunded.");
+      toast("Cancelled. The client has been refunded.");
       nav("requests");
     }).catch((err) => toast(/could not find|schema cache/i.test(err.message || "") ? "This is not switched on yet." : err.message));
   }
@@ -13713,13 +13708,6 @@ function pullProfile() {
   if (a === "delSvc") {
     const b = Object.assign({ services: [] }, DB.biz, readBiz());
     b.services.splice(+el.dataset.i, 1); DB.biz = b; dbSave(); return paint();
-  }
-  if (a === "svcShapeAll") {
-    const b = Object.assign({ services: [] }, DB.biz, readBiz());
-    const s = b.services[+el.dataset.i];
-    const every = SERVICE_SHAPES.every((x) => (s.sh || []).includes(x));
-    s.sh = every ? [] : SERVICE_SHAPES.slice();
-    DB.biz = b; dbSave(); return paint();
   }
   if (a === "svcShape") {
     const b = Object.assign({ services: [] }, DB.biz, readBiz());
