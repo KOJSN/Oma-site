@@ -301,10 +301,8 @@ function vJob(bookingId) {
              <button class="btn ghost" data-a="noshow" data-id="${esc(b.id)}">Client didn't come</button>` : ""}
         <div id="checkinSlot"></div>
         ${asTech && b.status === "paid"
-          ? `<div class="note"><div>Not going to be free that day? Reject this appointment and the
-               client is refunded straight away. You are not paid for it.</div></div>
-             <button class="btn ghost" data-a="cantmake" data-id="${esc(b.id)}"
-               style="color:var(--bad)">Reject appointment (I can't make it)</button>` : ""}
+          ? `<div style="text-align:center"><button class="tag" data-a="cantmake" data-id="${esc(b.id)}"
+               style="color:var(--bad)">I can't make this appointment</button></div>` : ""}
         <!-- No cancel button, deliberately. An unpaid hold expires on its own
              after 30 minutes, and a paid one is escrow's problem: the tech
              scans at the end, and money nobody scanned auto-refunds 12 hours

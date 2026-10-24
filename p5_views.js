@@ -739,10 +739,7 @@ function svcEditor(list, cur) {
          invitation, never an apology or a row of grey boxes. -->
     ${svcPhotoRow(s, i)}
 
-    <!-- "All": one tap for a service that suits every shape, instead of
-         seven taps. It reads "on" when every shape is chosen, and tapping it
-         again clears them. Kamsy, 24 Oct 2026. -->
-    <div class="pills mt12"><button class="pill ${SERVICE_SHAPES.every(sh => (s.sh || []).includes(sh)) ? "on" : ""}" data-a="svcShapeAll" data-i="${i}">All</button>${SERVICE_SHAPES.map(sh =>
+    <div class="pills mt12">${SERVICE_SHAPES.map(sh =>
       `<button class="pill ${(s.sh || []).includes(sh) ? "on" : ""}" data-a="svcShape" data-i="${i}" data-sh="${sh}"
         style="text-transform:capitalize">${sh}</button>`).join("")}</div>
     <div class="tiny faint" style="margin-top:8px">Which shapes this service suits — customers see it against their scan.</div>

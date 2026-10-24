@@ -591,9 +591,9 @@ document.getElementById("shell").addEventListener("click", e => {
   }
   // …and the nail tech who cannot make a paid appointment: the client is refunded at once.
   if (a === "cantmake") {
-    if (!confirm("Reject this appointment? The client gets her money back straight away and you are not paid for it.")) return;
+    if (!confirm("Cancel this appointment? The client gets her money back straight away and you are not paid for it.")) return;
     return API.cannotMakeIt(id).then(() => {
-      toast("Appointment rejected. The client has been refunded.");
+      toast("Cancelled. The client has been refunded.");
       nav("requests");
     }).catch((err) => toast(/could not find|schema cache/i.test(err.message || "") ? "This is not switched on yet." : err.message));
   }
@@ -949,13 +949,6 @@ function pullProfile() {
   if (a === "delSvc") {
     const b = Object.assign({ services: [] }, DB.biz, readBiz());
     b.services.splice(+el.dataset.i, 1); DB.biz = b; dbSave(); return paint();
-  }
-  if (a === "svcShapeAll") {
-    const b = Object.assign({ services: [] }, DB.biz, readBiz());
-    const s = b.services[+el.dataset.i];
-    const every = SERVICE_SHAPES.every((x) => (s.sh || []).includes(x));
-    s.sh = every ? [] : SERVICE_SHAPES.slice();
-    DB.biz = b; dbSave(); return paint();
   }
   if (a === "svcShape") {
     const b = Object.assign({ services: [] }, DB.biz, readBiz());
