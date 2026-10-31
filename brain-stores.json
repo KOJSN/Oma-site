@@ -1,0 +1,23 @@
+{
+  "asOf": "2026-11-01",
+  "note": "Written by hand from App Store Connect and Play Console. The company brain shows when it was last checked.",
+  "apps": {
+    "customer_ios": {
+      "status": "review",
+      "since": "2026-10-30",
+      "text": "Version 1.1.0 (build 31) is waiting for App Review. The earlier version is live."
+    },
+    "customer_android": {
+      "status": "live",
+      "text": "Release 131 (1.0.31) is live. The new countries (UK, US, Ghana, Egypt) went to Google review on 31 Oct."
+    },
+    "tech_ios": {
+      "status": "live",
+      "text": "Version 1.1.0 is live. Version 1.2.0 (build 38, salon business account) is on TestFlight, not submitted."
+    },
+    "tech_android": {
+      "status": "live",
+      "text": "Release 132 (2.0.32) is live. The new countries (UK, US, Ghana, Egypt) went to Google review on 31 Oct."
+    }
+  }
+}
