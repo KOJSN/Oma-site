@@ -148,6 +148,16 @@
   .blegend{display:none}
 }
 .btools[hidden]{display:none}
+/* Full screen: the real Fullscreen API where the browser allows it; .full is the
+   fallback for iPhone Safari, which only allows it for video. */
+.brainstage:fullscreen{width:100%;height:100vh;height:100dvh;min-height:0;border-radius:0;border:0}
+.brainstage:-webkit-full-screen{width:100%;height:100vh;min-height:0;border-radius:0;border:0}
+.brainstage.full{position:fixed;inset:0;z-index:2000;height:100vh;height:100dvh;min-height:0;border-radius:0;border:0}
+.brainstage:fullscreen .btop,.brainstage.full .btop{top:calc(14px + env(safe-area-inset-top,0px))}
+.brainstage:fullscreen .bl .t,.brainstage.full .bl .t{font-size:12.5px}
+.brainstage:fullscreen .bl.hub .t,.brainstage.full .bl.hub .t{font-size:14.5px}
+.brainstage:fullscreen .bl.core .t,.brainstage.full .bl.core .t{font-size:17px}
+html.brainfull{overflow:hidden}
 
 /* A person, once the globe has become a map. Fixed size on screen, because
    the thing under it is now streets and a marker that grows would cover
@@ -641,6 +651,7 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
                 <span class="btools">
                   <button type="button" id="brainSpin">Stop spinning</button>
                   <button type="button" id="brainFit">Reset view</button>
+                  <button type="button" id="brainFull" aria-pressed="false">Full screen</button>
                 </span>
               </div>
               <div class="blegend" aria-hidden="true">
@@ -4086,10 +4097,59 @@ document.getElementById("brainSpin").addEventListener("click", () => {
   document.getElementById("brainSpin").textContent = BRAIN.spin ? "Stop spinning" : "Spin";
 });
 document.getElementById("brainFit").addEventListener("click", () => { if (BRAIN.g) { brainClose(); BRAIN.touched = false; brainFit(700); } });
+
+/* Full screen. The browser's own full screen where it has one (desktop, Android);
+   otherwise the stage fills the screen with CSS (iPhone). Esc leaves either. */
+function brainFsEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+function brainIsFull() {
+  const st = document.getElementById("brainStage");
+  return brainFsEl() === st || st.classList.contains("full");
+}
+function brainFullUI() {
+  const full = brainIsFull(), b = document.getElementById("brainFull");
+  b.textContent = full ? "Exit full screen" : "Full screen";
+  b.setAttribute("aria-pressed", full ? "true" : "false");
+  // The new size needs a moment to settle; then fit the whole brain to it
+  // (unless a dot is open, so its view is not pulled away).
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    brainSize();
+    if (BRAIN.g && !BRAIN.sel) brainFit(500);
+  }));
+}
+function brainExitFull() {
+  const st = document.getElementById("brainStage");
+  if (brainFsEl()) {
+    const x = document.exitFullscreen || document.webkitExitFullscreen;
+    try { const r = x && x.call(document); if (r && r.catch) r.catch(() => {}); } catch (e) { /* already out */ }
+    return;   // "fullscreenchange" updates the button and the size
+  }
+  if (st.classList.contains("full")) {
+    st.classList.remove("full");
+    document.documentElement.classList.remove("brainfull");
+    brainFullUI();
+  }
+}
+async function brainToggleFull() {
+  const st = document.getElementById("brainStage");
+  if (brainIsFull()) { brainExitFull(); return; }
+  const req = st.requestFullscreen || st.webkitRequestFullscreen;
+  if (req) {
+    try { await req.call(st); return; } catch (e) { /* not allowed here: fill the page instead */ }
+  }
+  st.classList.add("full");
+  document.documentElement.classList.add("brainfull");
+  brainFullUI();
+}
+document.getElementById("brainFull").addEventListener("click", brainToggleFull);
+document.addEventListener("fullscreenchange", brainFullUI);
+document.addEventListener("webkitfullscreenchange", brainFullUI);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.getElementById("brainStage").classList.contains("full")) brainExitFull();
+});
 document.getElementById("brainStage").addEventListener("click", (e) => {
   if (e.target.closest("[data-bclose]")) { brainClose(); return; }
   const go = e.target.closest("[data-bgo]");
-  if (go) { goToPage(go.dataset.bgo); return; }
+  if (go) { brainExitFull(); goToPage(go.dataset.bgo); return; }
   const b = e.target.closest("[data-bn]");
   if (b) brainOpen(b.dataset.bn, true);
 });
