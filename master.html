@@ -174,6 +174,25 @@ html.brainfull{overflow:hidden}
 .pin{width:13px;height:13px;border-radius:50%;border:2px solid #fff;
   box-shadow:0 1px 4px rgba(0,0,0,.45);cursor:pointer;pointer-events:auto}
 
+/* Globe full screen (Users tab). The card is what goes full screen, so the
+   panel for a tapped dot and the map credit stay on screen with the globe. */
+.globecard{position:relative}
+.globefull{position:absolute;top:10px;right:10px;z-index:5;padding:7px 13px;border-radius:999px;
+  background:var(--card);color:var(--ink);border:1px solid var(--line);
+  font-weight:600;font-size:12.5px;box-shadow:var(--shadow)}
+.globefull[hidden]{display:none}
+.globecard:fullscreen{width:100%;height:100vh;height:100dvh;border-radius:0;border:0;display:flex;flex-direction:column}
+.globecard:-webkit-full-screen{width:100%;height:100vh;border-radius:0;border:0;display:flex;flex-direction:column}
+.globecard.full{position:fixed;inset:0;z-index:2000;height:100vh;height:100dvh;border-radius:0;border:0;
+  display:flex;flex-direction:column}
+.globecard:fullscreen #globe{height:auto!important;flex:1 1 0;min-height:0;overflow:hidden}
+.globecard:-webkit-full-screen #globe{height:auto!important;flex:1 1 0;min-height:0;overflow:hidden}
+.globecard.full #globe{height:auto!important;flex:1 1 0;min-height:0;overflow:hidden}
+.globecard:fullscreen #globeWho,.globecard.full #globeWho{flex:none;max-height:40%;overflow:auto}
+.globecard:fullscreen #globeCap,.globecard.full #globeCap{flex:none;max-height:26%;overflow:auto}
+.globecard:fullscreen .globefull,.globecard.full .globefull{top:calc(12px + env(safe-area-inset-top,0px))}
+html.globefull-on{overflow:hidden}
+
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:"Plus Jakarta Sans",system-ui,-apple-system,sans-serif;
@@ -707,7 +726,8 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
                column, not of this page. See globe.sql. -->
           <section>
             <div class="lbl">Where people last opened Oma (mobile nail techs: where they are now)</div>
-            <div class="card" style="padding:0;overflow:hidden">
+            <div class="card globecard" id="globeCard" style="padding:0;overflow:hidden">
+              <button type="button" id="globeFull" class="globefull" aria-pressed="false" hidden>Full screen</button>
               <div id="globe" style="height:440px;display:flex;align-items:center;
                    justify-content:center;background:var(--card)"></div>
               <div id="globeWho" style="display:none;padding:14px 16px;border-top:1px solid var(--line)"></div>
@@ -3299,6 +3319,7 @@ async function drawGlobe(g) {
     const fit = () => { if (GLOBE) GLOBE.width(slot.clientWidth).height(slot.clientHeight); };
     fit();
     window.addEventListener("resize", fit);
+    const gf = document.getElementById("globeFull"); if (gf) gf.hidden = false;
   }
 
   spreadAt = 0;                       // force a re-lay for the new rows
@@ -4159,6 +4180,72 @@ document.getElementById("brainList").addEventListener("click", (e) => {
   brainOpen(b.dataset.bn, false);
   document.getElementById("brainStage").scrollIntoView({ behavior: "smooth", block: "nearest" });
 });
+
+/* Full screen for the globe. The browser's own full screen where it has one
+   (desktop, Android); otherwise the card fills the screen with CSS (iPhone
+   has no element full screen). Esc leaves either. The whole card goes, not
+   only the globe, so tapping a dot still shows who it is, and the map credit
+   the tiles require stays on screen. */
+function globeSize() {
+  const s = document.getElementById("globe");
+  // 0 x 0 means the page is hidden: leave the size alone (globe.gl would fall back to its default).
+  if (GLOBE && s && s.clientWidth > 0 && s.clientHeight > 0) GLOBE.width(s.clientWidth).height(s.clientHeight);
+}
+function globeFsEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+function globeIsFull() {
+  const c = document.getElementById("globeCard");
+  return !!c && (globeFsEl() === c || c.classList.contains("full"));
+}
+function globeFullUI() {
+  const full = globeIsFull(), b = document.getElementById("globeFull");
+  if (b) {
+    b.textContent = full ? "Exit full screen" : "Full screen";
+    b.setAttribute("aria-pressed", full ? "true" : "false");
+  }
+  // The new size needs a moment to settle; then fit the globe to it.
+  requestAnimationFrame(() => requestAnimationFrame(globeSize));
+  setTimeout(globeSize, 300);
+}
+function globeExitFull() {
+  const c = document.getElementById("globeCard");
+  if (globeFsEl()) {
+    const x = document.exitFullscreen || document.webkitExitFullscreen;
+    try { const r = x && x.call(document); if (r && r.catch) r.catch(() => {}); } catch (e) { /* already out */ }
+    return;   // "fullscreenchange" updates the button and the size
+  }
+  if (c && c.classList.contains("full")) {
+    c.classList.remove("full");
+    document.documentElement.classList.remove("globefull-on");
+    globeFullUI();
+  }
+}
+async function globeToggleFull() {
+  const c = document.getElementById("globeCard");
+  if (!c) return;
+  if (globeIsFull()) { globeExitFull(); return; }
+  const req = c.requestFullscreen || c.webkitRequestFullscreen;
+  if (req) {
+    try { await req.call(c); return; } catch (e) { /* not allowed here: fill the page instead */ }
+  }
+  c.classList.add("full");
+  document.documentElement.classList.add("globefull-on");
+  globeFullUI();
+}
+(function () {
+  const b = document.getElementById("globeFull");
+  if (b) b.addEventListener("click", globeToggleFull);
+  // The slot changes size when full screen starts or ends and when the panel for a tapped
+  // dot opens or closes in full screen: keep the globe fitted to it.
+  const slot = document.getElementById("globe");
+  if (slot && window.ResizeObserver) new ResizeObserver(() => globeSize()).observe(slot);
+  document.addEventListener("fullscreenchange", globeFullUI);
+  document.addEventListener("webkitfullscreenchange", globeFullUI);
+  document.addEventListener("keydown", (e) => {
+    const c = document.getElementById("globeCard");
+    if (e.key === "Escape" && c && c.classList.contains("full")) globeExitFull();
+  });
+})();
+
 
 /* ══ loading ══════════════════════════════════════════════════════════ */
 let timer = null;
