@@ -26,27 +26,30 @@
      correctly by its own rules, to launch the customer app. /techapp-manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as 9ce6c2c5ed/tech. -->
+     (start_url /techapp.html) — same fix shape as 0f9d6d29e4/tech. -->
 <link rel="manifest" href="/techapp-manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Oma for techs — nail scan &amp; booking</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/plus-jakarta-sans.css">
 <!-- The map on the home screen. Leaflet draws it; the tiles come from
      OpenStreetMap, which is free and needs no key. Their policy is fine while
      we are testing and NOT for real traffic — before launch this becomes a
      MapTiler key and one changed URL, nothing more.
 
+     Leaflet 1.9.4 is served from this site (/vendor/leaflet), not from a CDN,
+     so opening the map does not tell a third party who you are. Only the map
+     tiles themselves still come from OpenStreetMap.
+
      Deferred on purpose. The app's own script is inline at the end of the body
      and runs first, so `L` is not there when the first screen paints — the map
-     waits for it (see waitForL). That keeps a slow or blocked CDN out of the
+     waits for it (see waitForL). That keeps a slow or blocked file out of the
      critical path: the app opens either way, and if Leaflet never arrives the
      home screen falls back to the plain list instead of a blank rectangle. -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+<script defer src="/vendor/leaflet/leaflet.js"></script>
 <style>
 /* ═══ tokens ═══════════════════════════════════════════
    Straight out of the Oma v2 canvas. Every colour is defined on bare :root
@@ -1426,7 +1429,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "9ce6c2c5ed";
+const BUILD_ID = "0f9d6d29e4";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -3950,9 +3953,11 @@ const API = (() => {
      OTP is not deleted. Google comes back through the same door, and every
      account made before this change has no password until its owner resets
      one. */
-  async function signUp(email, password) {
+  async function signUp(email, password, meta) {
     if (!live()) return MOCK.signUp(email, password);
-    const r = await call("/auth/v1/signup", { email, password }, { auth: false });
+    // `data` is the account's user metadata. GoTrue stores it as sent.
+    const body = meta ? { email, password, data: meta } : { email, password };
+    const r = await call("/auth/v1/signup", body, { auth: false });
     // With "Confirm email" ON, Supabase answers with a user and NO tokens —
     // the address is not proved yet. With it OFF a session comes straight
     // back. Both are success; only one of them signs her in here.
@@ -8118,6 +8123,16 @@ function vSignIn() {
           <button class="lnk" style="margin-left:0;font-size:12.5px"
                   data-a="pw-forgot">I forgot my password</button></div>`}
       </div>
+      ${up ? `<!-- The same promise the phone apps ask for at Create account: old
+           enough, and has seen the Terms. Unticked, so it is an act and not a
+           default; pw-signup refuses without it. -->
+      <label class="own">
+        <input type="checkbox" id="fSignAgree">
+        <span>I am <b>16 or older</b>, and I agree to the
+          <a href="/terms.html" target="_blank" rel="noopener">Terms of Use</a> and
+          <a href="/privacy.html" target="_blank" rel="noopener">Privacy page</a>.
+          I understand that Oma tracks location as described there.</span>
+      </label>` : ""}
       <button class="btn" data-a="${up ? "pw-signup" : "pw-signin"}">${
         up ? "Create my account" : "Sign in"}</button>
       <button class="btn ghost sm" data-a="signin-mode" data-v="${up ? "in" : "up"}">${
@@ -12998,7 +13013,21 @@ document.getElementById("shell").addEventListener("click", e => {
     if (pass.length < 8) return toast("A password needs at least 8 characters.");
     SIGNIN.email = email;
     const up = a === "pw-signup";
-    return (up ? API.signUp(email, pass) : API.signInPassword(email, pass))
+    // Creating an account needs the box ticked: 16 or older, and the Terms. The
+    // phone apps ask the same. The answer is also written into the account
+    // (terms_version, terms_accepted_at), so there is a record of who agreed to
+    // which version and when.
+    if (up) {
+      const ag = document.getElementById("fSignAgree");
+      if (!ag || !ag.checked) {
+        return toast("Please tick the box to say you are 16 or older and agree to the Terms.");
+      }
+    }
+    return (up ? API.signUp(email, pass, {
+              terms_version: "2026-09-30",
+              terms_accepted_at: new Date().toISOString(),
+              age_16_confirmed: true,
+            }) : API.signInPassword(email, pass))
       .then((r) => {
         // Already registered. Supabase sends nothing in this case, so sending
         // her to the code screen would be a wait with no end to it. Straight
