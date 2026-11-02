@@ -993,7 +993,13 @@ function pullProfile() {
       // No address to show, and keeping the one she typed before changing her
       // answer would put a street on a listing that has no street.
       b.address = "";
-      if (!b.state) return toast("Pick your state — it is how customers in your state find you.");
+      // No state to pick: it comes from where she is. If that has not been
+      // found yet, find it now and let her save again.
+      if (!(b.ll && b.ll.length === 2) || !b.state) {
+        toast("Finding where you are first — tap Save again in a moment.");
+        mobileFix();
+        return;
+      }
     }
     DB.biz = b; DB.cur = b.cur || DB.cur; dbSave();
 
@@ -1034,11 +1040,33 @@ function pullProfile() {
      losing it is the sort of thing that makes people give up on an app. */
   if (a === "has-salon") {
     const want = el.dataset.v === "1";
+    const was = !DB.biz || DB.biz.hasSalon !== false;      // had a shop until now
     DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { hasSalon: want });
-    if (want) LIVE.on = false;          // a shop does not broadcast
+    if (want) {
+      LIVE.on = false;                  // a shop does not broadcast
+      // Back to a shop: her shop's pin and state, not where the phone is.
+      if (!was) {
+        if (DB.biz.salonLL) DB.biz.ll = DB.biz.salonLL; else delete DB.biz.ll;
+        DB.biz.state = DB.biz.salonState || "";
+        DB.biz.area = DB.biz.salonArea || "";
+        DB.biz.address = DB.biz.salonAddress || "";
+      }
+    } else if (was) {
+      // Dropping the shop: its pin is no longer where she is. Take the
+      // phone's position now; her area and state come from it, so there is
+      // nothing for her to type.
+      DB.biz.salonLL = DB.biz.ll || DB.biz.salonLL || null;
+      DB.biz.salonState = DB.biz.state || DB.biz.salonState || "";
+      DB.biz.salonArea = DB.biz.area || DB.biz.salonArea || "";
+      DB.biz.salonAddress = DB.biz.address || DB.biz.salonAddress || "";
+      delete DB.biz.ll; DB.biz.area = ""; DB.biz.state = ""; DB.biz.address = "";
+    }
     dbSave();
-    return paint();
+    paint();
+    if (!want && !(DB.biz.ll && DB.biz.ll.length === 2)) mobileFix();
+    return;
   }
+  if (a === "mobile-fix") return mobileFix();
   if (a === "work-toggle") return toggleWorking();
   // The same switch, reached from More instead of the listing screen.
   if (a === "track-toggle") return trackToggle();
@@ -1377,6 +1405,50 @@ async function sendReport() {
   } catch (e) {
     REPORT.busy = false; paint();
     toast(e.message || "That did not send. Your words are still here.");
+  }
+}
+
+/* A nail tech with no shop is wherever her device is. Her position, her area
+   and her state all come from it, so there is nothing for her to type, and the
+   shop she used to have is never reused. */
+let MOBBUSY = false;
+function matchState(raw) {
+  const s = String(raw || "").toLowerCase().replace(/ state$/, "").trim();
+  if (!s) return "";
+  if (/federal capital|fct|abuja/.test(s)) {
+    return NG_STATES.find((x) => /fct|abuja/i.test(x)) || "";
+  }
+  return NG_STATES.find((x) => x.toLowerCase() === s) || "";
+}
+async function mobileFix() {
+  if (MOBBUSY) return;
+  MOBBUSY = true;
+  DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(), { mobileWhy: null });
+  paint();
+  try {
+    const p = await whereAmI();
+    if (DB.biz.hasSalon !== false) return;      // she went back to a shop meanwhile
+    if (p.guessed) {
+      DB.biz = Object.assign({ services: [] }, DB.biz, { mobileWhy: p.why || "unavailable" });
+      return;
+    }
+    let area = "", state = "";
+    try {
+      const r = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${p.lat}&lon=${p.lng}&format=json&addressdetails=1`,
+        { headers: { "Accept-Language": "en" } });
+      const j = await r.json();
+      const a2 = j.address || {};
+      area = [a2.neighbourhood || a2.suburb || a2.city_district, a2.city || a2.town]
+        .filter(Boolean).join(", ");
+      state = matchState(a2.state);
+    } catch { /* still have the position; the card says what is missing */ }
+    if (DB.biz.hasSalon !== false) return;
+    DB.biz = Object.assign({ services: [] }, DB.biz, { ll: [p.lat, p.lng], area, state });
+    dbSave();
+  } finally {
+    MOBBUSY = false;
+    if (document.getElementById("mobCard") || document.getElementById("bName")) paint();
   }
 }
 

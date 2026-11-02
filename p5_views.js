@@ -581,6 +581,24 @@ const NG_STATES = ["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa
 // (roleNext in p8_wire.js) still leaves "role" as the default; vRequests and
 // vListing now pass "more" explicitly, so backing out of an unfinished
 // listing lands her on the More tab, where she found "My listing" from.
+/* Where Oma found a nail tech who has no shop. There is no State box for her:
+   the state and area come from her device's position. */
+function mobilePlaceCard(b) {
+  const ok = !!(b.ll && b.ll.length === 2);
+  const bits = [b.area, b.state].filter(Boolean).join(", ");
+  const text = MOBBUSY ? "Finding where you are…"
+    : ok && b.state ? "Using your location: " + esc(bits)
+    : ok ? "Got your position, but Oma could not tell which state you are in."
+    : b.mobileWhy === "denied" ? "Oma needs your location to show you on the map. Turn it on for this site in your browser settings."
+    : b.mobileWhy ? "Could not get a fix. Outdoors, or with Wi-Fi on, usually does it."
+    : "Oma uses your location to put you on the map.";
+  const again = !MOBBUSY && !(ok && b.state)
+    ? ` <button type="button" class="lnk" data-a="mobile-fix">Try again</button>` : "";
+  return `<div class="note pink" id="mobCard" style="margin-bottom:14px">
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
+    <div><b>${text}</b>${again}</div></div>`;
+}
+
 function vSetup(edit, backTo) {
   const b = DB.biz || { services: [] };
   // Default true: a listing made before this question existed described a
@@ -652,12 +670,13 @@ function vSetup(edit, backTo) {
           <input id="bArea" value="${esc(b.area || "")}" placeholder="Lekki Phase 1">
           <span class="act" data-a="gps" data-t="biz">${b.ll ? "Pinned" : "Pin me"}</span>
         </span></label>` : ""}
-      <label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
+      ${shop ? `<label class="field" style="flex:1;min-width:0"><span class="lab">State</span>
         <span class="inp"><select id="bState">
           <option value="">Choose…</option>
           ${NG_STATES.map(x => `<option ${(b.state || "") === x ? "selected" : ""}>${x}</option>`).join("")}
-        </select></span></label>
+        </select></span></label>` : ""}
     </div>
+    ${shop ? "" : mobilePlaceCard(b)}
     <div style="display:flex;gap:10px">
       <label class="field" style="flex:1;min-width:0"><span class="lab">Currency</span>
         <span class="inp"><select id="bCur">${["₦", "R", "$", "£", "€", "GH₵", "KSh"].map(c =>
