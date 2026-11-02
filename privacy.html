@@ -166,6 +166,15 @@ controller for everything described here. The rules for using Oma are in our
           thread exists only inside a booking — strangers cannot message you.
           When the booking ends the chat is hidden from both people, and Oma
           keeps a copy so that a dispute or a report can be checked.</td></tr>
+  <tr><td>Calls (iPhone apps)</td>
+      <td>The client and the nail tech of a paid booking can speak to each other
+          inside Oma, from the booking's chat. Neither is shown the other's phone
+          number. The sound travels through our voice-call provider while the call
+          lasts and is <strong>not recorded</strong>. Oma keeps a short log of each
+          call &mdash; which two people, which booking, when it started and ended, and
+          whether it was answered &mdash; so that abuse and disputes can be checked.
+          Oma uses your microphone only during a call, and only if you allow it in
+          your phone's Settings.</td></tr>
   <tr><td>Inspo pictures (customers)</td>
       <td>Up to three pictures you can add when you book, to show your nail tech
           the style you want. They are optional. The nail tech you booked sees
@@ -257,6 +266,8 @@ The person taking the risk should not be the only person who has been checked.</
   <li>We do not store card numbers. The only bank details we keep are the account
       you give us so that we can pay you or refund you.</li>
   <li>We do not store your NIN.</li>
+  <li>We do not record calls made inside Oma, and we do not show anyone's phone
+      number to the person they are speaking with.</li>
   <li>We do not show a customer's full name publicly. On the O points
       leaderboard, customers appear under a shortened name.</li>
 </ul>
@@ -270,6 +281,11 @@ The person taking the risk should not be the only person who has been checked.</
   <li><strong>Paystack</strong> — payments and payouts. They are licensed by
       the Central Bank of Nigeria and have their own privacy policy.</li>
   <li><strong>Supabase</strong> — the database and servers Oma runs on.</li>
+  <li><strong>Agora</strong> &mdash; carries the sound of an in-app call between a
+      client and a nail tech. Its network relays the sound while the call lasts and
+      sees a random call code, your device's internet address and technical
+      call-quality figures. It is not told your name, email address or phone number,
+      and Oma does not record calls.</li>
   <li><strong>Kuda Microfinance Bank</strong> — Oma's own bank. When a nail tech
       withdraws, or a customer is refunded, Oma sends the money from its Kuda
       account to the bank account the person saved, so Kuda sees that account's
