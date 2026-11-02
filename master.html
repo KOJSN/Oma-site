@@ -4361,9 +4361,9 @@ async function load() {
       ? `<table><thead><tr><th>Business</th><th>Owner</th><th>Area</th><th>State</th>
            <th>ID</th><th>Listed</th><th>Services</th><th>Joined</th></tr></thead>
          <tbody>${liveTechs.map((x) => `<tr>
-           <td><b>${esc(x.name)}</b>${x.has_salon === true ? ' <span title="Has a shop">🏪</span>' : ""}${
-                x.home_service ? ' <span title="Does home visits">🚗</span>' : ""}${
-                x.has_salon === false ? ' <span title="No shop: works from wherever she is">📍</span>' : ""}</td>
+           <td><b>${esc(x.name)}</b>${x.has_salon === true ? ' <span title="Has a shop"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px"><path d="M4 9.5 5.5 4h13L20 9.5M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0M5.5 11.5V20h13v-8.5M10 20v-5h4v5"/></svg></span>' : ""}${
+                x.home_service ? ' <span title="Does home visits"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px"><path d="M4 16v-4l2-5a2 2 0 0 1 1.9-1.3h8.2A2 2 0 0 1 18 7l2 5v4H4Z"/><path d="M4 12h16M7 19v-3M17 19v-3"/></svg></span>' : ""}${
+                x.has_salon === false ? ' <span title="No shop: works from wherever she is"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg></span>' : ""}</td>
            <td>${ownerCell(x)}</td>
            <td>${esc(x.area || "—")}</td>
            <td>${esc(x.state || "—")}</td>

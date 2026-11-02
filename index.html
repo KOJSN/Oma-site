@@ -377,12 +377,15 @@ section.alt .tabs{background:var(--bg)}
 .safe{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center}
 @media (max-width:900px){.safe{grid-template-columns:1fr;gap:30px}}
 .flow{display:flex;flex-direction:column;gap:0}
-.step{display:flex;gap:16px;padding:16px 0}
+.step{display:flex;gap:16px;padding:16px 0;position:relative}
 .step .dot{width:12px;height:12px;border-radius:50%;background:var(--pink);
-  flex:none;margin-top:7px;position:relative}
-.step .dot::after{content:"";position:absolute;top:16px;left:5px;width:2px;
-  height:calc(100% + 18px);background:var(--line)}
-.step:last-child .dot::after{display:none}
+  flex:none;margin-top:7px;position:relative;z-index:1}
+/* The line runs from this step's dot to the next step's dot, whatever the text
+   height, so the dots join like links in a chain. 29px = 16px padding + 7px
+   margin + half the 12px dot. */
+.step::before{content:"";position:absolute;left:5px;top:29px;bottom:-29px;width:2px;
+  background:var(--line)}
+.step:last-child::before{display:none}
 .step b{display:block;font-size:15.5px;letter-spacing:-.02em}
 .step span{color:var(--sub);font-size:14.3px}
 
@@ -468,12 +471,11 @@ footer a:hover{color:var(--pink)}
         what other women thought — then holds your money until the appointment
         actually happens.</p>
       <div class="ctas">
-        <a class="btn big onhero" href="/app.html">Open Oma in your browser</a>
         <a class="btn big ghost" href="/techs.html">I'm a nail tech</a>
       </div>
       <div class="trust">
-        <span>💳 Your money is held until you're done</span>
-        <span>📍 Sorted by how far away they really are</span>
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/></svg> Your money is held until you're done</span>
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg> Sorted by how far away they really are</span>
       </div>
     </div>
 
@@ -491,7 +493,7 @@ footer a:hover{color:var(--pink)}
         <div class="row"><div class="av">AS</div>
           <div><div class="nm">Ada's Studio</div><div class="sub">Comes to you · 5.1 km</div></div>
           <div class="amt">from ₦9,000</div></div>
-        <div class="pill">🔒 Held until you scan at the appointment</div>
+        <div class="pill"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:7px"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>Held until you scan at the appointment</div>
       </div>
     </div>
   </div>
@@ -646,7 +648,7 @@ footer a:hover{color:var(--pink)}
     Oma
   </a>
     <span style="margin-left:auto">© <span id="yr">2026</span> Oma</span>
-    <a href="/app.html">Open the app</a>
+    <a href="#get">Get the app</a>
     <a href="/founder">Founder</a>
     <a href="/privacy.html">Privacy</a>
     <a href="#contact">Customer care</a>
