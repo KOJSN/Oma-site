@@ -254,6 +254,16 @@ function vSignIn() {
           <button class="lnk" style="margin-left:0;font-size:12.5px"
                   data-a="pw-forgot">I forgot my password</button></div>`}
       </div>
+      ${up ? `<!-- The same promise the phone apps ask for at Create account: old
+           enough, and has seen the Terms. Unticked, so it is an act and not a
+           default; pw-signup refuses without it. -->
+      <label class="own">
+        <input type="checkbox" id="fSignAgree">
+        <span>I am <b>16 or older</b>, and I agree to the
+          <a href="/terms.html" target="_blank" rel="noopener">Terms of Use</a> and
+          <a href="/privacy.html" target="_blank" rel="noopener">Privacy page</a>.
+          I understand that Oma tracks location as described there.</span>
+      </label>` : ""}
       <button class="btn" data-a="${up ? "pw-signup" : "pw-signin"}">${
         up ? "Create my account" : "Sign in"}</button>
       <button class="btn ghost sm" data-a="signin-mode" data-v="${up ? "in" : "up"}">${

@@ -229,7 +229,21 @@ document.getElementById("shell").addEventListener("click", e => {
     if (pass.length < 8) return toast("A password needs at least 8 characters.");
     SIGNIN.email = email;
     const up = a === "pw-signup";
-    return (up ? API.signUp(email, pass) : API.signInPassword(email, pass))
+    // Creating an account needs the box ticked: 16 or older, and the Terms. The
+    // phone apps ask the same. The answer is also written into the account
+    // (terms_version, terms_accepted_at), so there is a record of who agreed to
+    // which version and when.
+    if (up) {
+      const ag = document.getElementById("fSignAgree");
+      if (!ag || !ag.checked) {
+        return toast("Please tick the box to say you are 16 or older and agree to the Terms.");
+      }
+    }
+    return (up ? API.signUp(email, pass, {
+              terms_version: "2026-09-30",
+              terms_accepted_at: new Date().toISOString(),
+              age_16_confirmed: true,
+            }) : API.signInPassword(email, pass))
       .then((r) => {
         // Already registered. Supabase sends nothing in this case, so sending
         // her to the code screen would be a wait with no end to it. Straight

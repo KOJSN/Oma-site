@@ -32,21 +32,24 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>__HOME_TITLE__ — nail scan &amp; booking</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/plus-jakarta-sans.css">
 <!-- The map on the home screen. Leaflet draws it; the tiles come from
      OpenStreetMap, which is free and needs no key. Their policy is fine while
      we are testing and NOT for real traffic — before launch this becomes a
      MapTiler key and one changed URL, nothing more.
 
+     Leaflet 1.9.4 is served from this site (/vendor/leaflet), not from a CDN,
+     so opening the map does not tell a third party who you are. Only the map
+     tiles themselves still come from OpenStreetMap.
+
      Deferred on purpose. The app's own script is inline at the end of the body
      and runs first, so `L` is not there when the first screen paints — the map
-     waits for it (see waitForL). That keeps a slow or blocked CDN out of the
+     waits for it (see waitForL). That keeps a slow or blocked file out of the
      critical path: the app opens either way, and if Leaflet never arrives the
      home screen falls back to the plain list instead of a blank rectangle. -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+<script defer src="/vendor/leaflet/leaflet.js"></script>
 <style>
 /* ═══ tokens ═══════════════════════════════════════════
    Straight out of the Oma v2 canvas. Every colour is defined on bare :root

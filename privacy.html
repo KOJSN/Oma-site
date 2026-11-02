@@ -9,9 +9,8 @@
 <link rel="canonical" href="https://omanails.com/privacy.html">
 <meta name="robots" content="index,follow">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/plus-jakarta-sans.css">
 
 <style>
 /* Same tokens as index.html, so this reads as part of the site rather than
@@ -94,7 +93,7 @@ footer p{font-size:14px;color:var(--faint);margin:0}
 
 <h1>Privacy</h1>
 <p class="lede">What Oma collects, why, and — just as importantly — what it does not.</p>
-<p class="when">Last updated 22 October 2026</p>
+<p class="when">Last updated 2 November 2026</p>
 
 <div class="card hi">
   <p><strong>The short version.</strong> Oma is a marketplace for nail
@@ -191,8 +190,9 @@ controller for everything described here. The rules for using Oma are in our
   <tr><td>Identity check</td>
       <td>Nigerian law and simple safety: a customer is trusting a stranger with
           money, and a nail tech travelling to a home is trusting one with rather
-          more. Every nail tech; a customer only for home appointments. See
-          below — this one deserves its own section.</td></tr>
+          more. A nail tech only if she wants to travel to clients' homes; a
+          customer only for home appointments. See below — this one deserves
+          its own section.</td></tr>
   <tr><td>Safety reports</td>
       <td>If you report someone you met through a booking, we keep what you
           wrote and any video you attach. The person you reported is never told
@@ -225,8 +225,10 @@ controller for everything described here. The rules for using Oma are in our
 </div>
 
 <h2>Identity checks</h2>
-<p>A nail tech cannot appear in search until their identity is verified. This is
-what lets a customer hand money to someone they have never met.</p>
+<p>A nail tech can be listed without an identity check. One who wants to
+<strong>travel to clients' homes</strong> must have her identity verified first,
+and a nail tech who has passed carries a pink "NIN verified" badge. This is
+what lets a customer let someone they have never met into their home.</p>
 <p>A <strong>customer</strong> is asked for the same check before a nail tech
 will travel to their home — and only then. Booking at a salon needs none of it.
 The person taking the risk should not be the only person who has been checked.</p>
@@ -275,8 +277,26 @@ The person taking the risk should not be the only person who has been checked.</
   <li><strong>Our identity provider</strong> — the vNIN only, at the moment a
       nail tech is verified.</li>
   <li><strong>Our email provider</strong> — to deliver your confirmation and password-reset codes.</li>
+  <li><strong>Apple and Google</strong> — to deliver push notifications to your
+      phone (Apple Push Notification service and Firebase Cloud Messaging). They
+      see a code for your device and the text of the notification.</li>
+  <li><strong>OpenStreetMap</strong> — on the website version of Oma, the map
+      pictures come from OpenStreetMap's servers, which see your internet address
+      and the part of the map you are looking at. When you use "my current
+      location" for an address, the coordinates are sent to OpenStreetMap's
+      address lookup to get a street name. No name or account detail goes with
+      them.</li>
+  <li><strong>jsDelivr</strong> — the website's nail scan loads its hand-detection
+      tool from this public delivery network, which sees your internet address.
+      Your photographs are not sent to it.</li>
   <li><strong>The authorities</strong>, if the law requires it of us.</li>
 </ul>
+
+<h2>What Oma does not use</h2>
+<p>Oma uses no advertising tools, no analytics tools from other companies, and
+nothing that records or replays what you do on your screen. The fonts and map
+code on omanails.com are served from omanails.com itself, not from Google or any
+other outside service.</p>
 
 <h2>How long we keep it</h2>
 <p>Your account details for as long as you have an account. Records of
@@ -307,11 +327,12 @@ and we will answer within 30 days.</p>
 
 <h2>Age</h2>
 <p>You must be <strong>16 or older</strong> to hold an Oma account, whether as
-a customer or as a nail tech.</p>
-<p>So if you are 14 or 15, you
-need your parent or guardian's permission to use Oma, and they may contact us
-about your information at any time using the address below.</p>
-<p>We do not knowingly hold anything about anyone under 16.</p>
+a customer or as a nail tech. When you create an account you confirm that you
+are 16 or over.</p>
+<p>We do not knowingly hold anything about anyone under 16. If we learn that an
+account belongs to someone under 16, we close it and delete what we hold about
+it. If you think a child has joined, a parent or guardian can email
+<a href="mailto:hello@omanails.com">hello@omanails.com</a> and we will act on it.</p>
 
 <h2>Changes to this page</h2>
 <p>If we change what we collect, we will change this page and say so in the

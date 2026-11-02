@@ -277,9 +277,11 @@ const API = (() => {
      OTP is not deleted. Google comes back through the same door, and every
      account made before this change has no password until its owner resets
      one. */
-  async function signUp(email, password) {
+  async function signUp(email, password, meta) {
     if (!live()) return MOCK.signUp(email, password);
-    const r = await call("/auth/v1/signup", { email, password }, { auth: false });
+    // `data` is the account's user metadata. GoTrue stores it as sent.
+    const body = meta ? { email, password, data: meta } : { email, password };
+    const r = await call("/auth/v1/signup", body, { auth: false });
     // With "Confirm email" ON, Supabase answers with a user and NO tokens —
     // the address is not proved yet. With it OFF a session comes straight
     // back. Both are success; only one of them signs her in here.
