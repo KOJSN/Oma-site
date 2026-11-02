@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as c1ba6d3ce5/customer. -->
+     (start_url /techapp.html) — same fix shape as 15c1fad93a/customer. -->
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1429,7 +1429,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "c1ba6d3ce5";
+const BUILD_ID = "15c1fad93a";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -8351,21 +8351,45 @@ function slotStartsFor(dayTs, dur) {
   return { open: true, hours: out };
 }
 
-function slotGridHtml(dayTs) {
+/* Same-day booking (Kamsy, 2 Nov 2026: "if a customer wanted to book a service
+   today and there are slots for today let those slots be open"). The list of
+   days used to start at tomorrow. Today is offered again, but only for hours
+   that are still ahead by at least SAME_DAY_LEAD_MS: the client has 30 minutes
+   to pay and the tech needs a moment to get ready, so an hour that starts in ten
+   minutes cannot work for either of them. Change the number here to change that. */
+const SAME_DAY_LEAD_MS = 60 * 60 * 1000;
+
+function openHoursFor(dayTs) {
   const dur = PICKED.mins || 60;
-  const now = Date.now();
+  const cutoff = Date.now() + SAME_DAY_LEAD_MS;
   const plan = slotStartsFor(dayTs, dur);
-  if (!plan.open) return `<div class="note" style="grid-column:1/-1"><div>She does not work this day. Pick another day.</div></div>`;
-  if (!plan.hours.length) return `<div class="note" style="grid-column:1/-1"><div>No time this day is long enough for what you picked. Try another day.</div></div>`;
-  return plan.hours.map((h) => {
+  const hours = plan.hours.map((h) => {
     const at = new Date(dayTs); at.setHours(h, 0, 0, 0);
     const ts = at.getTime();
-    const past = ts < now;
-    const busy = !past && busyOverlaps(ts, dur, PICKED.busy);
-    const off = past || busy;
-    return `<button class="chip${off ? " off" : ""}" data-a="mslot" data-h="${h}"${off ? " disabled" : ""}>${
-      String(h).padStart(2, "0")}:00${busy ? " · booked" : ""}</button>`;
+    return { h, ts, gone: ts < cutoff, busy: ts >= cutoff && busyOverlaps(ts, dur, PICKED.busy) };
+  }).filter((x) => !x.gone);          // hours already behind us are not shown at all
+  return { plan, hours };
+}
+
+function slotGridHtml(dayTs) {
+  const dur = PICKED.mins || 60;
+  const { plan, hours } = openHoursFor(dayTs);
+  if (!plan.open) return `<div class="note" style="grid-column:1/-1"><div>She does not work this day. Pick another day.</div></div>`;
+  if (!plan.hours.length) return `<div class="note" style="grid-column:1/-1"><div>No time this day is long enough for what you picked. Try another day.</div></div>`;
+  if (!hours.length) return `<div class="note" style="grid-column:1/-1"><div>No more times today. Pick another day.</div></div>`;
+  return hours.map((x) => {
+    return `<button class="chip${x.busy ? " off" : ""}" data-a="mslot" data-h="${x.h}"${x.busy ? " disabled" : ""}>${
+      String(x.h).padStart(2, "0")}:00${x.busy ? " · booked" : ""}</button>`;
   }).join("");
+}
+
+/* The first day, from today on, that still has a free time. Lands the screen
+   there instead of on an empty "today" at 8 pm. */
+function firstOpenDayIndex(days) {
+  for (let i = 0; i < days.length; i++) {
+    if (openHoursFor(days[i].getTime()).hours.some((x) => !x.busy)) return i;
+  }
+  return 0;
 }
 
 /* Redraws just the slot row for whichever day is now selected — called both
@@ -8379,7 +8403,7 @@ function paintSlotGrid(dayTs) {
 
 function vTimeLive() {
   const days = [];
-  for (let d = 1; d <= 7; d++) {
+  for (let d = 0; d <= 7; d++) {          // today, then the next seven days
     const t = new Date(); t.setDate(t.getDate() + d); t.setHours(0, 0, 0, 0);
     days.push(t);
   }
@@ -8388,7 +8412,10 @@ function vTimeLive() {
     catch (e) { PICKED.busy = []; }    // still bookable — just unable to grey anything out this time
     try { PICKED.hours = await API.techHours(PICKED.techId); }
     catch (e) { PICKED.hours = null; } // older database, or no answer: the old grid
-    paintSlotGrid(days[0].getTime());
+    // Land on the first day that still has a free time: today if there is one.
+    const first = firstOpenDayIndex(days);
+    [...document.querySelectorAll("#dayChips .chip")].forEach((c, i) => c.classList.toggle("on", i === first));
+    paintSlotGrid(days[first].getTime());
   });
   return `
   ${head("Pick a time", PICKED.name)}
@@ -8396,7 +8423,7 @@ function vTimeLive() {
     ${homeBlock(PICKED.terms)}
     <div class="chips" id="dayChips">
       ${days.map((d, i) => `<button class="chip${i === 0 ? " on" : ""}" data-a="mday"
-         data-ts="${d.getTime()}">${dayLabel(d.getTime())}</button>`).join("")}
+         data-ts="${d.getTime()}">${i === 0 ? "Today" : dayLabel(d.getTime())}</button>`).join("")}
     </div>
     <div class="grid3 mt16" id="slotGrid">${slotGridHtml(days[0].getTime())}</div>
     <div class="note mt16"><div>You will have <b>30 minutes</b> to pay into an
