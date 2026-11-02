@@ -30,6 +30,8 @@ let FQ = "";              // what she has typed, kept across screens
    wake the GPS four times. */
 let FPOS = null;
 let FPOSAT = 0;
+let FSTATE = null;   // the state she chose when Oma cannot tell where she is
+let FWHY = null;     // why there is no fix: denied | opted_out | timeout | unavailable
 const POS_STALE_MS = 120000;
 let FSEQ = 0;             // which search is the current one
 let FTIMER = null;
@@ -188,8 +190,14 @@ async function runFind() {
     const p = await whereAmI();
     if (mine !== FSEQ) return;
     FPOS = p && !p.guessed ? p : false;
+    FWHY = p && p.guessed ? p.why : null;
     FPOSAT = Date.now();
   }
+
+  // Browsing with no search needs to know where she is. Without a fix Oma does
+  // not pick a city for her (it used to browse around Lagos Island): she turns
+  // location on, or chooses her state.
+  if (!q && !FPOS && !FSTATE) return findNoPlace(mine);
 
   let list;
   try {
@@ -197,7 +205,8 @@ async function runFind() {
       ? await API.search(q, FPOS ? FPOS.lat : null, FPOS ? FPOS.lng : null)
       // No query means she is browsing, and browsing is where a shop with
       // three chairs should be one card rather than three.
-      : await API.placesNearby(FPOS ? FPOS.lat : 6.4478, FPOS ? FPOS.lng : 3.4723, 25);
+      : FPOS ? await API.placesNearby(FPOS.lat, FPOS.lng, 25)
+             : await API.stateTechs(FSTATE, null, null);
   } catch (e) {
     if (mine !== FSEQ) return;
     return findInto(`<div class="note warn"><div>${esc(
@@ -216,16 +225,40 @@ async function runFind() {
 
   const head = q
     ? `${list.length} result${list.length === 1 ? "" : "s"} for “${esc(q)}”`
-    : FPOS ? "Nearest first" : "Everyone listed";
+    : FPOS ? "Nearest first"
+    : `Nail techs in ${esc(FSTATE)} · <button class="lnk" data-a="find-state-clear">Change</button>`;
   findInto(`
     <div class="tiny faint" style="padding:2px 2px 10px">${head}${
       !FPOS && q ? " · turn on location to see how far away they are" : ""}</div>
-    <div class="stack gap12">${list.map(q ? findRow : placeRow).join("")}</div>`);
+    <div class="stack gap12">${list.map(q || !FPOS ? findRow : placeRow).join("")}</div>`);
 
   // After the list, never before it. Waiting on scores to show results would
   // make every search slower for something that is decoration until she is
   // actually choosing between two people.
   fillRatings(list.filter((r) => q || r.kind !== "salon").map((r) => r.id));
+}
+
+async function findNoPlace(mine) {
+  let states = [];
+  try {
+    states = (await API.states()).filter((r) => r.state && r.state !== "(not said)");
+  } catch (e) { /* the buttons are the point; the state list is a bonus */ }
+  if (mine !== FSEQ) return;
+  states.sort((a, b) => String(a.state).localeCompare(String(b.state)));
+  const says = FWHY === "opted_out" ? "You turned location off in Oma's settings."
+    : FWHY === "denied" ? "Location is blocked for Oma in this browser."
+    : "Oma could not get a fix on where you are just now.";
+  findInto(`
+    <div class="empty"><div class="ic">${I.pin()}</div>
+      <b>Oma can't tell where you are</b>
+      ${says} Turn location on to see who is near you, or choose your state.
+      <div style="margin-top:10px"><button class="lnk" style="margin-left:0"
+        data-a="find-loc">Use my location</button></div>
+    </div>
+    ${states.length ? `<div class="tiny sub" style="margin:14px 2px 6px">Choose your state</div>
+      <div>${states.map((r) => `<button class="btn ghost sm"
+        style="width:auto;margin:0 6px 6px 0" data-a="find-state"
+        data-v="${esc(r.state)}">${esc(r.state)}</button>`).join("")}</div>` : ""}`);
 }
 
 function vFind() {

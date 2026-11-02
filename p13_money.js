@@ -299,9 +299,12 @@ function techRowLive(t) {
     <div style="flex:1;min-width:0;text-align:left">
       <div class="ttl">${esc(t.business_name)}${verifiedBadge(t)}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
-      <div class="tiny" style="margin-top:6px">
-        <b>${t.km < 1 ? Math.round(t.km * 1000) + " m" : t.km.toFixed(1) + " km"}</b> away
-        ${t.from_kobo ? ` · from ${kobo(t.from_kobo)}` : ""}</div>
+      ${(() => {
+        // howFar() says nothing when there is no distance, instead of "0 m".
+        const bits = [howFar(t.km), t.from_kobo ? "from " + kobo(t.from_kobo) : null]
+          .filter(Boolean).join(" · ");
+        return bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : "";
+      })()}
     </div>
     ${I.chev()}
   </button>`;
@@ -315,9 +318,14 @@ function vNearby() {
         navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000, maximumAge: 300000 }));
     } catch { /* she said no, or the browser could not tell. Fall back below. */ }
 
-    // Lagos Island, so the screen is never empty just because location failed.
-    const lat = pos ? pos.coords.latitude : 6.4478;
-    const lng = pos ? pos.coords.longitude : 3.4723;
+    // No location means no "near me". Oma never picks a city for her.
+    if (!pos) {
+      return fillHost(`<div class="pad"><div class="note">
+        <div><b>Oma can't tell where you are.</b> Turn on location to see
+        nail techs near you.</div></div></div>`);
+    }
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
 
     const list = await API.nearby(lat, lng, 15);
     if (!list.length) {
@@ -325,8 +333,6 @@ function vNearby() {
         <div>No nail techs have listed themselves near you yet.</div></div></div>`);
     }
     fillHost(`
-      ${!pos ? `<div class="pad" style="padding-bottom:0"><div class="note tiny">
-        <div>Showing Lagos Island — turn on location for techs near you.</div></div></div>` : ""}
       <div class="pad stack gap12">
         ${list.map(techRowLive).join("")}
       </div>`);

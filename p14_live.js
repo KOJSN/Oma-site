@@ -357,7 +357,7 @@ function vJob(bookingId) {
    Three things this screen has to survive, because all three happen here: the
    browser refuses location, the tiles do not load, and Leaflet itself never
    arrives. In each of them the screen must still be a screen you can book an
-   appointment from — so location falls back to Lagos Island, and no Leaflet
+   appointment from — so with no location it says so and offers her state, never a guessed city, and no Leaflet
    falls back to the plain list this function used to be.                    */
 
 let MAP = null;      // the Leaflet instance, while the map screen is on
@@ -380,7 +380,15 @@ let MAPRO = null;    // watches the map's box, see drawMap
 
    The state list is only the states that HAVE somebody. A picker offering all
    thirty-seven when thirty-five are empty teaches people the app is empty. */
-let MSCOPE = { all: false, state: null };
+let MSCOPE = { all: false, state: null, chosen: false };
+
+/* Is she looking at a whole state? Either she asked for one, or Oma cannot tell
+   where she is and she has said which state she is in. Oma never picks a city
+   for her: with no fix and no state chosen, the map shows nobody and asks. */
+function stateView() {
+  return !!(MSCOPE.all ||
+    (HOMEPOS && HOMEPOS.guessed && MSCOPE.chosen && MSCOPE.state));
+}
 let MSTATES = [];       // [{ state, techs }] — filled once per map screen
 
 /* paint() replaces the whole view. Leaflet keeps listeners on window and a
@@ -425,11 +433,14 @@ function vHomeLive() {
     // stale list is how a tech who joined this morning stays invisible.
     MSTATES = await API.states().catch(() => []);
     MSTATES = MSTATES.filter((r) => r.state && r.state !== "(not said)");
-    if (!MSCOPE.state) MSCOPE.state = (DB.me && DB.me.state) || (MSTATES[0] || {}).state || null;
+    if (!MSCOPE.state) MSCOPE.state = (DB.me && DB.me.state)
+      || (pos.guessed ? null : (MSTATES[0] || {}).state) || null;
     if (MSCOPE.all && !MSCOPE.state) MSCOPE.all = false;
 
-    NEAR = (MSCOPE.all
-      ? await API.stateTechs(MSCOPE.state, pos.lat, pos.lng).catch(() => [])
+    NEAR = (stateView()
+      ? await API.stateTechs(MSCOPE.state, pos.guessed ? null : pos.lat,
+                             pos.guessed ? null : pos.lng).catch(() => [])
+      : pos.guessed ? []
       : await API.nearby(pos.lat, pos.lng, 15).catch(() => []))
       .filter((t) => Number.isFinite(+t.lat) && Number.isFinite(+t.lng));
     NEXTUP = upcoming(mine).filter((b) => b.status !== "cancelled")[0] || null;
@@ -515,13 +526,13 @@ function drawMap(pos, list) {
   MAP = L.map(el, { zoomControl: false, attributionControl: false });
   L.control.attribution({ position: "topleft" }).addTo(MAP);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19, minZoom: 9,
+    maxZoom: 19, minZoom: pos.guessed ? 5 : 9,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   }).addTo(MAP);
 
   // Her own position is a dot, not a pin, and cannot be tapped — it is not a
   // place you can book.
-  L.marker([pos.lat, pos.lng], {
+  if (!pos.guessed) L.marker([pos.lat, pos.lng], {
     icon: L.divIcon({ className: "", html: '<div class="mepin"></div>',
                       iconSize: [16, 16], iconAnchor: [8, 8] }),
     interactive: false, keyboard: false,
@@ -585,13 +596,17 @@ function drawMap(pos, list) {
     // corner of Lekki and quietly answer a different question from the one she
     // asked. Her own position is still in the bounds, so she can see where she
     // sits in it.
-    const frame = MSCOPE.all
-      ? [[pos.lat, pos.lng], ...list.map((t) => [+t.lat, +t.lng])]
-      : [[pos.lat, pos.lng], ...list.slice(0, 5).map((t) => [+t.lat, +t.lng])];
+    const me = pos.guessed ? [] : [[pos.lat, pos.lng]];
+    const wholeState = stateView();
+    const frame = wholeState
+      ? [...me, ...list.map((t) => [+t.lat, +t.lng])]
+      : [...me, ...list.slice(0, 5).map((t) => [+t.lat, +t.lng])];
     MAP.fitBounds(frame, {
       paddingTopLeft: [40, 132], paddingBottomRight: [40, under],
-      maxZoom: MSCOPE.all ? 13 : 15,
+      maxZoom: wholeState ? 13 : 15,
     });
+  } else if (pos.guessed) {
+    MAP.setView([9.08, 8.68], 6);      // Nigeria as a whole, never one city
   } else {
     MAP.setView([pos.lat, pos.lng], 14);
   }
@@ -636,7 +651,7 @@ function choosePin(id) {
 function recentreMap() {
   if (!MAP) return;
   whereAmI().then((p) => {
-    if (p.guessed) return askLocation();     // explain, do not silently guess
+    if (p.guessed) return askLocation();     // explain, never guess a place
     HOMEPOS = p;
     if (MAP) MAP.setView([p.lat, p.lng], 15, { animate: true });
   });
@@ -743,22 +758,18 @@ function sheetMany() {
     ${NEXTUP ? `<div class="lbl">Coming up</div>${bookingRow(NEXTUP)}
                 <div style="height:14px"></div>` : ""}
     <div class="rowbetween" style="margin-bottom:8px">
-      <div class="lbl" style="margin:0">${MSCOPE.all
+      <div class="lbl" style="margin:0">${stateView()
         ? `Nail techs in ${esc(MSCOPE.state || "that state")}`
         : n ? `${n} nail tech${n > 1 ? "s" : ""} near you`
             : "Nail techs near you"}</div>
       <!-- The return journey. Without the pill, somebody who tapped through to
            a state and FOUND people had no way back — the empty state's "Back
            to near me" only appears when there is nothing there. -->
-      ${MSCOPE.all
+      ${stateView()
         ? `<span class="seeall" data-a="map-scope" data-v="near">Near me</span>`
         : n > 3 ? `<span class="seeall" data-a="go" data-v="salons">See all</span>` : ""}
     </div>
-    ${HOMEPOS && HOMEPOS.guessed ? `<div class="note warn" style="margin-bottom:10px"><div>
-      <b>These are not distances from you.</b> Oma could not tell where you are,
-      so it is showing Lagos Island.
-      <button class="lnk" data-a="ask-loc">Use my location</button>
-    </div></div>` : ""}
+    ${HOMEPOS && HOMEPOS.guessed ? noPlaceNote() : ""}
     ${HOMEPOS && !HOMEPOS.guessed ? `
       <div class="locline ${HOMEPOS.acc > 150 ? "rough" : ""}">
         ${I.pin(true)}
@@ -770,8 +781,36 @@ function sheetMany() {
         <button class="lnk" data-a="ask-loc">Refresh</button>
       </div>` : ""}
     ${n ? NEAR.slice(0, 3).map(techRowLive).join("")
-        : emptyNear(true)}
+        : (HOMEPOS && HOMEPOS.guessed && !stateView()) ? "" : emptyNear(true)}
 `;
+}
+
+/* Oma could not tell where she is. It says so and offers the two ways out —
+   turn location on, or say which state she is in — and never picks a city for
+   her. (It used to fall back to Lagos Island, which put Lagos on the map of
+   somebody standing in Enugu.) */
+function noPlaceNote() {
+  const why = HOMEPOS && HOMEPOS.why;
+  const says = why === "opted_out" ? "You turned location off in Oma's settings."
+    : why === "denied" ? "Location is blocked for Oma in this browser."
+    : "Oma could not get a fix on where you are just now.";
+  if (stateView()) {
+    return `<div class="note warn" style="margin-bottom:10px"><div>
+      <b>These are not distances from you.</b> ${says}
+      <button class="lnk" data-a="ask-loc">Use my location</button>
+    </div></div>`;
+  }
+  const states = (MSTATES || []).slice()
+    .sort((a, b) => String(a.state).localeCompare(String(b.state)));
+  return `<div class="note warn" style="margin-bottom:10px"><div>
+      <b>Oma can't tell where you are.</b> ${says} Turn location on to see
+      nail techs near you.
+      <button class="lnk" data-a="ask-loc">Use my location</button>
+    </div></div>
+    ${states.length ? `<div class="tiny sub" style="margin:4px 2px 6px">Or choose your state</div>
+      <div style="margin-bottom:10px">${states.map((r) => `<button class="btn ghost sm"
+        style="width:auto;margin:0 6px 6px 0" data-a="map-elsewhere"
+        data-v="${esc(r.state)}">${esc(r.state)}</button>`).join("")}</div>` : ""}`;
 }
 
 /* ── the way out of an empty map ──────────────────────
@@ -809,15 +848,15 @@ function emptyNear(pad) {
   // Already looking at a whole state, or nothing is listed anywhere yet. In
   // both cases there is nowhere better to send her, and a button that goes
   // somewhere equally empty is worse than no button.
-  const out = !MSCOPE.all && b && (Number(b.techs) || 0) > 0;
+  const out = !stateView() && b && (Number(b.techs) || 0) > 0;
   return `<div class="empty"${pad ? ` style="padding:18px 12px"` : ""}>
     <div class="ic">${I.pin()}</div>
-    <b>${MSCOPE.all ? `No nail techs in ${esc(MSCOPE.state || "that state")} yet`
+    <b>${stateView() ? `No nail techs in ${esc(MSCOPE.state || "that state")} yet`
                     : "No nail techs near you yet"}</b>
     Oma shows nail techs who have listed themselves.
     ${out ? `<div style="margin-top:10px"><button class="lnk" style="margin-left:0"
       data-a="map-elsewhere" data-v="${esc(b.state)}">See other states</button></div>` : ""}
-    ${MSCOPE.all ? `<div style="margin-top:10px"><button class="lnk" style="margin-left:0"
+    ${stateView() ? `<div style="margin-top:10px"><button class="lnk" style="margin-left:0"
       data-a="map-scope" data-v="near">Back to near me</button></div>` : ""}
   </div>`;
 }
@@ -845,9 +884,9 @@ function homeAsList() {
                   <div class="pad stack gap12">${bookingRow(NEXTUP)}</div>` : ""}
 
       <div class="seehead">
-        <h3>${MSCOPE.all ? `Nail techs in ${esc(MSCOPE.state || "your state")}`
-                         : "Nail techs near you"}</h3>
-        ${MSCOPE.all
+        <h3>${stateView() ? `Nail techs in ${esc(MSCOPE.state || "your state")}`
+                          : "Nail techs near you"}</h3>
+        ${stateView()
           ? `<span class="seeall" data-a="map-scope" data-v="near">Near me</span>`
           : NEAR.length > 3 ? `<span class="seeall" data-a="go" data-v="salons">See all</span>` : ""}
       </div>
@@ -860,8 +899,10 @@ function homeAsList() {
     </div>`);
 }
 
-/* Her position, or Lagos Island so a screen is never empty merely because a
-   browser would not say where she is. High accuracy is asked for on purpose:
+/* Her position, or { guessed: true } with NO coordinates when a browser would
+   not say where she is. It used to hand back Lagos Island so a screen was never
+   empty, which showed Lagos to somebody standing in Enugu. Callers must check
+   .guessed; there is no city in it to use by mistake. High accuracy is asked for on purpose:
    the question this screen answers is "which of these two streets", and a
    network-derived fix in Lagos can be a kilometre out — which is exactly the
    confusion this is meant to remove. It costs a few seconds, so the timeout is
@@ -884,10 +925,10 @@ function setGeoOptOut(v) {
 }
 
 function whereAmI() {
-  const LAGOS = { lat: 6.4478, lng: 3.4723, guessed: true, why: "unavailable" };
-  if (geoOptedOut()) return Promise.resolve(Object.assign({}, LAGOS, { why: "opted_out" }));
+  const NOWHERE = { lat: null, lng: null, guessed: true, why: "unavailable" };
+  if (geoOptedOut()) return Promise.resolve(Object.assign({}, NOWHERE, { why: "opted_out" }));
   return new Promise((res) => {
-    if (!navigator.geolocation) return res(LAGOS);
+    if (!navigator.geolocation) return res(NOWHERE);
     navigator.geolocation.getCurrentPosition(
       (p) => res({
         lat: p.coords.latitude, lng: p.coords.longitude, guessed: false,
@@ -895,7 +936,7 @@ function whereAmI() {
         // a lie, and she should be able to see that rather than trust it.
         acc: Math.round(p.coords.accuracy || 0),
       }),
-      (err) => res(Object.assign({}, LAGOS, {
+      (err) => res(Object.assign({}, NOWHERE, {
         why: err && err.code === 1 ? "denied"
            : err && err.code === 3 ? "timeout" : "unavailable",
       })),
@@ -923,7 +964,7 @@ function locState() {
   });
 }
 
-/* The button on the "Showing Lagos Island" note, and the arrow on the map. */
+/* The button on the "Oma can't tell where you are" note, and the arrow on the map. */
 async function askLocation() {
   if (await locState() === "denied") {
     return toast("Location is blocked for Oma. Turn it back on in your browser's "
@@ -933,7 +974,7 @@ async function askLocation() {
   const p = await whereAmI();
   if (p.guessed) {
     return toast(p.why === "denied"
-      ? "Without your location Oma has to guess, and it is guessing Lagos Island."
+      ? "Oma cannot see your location, so it cannot show who is near you. Choose your state instead."
       : "Could not get a fix. Outdoors, or with Wi-Fi on, usually does it.");
   }
   HOMEPOS = p;

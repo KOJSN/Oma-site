@@ -1080,6 +1080,7 @@ function pullProfile() {
      is no second copy of that logic to fall out of step. */
   if (a === "map-scope") {
     MSCOPE.all = el.dataset.v === "all";
+    MSCOPE.chosen = MSCOPE.all;
     return paint();
   }
   /* From an empty map to wherever Oma actually has people. The same two
@@ -1088,10 +1089,24 @@ function pullProfile() {
   if (a === "map-elsewhere") {
     MSCOPE.state = el.dataset.v || MSCOPE.state;
     MSCOPE.all = true;
+    MSCOPE.chosen = true;
     return paint();
   }
   if (a === "push-toggle") return togglePush();
   if (a === "push-why") return toast(el.dataset.v || "Notifications are not available here.");
+  /* Search screen with no fix on her: turn location on, or choose a state. */
+  if (a === "find-loc") {
+    return locState().then((st) => {
+      if (st === "denied") {
+        return toast("Location is blocked for Oma. Turn it back on in your browser's "
+                   + "settings for this site, then try again.");
+      }
+      FPOS = null;
+      return runFind();
+    });
+  }
+  if (a === "find-state") { FSTATE = el.dataset.v || null; return runFind(); }
+  if (a === "find-state-clear") { FSTATE = null; return runFind(); }
   if (a === "find-clear") { FQ = ""; paint(); const el = document.getElementById("qFind"); if (el) el.focus(); return; }
   // The bridge from a scan result to somebody who does that shape.
   if (a === "find-for") return findFor(el.dataset.v);
