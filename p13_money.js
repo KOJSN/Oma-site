@@ -266,14 +266,18 @@ function vSignIn() {
 /* One row for a listed tech, shared by Home's short list and the full Salons
    list — so the two screens cannot drift into looking like different products.
    Distance comes from the database, which computed it; the app never guesses. */
-/* A tech is only reachable through a query that filters on tech.listed, and
-   the tech table carries `constraint listed_needs_kyc check (not listed or
-   kyc = 'verified')`. tech.kyc is written by one thing only — the kyc edge
-   function, with the service key, after a NIMC-licensed provider returns
-   VERIFIED and the name on the ID matches the name on the Oma profile. So
-   anybody a customer can see has passed it, and this badge cannot get out of
-   step with the truth without the constraint being dropped first. */
-function verifiedBadge(big) {
+/* Until 29 Oct 2026 every listed tech had passed the ID check (the table
+   refused to list anyone who had not), so this badge was shown on all of them.
+   Now the check is optional: a tech can be listed without it, and only the ones
+   who passed show the badge. tech.kyc is written by one thing only — the kyc
+   edge function, with the service key, after a NIMC-licensed provider returns
+   VERIFIED and the name on the ID matches the name on the Oma profile; the
+   server reports it as `verified` (api_home_terms today). */
+function verifiedBadge(row, big) {
+  /* Only when the server has said she passed. A tech can be listed without an
+     ID check now, so the badge can no longer be implied by being listed. A row
+     that does not carry `verified` shows no badge rather than a guess. */
+  if (!row || row.verified !== true) return "";
   return `<span class="vb${big ? " lg" : ""}" title="NIN checked against NIMC">${
     I.seal(big ? 13 : 12)} NIN verified</span>`;
 }
@@ -283,7 +287,7 @@ function techRowLive(t) {
   <button class="card row" data-a="tech-open" data-id="${esc(t.id)}">
     <div class="avatar sq">${esc(initials(t.business_name))}</div>
     <div style="flex:1;min-width:0;text-align:left">
-      <div class="ttl">${esc(t.business_name)}${verifiedBadge()}</div>
+      <div class="ttl">${esc(t.business_name)}${verifiedBadge(t)}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
       <div class="tiny" style="margin-top:6px">
         <b>${t.km < 1 ? Math.round(t.km * 1000) + " m" : t.km.toFixed(1) + " km"}</b> away
@@ -339,6 +343,16 @@ function vTechLive(id) {
     const r = (rate || []).find((x) => x.tech_id === id);
     PICKED = { techId: id, name: PICKED.name, ids: [], at: null, terms, mins: 0, busy: [], hours: null };
     resetHome();
+    // The ID check is optional for a tech now, so this is said only about one
+    // who passed it, and only once the server has told us so.
+    const vn = document.getElementById("verNote");
+    if (vn && LOADFOR === VIEWN && terms && terms.verified === true) {
+      vn.innerHTML = `<div class="note">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-10"/></svg>
+        <div><b>NIN verified.</b> This tech passed an identity check against
+          NIMC. Her prices and hours are still her own.</div></div>`;
+      vn.hidden = false;
+    }
     fillHost(`
       <div class="pad stack gap12">
         <div class="rowbetween">
@@ -375,14 +389,7 @@ function vTechLive(id) {
     fillTechPhotos(id);
   });
   return head(PICKED.name || "Services", "Prices are hers, not ours")
-    + `<div class="pad" style="margin-top:-4px;margin-bottom:12px">
-         <div class="note">
-           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-10"/></svg>
-           <div><b>NIN verified.</b> Oma checked this tech's identity against
-             NIMC before her listing could appear. Her prices and hours are
-             still her own.</div>
-         </div>
-       </div>`
+    + `<div class="pad" id="verNote" style="margin-top:-4px;margin-bottom:12px" hidden></div>`
     + host();
 }
 
@@ -1090,7 +1097,7 @@ function vKyc() {
     if (status === "verified" && id.verified) {
       return fillHost(`<div class="pad"><div class="note good">
         <div><b>Verified.</b> ${tech
-          ? "You can list yourself and take bookings."
+          ? "You can now travel to customers, and your listing carries the pink NIN verified badge."
           : "You can now book a nail tech to come to you."}</div></div>
         <button class="btn mt16" data-a="go" data-v="${tech ? "listing" : "nearby"}">${
           tech ? "Your listing" : "Find a nail tech"}</button></div>`);
@@ -1109,12 +1116,13 @@ function vKyc() {
     fillHost(`
       <div class="pad stack gap12">
         <div class="note"><div>${tech
-          ? `Clients hand money to a stranger before you touch their nails.
-             This is what makes that reasonable.`
+          ? `Optional. You can be listed and take bookings without it. It is
+             needed to travel to customers' homes, and it earns the pink NIN
+             verified badge next to your name.`
           : `A nail tech coming to your address is arriving alone at a place
-             she has never been. Oma checks her before she can be listed, and
-             it checks you before she is asked to travel — the same check,
-             both ways.`}</div></div>
+             she has never been. A nail tech has to pass this check before she
+             can travel to a home, and it checks you before she is asked to — the
+             same check, both ways.`}</div></div>
 
         <!-- Kamsy, 20 Sep 2026: "before someone verifies ask them for their
              full name, and tell them to avoid hyphens." Asked here rather
@@ -1164,7 +1172,7 @@ function vKyc() {
       </div>`);
   });
   return head("Verify your identity",
-              tech ? "Once, with a virtual NIN"
+              tech ? "Optional. Once, with a virtual NIN"
                    : "Once, for home appointments") + host();
 }
 

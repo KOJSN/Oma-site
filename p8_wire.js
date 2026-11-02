@@ -958,23 +958,12 @@ function pullProfile() {
     DB.biz = b; dbSave(); return paint();
   }
   if (a === "saveBiz") {
-    // Kamsy, 23 Sep 2026: "do not let techs fill the listing form without
-    // verifying their kyc first." Checked here, at the one place the form
-    // actually gets published, rather than only hinted at on the More
-    // screen — a tech who is not signed in yet has nothing to check against,
-    // so this only blocks once there is an identity to ask about. The click
-    // handler this sits in is not async, so the check runs as its own
-    // promise and the rest of saveBiz waits behind it instead of behind
-    // `await`.
-    if (API.signedIn()) {
-      return loadIdentity().then((id) => {
-        if (!id || id.kyc !== "verified") {
-          toast("Verify your identity before you can publish your listing.");
-          return nav("kyc");
-        }
-        return finishSaveBiz();
-      });
-    }
+    // Kamsy, 29 Oct 2026: a tech can be listed without verifying her ID. This
+    // used to stop her here and send her to the ID screen (her 23 Sep rule).
+    // The ID check is now asked for in exactly one place: when she wants to
+    // travel to clients' homes (the database enforces that, and the home
+    // service screen explains it). The database switch `optional_id_check`
+    // is what lets an unverified tech be listed.
     return finishSaveBiz();
   }
   function finishSaveBiz() {
@@ -1048,10 +1037,29 @@ function pullProfile() {
     return reportPhoto(el.dataset.id);
   }
   if (a === "home-toggle") {
-    DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(),
-                           { homeService: !(DB.biz && DB.biz.homeService) });
-    dbSave();
-    return paint();
+    const turningOn = !(DB.biz && DB.biz.homeService);
+    const flip = () => {
+      DB.biz = Object.assign({ services: [] }, DB.biz, readBiz(),
+                             { homeService: turningOn });
+      dbSave();
+      return paint();
+    };
+    // Kamsy, 29 Oct 2026: a tech can be listed without an ID, but is asked for
+    // it when she wants to travel to customers. The database refuses travel to
+    // an unverified tech, so this asks first, in words, rather than letting her
+    // hit that refusal when she saves. What she has typed so far is kept.
+    if (turningOn && API.signedIn()) {
+      return loadIdentity().then((id) => {
+        if (!id || id.kyc !== "verified") {
+          DB.biz = Object.assign({ services: [] }, DB.biz, readBiz());
+          dbSave();
+          toast("Verify your identity to travel to customers. Listing does not need it.");
+          return nav("kyc");
+        }
+        return flip();
+      });
+    }
+    return flip();
   }
   /* Near me, or the whole state. Repainting home is what re-fetches and
      re-frames the map; there is no separate "reload the pins" path, so there

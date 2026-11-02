@@ -814,7 +814,7 @@ function emptyNear(pad) {
     <div class="ic">${I.pin()}</div>
     <b>${MSCOPE.all ? `No nail techs in ${esc(MSCOPE.state || "that state")} yet`
                     : "No nail techs near you yet"}</b>
-    Oma shows techs who have listed themselves and passed their ID check.
+    Oma shows nail techs who have listed themselves.
     ${out ? `<div style="margin-top:10px"><button class="lnk" style="margin-left:0"
       data-a="map-elsewhere" data-v="${esc(b.state)}">See other states</button></div>` : ""}
     ${MSCOPE.all ? `<div style="margin-top:10px"><button class="lnk" style="margin-left:0"

@@ -112,7 +112,7 @@ function vSalon(id) {
         <button class="card row" data-a="tech-open" data-id="${esc(x.id)}">
           <div class="avatar sq">${esc(initials(x.business_name))}</div>
           <div style="flex:1;min-width:0;text-align:left">
-            <div class="ttl">${esc(x.business_name)}${verifiedBadge()}</div>
+            <div class="ttl">${esc(x.business_name)}${verifiedBadge(x)}</div>
             <div class="tiny sub">${x.years ? `${x.years} yrs` : ""}${
               x.years && x.opens ? " · " : ""}${x.opens ? `${String(x.opens).slice(0,5)}–${String(x.closes).slice(0,5)}` : ""}</div>
             <div style="margin-top:5px">${ratingSlot(x.id)}</div>
@@ -152,7 +152,7 @@ function findRow(t) {
   <button class="card row" data-a="tech-open" data-id="${esc(t.id)}">
     <div class="avatar sq">${esc(initials(t.business_name))}</div>
     <div style="flex:1;min-width:0;text-align:left">
-      <div class="ttl">${esc(t.business_name)}${verifiedBadge()}</div>
+      <div class="ttl">${esc(t.business_name)}${verifiedBadge(t)}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
       <div style="margin-top:5px">${ratingSlot(t.id)}</div>
       ${bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : ""}

@@ -1112,7 +1112,7 @@ const API = (() => {
       homeTerms: async (techId) => {
         const t = load().techs.find((x) => x.id === techId && x.listed);
         if (!t) return null;
-        return { home_service: !!t.home_service,
+        return { home_service: !!t.home_service, verified: t.kyc === "verified",
                  callout_kobo: t.callout_kobo == null ? 300000 : t.callout_kobo,
                  per_km_kobo: t.per_km_kobo == null ? 130000 : t.per_km_kobo,
                  home_max_km: t.home_max_km == null ? 15 : t.home_max_km };
@@ -1226,6 +1226,7 @@ const API = (() => {
       setHomeService: async (on, callout, perKm, maxKm) => {
         const t = myTech();
         if (!t) throw new Error("list yourself first");
+        if (on && t.kyc !== "verified") throw new Error("verify your ID before you can travel to clients");
         t.home_service = !!on;
         if (callout != null) t.callout_kobo = callout;
         if (perKm != null) t.per_km_kobo = perKm;
@@ -1724,7 +1725,8 @@ const API = (() => {
       setListed: async (on) => {
         const t = myTech();
         if (!t) fail("you do not have a tech profile yet");
-        if (on && t.kyc !== "verified") fail("your NIN check has to pass before you can be listed");
+        // No ID check needed to be listed (it is optional since 29 Oct 2026);
+        // only travelling to clients' homes needs one.
         if (on && (t.lat == null)) fail("set where you work before listing, so clients can find you");
         t.listed = on; save(); return await MOCK.me();
       },

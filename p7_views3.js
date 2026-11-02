@@ -12,7 +12,7 @@ function kycNote(tech) {
   if (id && id.verified) return "Verified";
   if (id && id.kyc === "verified" && !id.verified) return "See this";
   if (id && id.kyc === "failed") return "The last check did not pass";
-  return tech ? "Needed before you can be listed"
+  return tech ? "Optional. Needed to travel to clients' homes"
               : "Needed for appointments at your address";
 }
 
