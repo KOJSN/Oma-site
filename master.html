@@ -4036,10 +4036,10 @@ function brainSize() {
    sparks and labels all follow. It stops while a dot is open (so you can read it),
    with "Stop spinning", and for people who asked their phone for less motion. */
 const BRAIN_ORBITS = {
-  part:   { axis: [0.12, 1, 0.08],  speed: 0.16 },
-  people: { axis: [-0.55, 0.8, 0.3], speed: -0.12 },
-  money:  { axis: [0.6, 0.7, -0.4],  speed: 0.095 },
-  work:   { axis: [0.25, 0.55, 0.8], speed: -0.07 },
+  part:   { axis: [0.08, 1, 0.05],   speed: 0.14 },
+  people: { axis: [-0.18, 1, 0.12],  speed: -0.1 },
+  money:  { axis: [0.2, 1, -0.16],   speed: 0.07 },
+  work:   { axis: [0.1, 1, 0.22],    speed: -0.05 },
 };
 function brainOrbitStart() {
   const g = BRAIN.g;
@@ -4099,7 +4099,7 @@ async function brainEnter() {
       .width(stage.clientWidth).height(stage.clientHeight)
       .backgroundColor("rgba(0,0,0,0)")
       .showNavInfo(false)
-      .nodeRelSize(3.4)
+      .nodeRelSize(3)
       .nodeVal((n) => n.val)
       .nodeColor(brainColor)
       .nodeOpacity(0.95)
@@ -4115,15 +4115,20 @@ async function brainEnter() {
       .onNodeClick((n) => brainOpen(n.id, true))
       .onBackgroundClick(() => brainClose())
       .enableNodeDrag(false)   // dragging a dot is not needed, and its simulated pointer-up trips OrbitControls
-      .cooldownTime(5000)
+      // Settle the layout before the first picture is drawn, so it comes out the same on a slow
+      // phone as on a fast computer (counting seconds left slow screens with a squashed clump).
+      // The engine then stops, and onEngineStop below fits the camera and starts the orbit.
+      .warmupTicks(500)
+      .cooldownTicks(0)
       // Fit the picture to the stage while it settles, until somebody takes the
       // camera themselves. Without this the opening view is far too small.
       .onEngineStop(() => { if (!BRAIN.touched) brainFit(600); brainOrbitStart(); })
-      .graphData({ nodes: BRAIN.nodes, links: BRAIN.links });
+      ;
     // Oma sits in the middle; the four clusters hang off it; the real
     // connections pull related dots together across the clusters.
-    g.d3Force("charge").strength(-300);
-    g.d3Force("link").distance((l) => (l.kind === "hub" ? 95 : 55)).strength((l) => (l.kind === "hub" ? 0.8 : 0.22));
+    g.d3Force("charge").strength(-520);
+    g.d3Force("link").distance((l) => (l.kind === "hub" ? 125 : 80)).strength((l) => (l.kind === "hub" ? 0.8 : 0.22));
+    g.graphData({ nodes: BRAIN.nodes, links: BRAIN.links });
     const c = g.controls();
     c.addEventListener("start", () => { BRAIN.touched = true; });
     setTimeout(() => { if (!BRAIN.touched) brainFit(500); }, 1200);
