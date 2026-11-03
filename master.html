@@ -64,6 +64,9 @@
    floating in space read badly on white. */
 .navbtn .nbadge.red{background:#e0352f;color:#fff;animation:bnav 1.2s ease-in-out infinite}
 .navbtn.on .nbadge.red{background:#fff;color:#c4271f}
+.navbtn .nbadge.yellow{background:#ffd60a;color:#3d3000;animation:bnavy 1.5s ease-in-out infinite}
+.navbtn.on .nbadge.yellow{background:#fff;color:#8a6a00}
+@keyframes bnavy{0%,100%{box-shadow:0 0 0 0 rgba(255,214,10,.65)}50%{box-shadow:0 0 0 5px rgba(255,214,10,0)}}
 @keyframes bnav{0%,100%{box-shadow:0 0 0 0 rgba(224,53,47,.55)}50%{box-shadow:0 0 0 5px rgba(224,53,47,0)}}
 .brainstage{position:relative;height:min(70vh,660px);min-height:420px;border-radius:18px;
   overflow:hidden;border:1px solid var(--line);
@@ -79,14 +82,16 @@
 .bl.hub .t{font-size:13px;font-weight:700;transform:translate(-50%,19px)}
 .bl.core .t{font-size:15px;font-weight:800;transform:translate(-50%,27px)}
 .bl.bad .t{color:#ff8a80}
-.bl.warn .t{color:#ffcf7a}
+.bl.warn .t{color:#ffe566}
 .bl.sel .t{color:#fff;text-decoration:underline;text-underline-offset:3px}
 .bring{display:none;position:absolute;left:-17px;top:-17px;width:34px;height:34px;
   border-radius:50%;border:2px solid #ff3b30;box-shadow:0 0 14px 2px rgba(255,59,48,.65);
   animation:bpulse 1.1s ease-out infinite}
 .bl.bad .bring{display:block}
+.bl.beepy .bring{display:block;border-color:#ffd60a;box-shadow:0 0 14px 2px rgba(255,214,10,.6);animation:bpulsey 1.5s ease-out infinite}
 @keyframes bpulse{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.8);opacity:0}}
-@media (prefers-reduced-motion:reduce){.bring{animation:none;opacity:.9}.navbtn .nbadge.red{animation:none}}
+@keyframes bpulsey{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.7);opacity:0}}
+@media (prefers-reduced-motion:reduce){.bring{animation:none;opacity:.9}.navbtn .nbadge.red,.navbtn .nbadge.yellow,.bl.beepy .bring,.bstat.warn i{animation:none}}
 .btop{z-index:3;position:absolute;left:12px;right:12px;top:12px;display:flex;gap:8px;align-items:flex-start;
   justify-content:space-between;pointer-events:none;flex-wrap:wrap}
 .btop > *{pointer-events:auto}
@@ -94,7 +99,8 @@
   font-size:13px;font-weight:700;background:rgba(255,255,255,.1);color:#f3edf8;
   border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(6px)}
 .bstat i{width:9px;height:9px;border-radius:50%;background:#4ed08c;flex:none}
-.bstat.warn i{background:#f5a524}
+.bstat.warn{background:rgba(255,214,10,.16);border-color:rgba(255,214,10,.55);color:#ffe566}
+.bstat.warn i{background:#ffd60a;animation:bpulsey 1.5s ease-out infinite}
 .bstat.bad{background:rgba(255,59,48,.2);border-color:rgba(255,59,48,.6);color:#ffb3ad}
 .bstat.bad i{background:#ff3b30;animation:bpulse 1.1s ease-out infinite}
 .btools{display:flex;gap:6px}
@@ -118,9 +124,9 @@
   text-transform:uppercase;color:#cfc4da}
 .bpanel .bst{margin:8px 0 2px;font-size:13.5px;font-weight:700;display:flex;gap:7px;align-items:flex-start}
 .bpanel .bst i{width:10px;height:10px;border-radius:50%;margin-top:4px;flex:none}
-.bpanel .ok i{background:#ff5f96}.bpanel .warn i{background:#f5a524}
+.bpanel .ok i{background:#ff5f96}.bpanel .warn i{background:#ffd60a}
 .bpanel .bad i{background:#ff3b30}.bpanel .none i{background:#8f93a8}
-.bpanel .bad{color:#ff9a92}.bpanel .warn{color:#ffd28a}
+.bpanel .bad{color:#ff9a92}.bpanel .warn{color:#ffe566}
 .bpanel p{margin:6px 0 0;font-size:13px;line-height:1.45;color:#d9cfe4}
 .bpanel .bkv{margin-top:10px;border-top:1px solid rgba(255,255,255,.12)}
 .bpanel .bkv div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;
@@ -136,7 +142,7 @@
   cursor:pointer}
 .brow:last-child{border-bottom:0}
 .brow .sd{width:10px;height:10px;border-radius:50%;flex:none;background:var(--pink)}
-.brow .sd.warn{background:#f5a524}.brow .sd.bad{background:#ff3b30}.brow .sd.none{background:#9aa0b4}
+.brow .sd.warn{background:#ffd60a}.brow .sd.bad{background:#ff3b30}.brow .sd.none{background:#9aa0b4}
 .brow .sd.people{background:#8b5cf6}.brow .sd.money{background:#e6b422}
 .brow .nm{font-weight:600;font-size:14px}.brow .sx{color:var(--sub);font-size:12.5px;margin-left:auto;text-align:right}
 .brow.bad .nm{color:var(--bad)}
@@ -674,7 +680,7 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
               </div>
               <div class="blegend" aria-hidden="true">
                 <span><i style="background:#ff5f96"></i>Part of Oma, working</span>
-                <span><i style="background:#f5a524"></i>Needs a look</span>
+                <span><i style="background:#ffd60a"></i>Needs a look</span>
                 <span><i style="background:#ff3b30"></i>Damaged</span>
                 <span><i style="background:#8b5cf6"></i>People</span>
                 <span><i style="background:#e6b422"></i>Money</span>
@@ -3595,9 +3601,11 @@ document.addEventListener("click", (e) => {
    WHAT IT READS. Nothing new from the database. load() already fetches the
    overview and the "needs looking at" numbers every minute, and hands them to
    brainSet() below. So a part is damaged exactly when the dashboard already
-   says something is stuck. Three states, and only red pulses:
+   says something is stuck. Three states; red and yellow both beep (a pulsing
+   ring and sparks along the lines, silent), pink does not:
      pink  — working, or nothing measures it (the panel says which);
-     amber — needs a look (a queue waiting, an ID check pending);
+     yellow — needs a look (a queue waiting, an ID check pending); added 3 Nov 2026:
+              "any thing that needs a look at should beep yellow";
      red   — damaged (a dispute, money paid but never scanned, notifications
              that gave up, the database not answering, an app rejected).
    The four apps cannot be read from here, so brain-stores.json (next to this
@@ -3616,7 +3624,7 @@ document.addEventListener("click", (e) => {
    under the picture still shows every part and its state, and tapping a row
    opens the same panel. Visitor-supplied text never reaches this page, but
    everything shown goes through esc() anyway. */
-const BRAIN_RED = "#ff3b30", BRAIN_AMBER = "#f5a524", BRAIN_PINK = "#ff5f96";
+const BRAIN_RED = "#ff3b30", BRAIN_AMBER = "#ffd60a", BRAIN_PINK = "#ff5f96";   // BRAIN_AMBER is the yellow
 const BRAIN_GROUPS = {
   hub:    { name: "Oma",          col: "#ffffff" },
   part:   { name: "Parts of Oma", col: BRAIN_PINK },
@@ -3843,7 +3851,7 @@ const brainLinkColor = (l) => {
   const a = brainEnd(l.source), b = brainEnd(l.target), sel = BRAIN.sel;
   if (sel) return a === sel || b === sel ? "rgba(255,255,255,.9)" : "rgba(255,255,255,.05)";
   const s = brainLinkState(l);
-  return s === "bad" ? BRAIN_RED : s === "warn" ? "rgba(245,165,36,.75)" : l.kind === "hub" ? "rgba(255,255,255,.13)" : "rgba(255,255,255,.32)";
+  return s === "bad" ? BRAIN_RED : s === "warn" ? "rgba(255,214,10,.8)" : l.kind === "hub" ? "rgba(255,255,255,.13)" : "rgba(255,255,255,.32)";
 };
 const brainEnd = (e) => (e && typeof e === "object" ? e.id : e);
 const brainLinkState = (l) => {
@@ -3881,9 +3889,11 @@ function brainRefresh() {
   const bad = parts.filter((n) => n.st === "bad"), warn = parts.filter((n) => n.st === "warn");
 
   const badge = document.getElementById("brainBadge");
-  badge.hidden = !bad.length;
-  badge.textContent = bad.length;
-  badge.title = bad.length ? bad.map((n) => n.name).join(", ") + (bad.length === 1 ? " is damaged" : " are damaged") : "";
+  badge.hidden = !bad.length && !warn.length;
+  badge.className = "nbadge " + (bad.length ? "red" : "yellow");
+  badge.textContent = bad.length || warn.length;
+  badge.title = bad.length ? bad.map((n) => n.name).join(", ") + (bad.length === 1 ? " is damaged" : " are damaged")
+    : warn.length ? warn.map((n) => n.name).join(", ") + (warn.length === 1 ? " needs a look" : " need a look") : "";
 
   const stat = document.getElementById("brainStat");
   stat.className = "bstat" + (bad.length ? " bad" : warn.length ? " warn" : "");
@@ -3912,6 +3922,7 @@ function brainRefresh() {
 
 function brainLabelClass(n) {
   return "bl" + (n.core ? " core" : n.hub ? " hub" : "") + (n.st === "bad" && n.g === "part" ? " bad" : n.st === "warn" ? " warn" : "")
+    + (n.st === "warn" && !n.hub && !n.core ? " beepy" : "")
     + (BRAIN.sel === n.id ? " sel" : "");
 }
 
@@ -3955,6 +3966,7 @@ function brainOpen(id, fly) {
   brainRepaint();
   if (!BRAIN.g) return;
   BRAIN.g.controls().autoRotate = false;
+  if (BRAIN.spin) BRAIN.spinWas = true;   // closing the dot starts it going again
   BRAIN.spin = false;
   document.getElementById("brainSpin").textContent = "Spin";
   const n = BRAIN.byId[id];
@@ -3967,6 +3979,12 @@ function brainClose() {
   BRAIN.sel = null;
   document.getElementById("brainPanel").hidden = true;
   brainRepaint();
+  if (BRAIN.spinWas && BRAIN.g) {
+    BRAIN.spinWas = false;
+    BRAIN.spin = true;
+    BRAIN.g.controls().autoRotate = !BRAIN.orbit;
+    document.getElementById("brainSpin").textContent = "Stop spinning";
+  }
 }
 
 /* ── the 3D picture ── */
@@ -4009,6 +4027,65 @@ function brainSize() {
   if (BRAIN.g && st.clientWidth) BRAIN.g.width(st.clientWidth).height(st.clientHeight);
 }
 
+/* Everything orbits Oma (3 Nov 2026: "let everything orbit around oma").
+   When the layout has settled, each cluster (Parts, People, Money, Work waiting,
+   with all its dots) is kept as it settled and turned about Oma on its own tilted
+   axis at its own speed, so the four clusters circle the middle like planets while
+   Oma stays still. Distances to Oma never change, so nothing drifts away. It runs as
+   the last "force" of the layout engine, which keeps ticking, so the dots, lines,
+   sparks and labels all follow. It stops while a dot is open (so you can read it),
+   with "Stop spinning", and for people who asked their phone for less motion. */
+const BRAIN_ORBITS = {
+  part:   { axis: [0.12, 1, 0.08],  speed: 0.16 },
+  people: { axis: [-0.55, 0.8, 0.3], speed: -0.12 },
+  money:  { axis: [0.6, 0.7, -0.4],  speed: 0.095 },
+  work:   { axis: [0.25, 0.55, 0.8], speed: -0.07 },
+};
+function brainOrbitStart() {
+  const g = BRAIN.g;
+  if (!g || BRAIN.orbit || brainReduced()) return;
+  BRAIN.orbit = true;
+  BRAIN.orbT = 0;
+  BRAIN.orbLast = performance.now();
+  // The layout leaves Oma a little off the middle. Slide everything so she is exactly in
+  // the middle (where the camera looks), then everything turns about her and she stays put.
+  const core = BRAIN.byId.oma || { x: 0, y: 0, z: 0 };
+  const cx0 = core.x || 0, cy0 = core.y || 0, cz0 = core.z || 0;
+  BRAIN.nodes.forEach((n) => { n.bx = n.x - cx0; n.by = n.y - cy0; n.bz = n.z - cz0; n.x = n.bx; n.y = n.by; n.z = n.bz; });
+  if (BRAIN.byId.oma) { core.fx = 0; core.fy = 0; core.fz = 0; }
+  for (const k in BRAIN_ORBITS) {
+    const o = BRAIN_ORBITS[k], m = Math.hypot(o.axis[0], o.axis[1], o.axis[2]);
+    o.u = [o.axis[0] / m, o.axis[1] / m, o.axis[2] / m];
+  }
+  const force = () => {
+    const now = performance.now();
+    if (BRAIN.spin) BRAIN.orbT += Math.min(0.1, (now - BRAIN.orbLast) / 1000);
+    BRAIN.orbLast = now;
+    for (const n of BRAIN.nodes) {
+      const o = n.core ? null : BRAIN_ORBITS[n.g];
+      if (!o || n.bx == null) continue;
+      // Rodrigues: turn the settled position about the cluster's axis.
+      const a = o.speed * BRAIN.orbT, c = Math.cos(a), s = Math.sin(a), u = o.u;
+      const dot = u[0] * n.bx + u[1] * n.by + u[2] * n.bz;
+      const cx = u[1] * n.bz - u[2] * n.by, cy = u[2] * n.bx - u[0] * n.bz, cz = u[0] * n.by - u[1] * n.bx;
+      n.x = n.bx * c + cx * s + u[0] * dot * (1 - c);
+      n.y = n.by * c + cy * s + u[1] * dot * (1 - c);
+      n.z = n.bz * c + cz * s + u[2] * dot * (1 - c);
+      n.vx = n.vy = n.vz = 0;
+    }
+  };
+  force.initialize = () => {};
+  g.d3Force("charge", null);      // the settled shape is kept: no more pushing and pulling
+  g.d3Force("link", null);
+  g.d3Force("center", null);
+  g.d3Force("orbit", force);
+  g.controls().autoRotate = false; // the dots move themselves now
+  g.cooldownTime(Infinity);      // the engine keeps ticking, so the orbit keeps moving
+  g.cooldownTicks(Infinity);
+  g.d3AlphaMin(0);
+  g.d3ReheatSimulation();
+}
+
 async function brainEnter() {
   brainRefresh();
   if (BRAIN.g) { brainSize(); brainLoop(); return; }
@@ -4031,17 +4108,17 @@ async function brainEnter() {
       .linkColor(brainLinkColor)
       .linkOpacity(0.9)
       .linkWidth(0)
-      .linkDirectionalParticles((l) => (brainReduced() ? 0 : brainLinkState(l) === "bad" ? 3 : 0))
+      .linkDirectionalParticles((l) => { if (brainReduced()) return 0; const k = brainLinkState(l); return k === "bad" ? 3 : k === "warn" ? 2 : 0; })
       .linkDirectionalParticleWidth(1.8)
       .linkDirectionalParticleSpeed(0.007)
-      .linkDirectionalParticleColor(() => BRAIN_RED)
+      .linkDirectionalParticleColor((l) => (brainLinkState(l) === "warn" ? BRAIN_AMBER : BRAIN_RED))
       .onNodeClick((n) => brainOpen(n.id, true))
       .onBackgroundClick(() => brainClose())
       .enableNodeDrag(false)   // dragging a dot is not needed, and its simulated pointer-up trips OrbitControls
       .cooldownTime(5000)
       // Fit the picture to the stage while it settles, until somebody takes the
       // camera themselves. Without this the opening view is far too small.
-      .onEngineStop(() => { if (!BRAIN.touched) brainFit(600); })
+      .onEngineStop(() => { if (!BRAIN.touched) brainFit(600); brainOrbitStart(); })
       .graphData({ nodes: BRAIN.nodes, links: BRAIN.links });
     // Oma sits in the middle; the four clusters hang off it; the real
     // connections pull related dots together across the clusters.
@@ -4113,7 +4190,8 @@ window.addEventListener("resize", () => { if (brainOn()) brainSize(); });
 document.getElementById("brainSpin").addEventListener("click", () => {
   if (!BRAIN.g) return;
   BRAIN.spin = !BRAIN.spin;
-  BRAIN.g.controls().autoRotate = BRAIN.spin;
+  BRAIN.spinWas = false;
+  BRAIN.g.controls().autoRotate = BRAIN.spin && !BRAIN.orbit;
   document.getElementById("brainSpin").textContent = BRAIN.spin ? "Stop spinning" : "Spin";
 });
 document.getElementById("brainFit").addEventListener("click", () => { if (BRAIN.g) { brainClose(); BRAIN.touched = false; brainFit(700); } });
