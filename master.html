@@ -2622,6 +2622,7 @@ document.getElementById("trouble").addEventListener("click", (e) => {
   if (e.target.closest("[data-trshow]")) {
     trSave({});
     if (TROUBLE_LAST) drawTrouble(TROUBLE_LAST);
+    try { brainRefresh(); } catch (err) { /* brain not drawn yet */ }
     return;
   }
   const b = e.target.closest("[data-trk]");
@@ -2632,6 +2633,7 @@ document.getElementById("trouble").addEventListener("click", (e) => {
   const row = b.closest(".tr");
   if (row) row.classList.add("gone");
   setTimeout(() => drawTrouble(TROUBLE_LAST), 220);
+  try { brainRefresh(); } catch (err) { /* brain not drawn yet */ }
 });
 
 /* ══ banning somebody ═════════════════════════════════════════════════
@@ -3741,7 +3743,20 @@ const brainOn = () => {
 /* ── what each dot says, from the numbers the dashboard already has ── */
 function brainCompute(D) {
   const S = {};
-  const o = D.o || {}, t = D.tr || {};
+  const o = D.o || {}, raw = D.tr || {};
+  // A row ticked off in "Needs looking at" is no longer amber here either (it comes back if its number
+  // goes up, exactly like the list). Red rows (disputed, never scanned, gave up) are never hidden by a tick.
+  const seenTicks = (typeof trSeen === "function") ? trSeen() : {};
+  const t = Object.assign({}, raw);
+  const tickedOff = [];
+  [["kyc_failed", "kyc_failed", "ID checks failed", ["idchecks", "w_kyc"]],
+   ["kyc_pending", "kyc_pending", "ID checks pending", ["idchecks", "w_kyc"]],
+   ["payouts", "payouts_waiting", "payouts waiting", ["payouts", "w_payouts"]],
+   ["unsent", "notif_unsent", "notifications queued", ["alerts", "w_alerts"]],
+   ["expired", "expired_unpaid", "bookings expired unpaid", ["bookings", "w_expired"]]].forEach((m) => {
+    const n = Number(raw[m[1]]) || 0;
+    if (n > 0 && seenTicks[m[0]] >= n) { t[m[1]] = 0; tickedOff.push({ n, words: m[2], nodes: m[3] }); }
+  });
   const P = o.people || {}, B = o.bookings || {}, M = o.money || {}, O = o.oma || {};
   const put = (id, s, line, facts) => { S[id] = { s, line, facts: (facts || []).filter(Boolean) }; };
   const f = (k, v) => [k, String(v)];
@@ -3830,6 +3845,8 @@ function brainCompute(D) {
   const wk = BRAIN.nodes.filter((n) => n.g === "work" && !n.hub && S[n.id].s === "warn").length;
   put("c_work", wk ? "warn" : "none", wk ? wk + " kinds of work waiting" : "Nothing waiting", []);
   put("oma", bad ? "bad" : warn || wk ? "warn" : "ok", bad ? bad + " part" + (bad === 1 ? "" : "s") + " damaged" : warn || wk ? "Working, with things to look at" : "Everything working", []);
+  // Say what was ticked off, so a quiet dot never hides a number she has seen.
+  tickedOff.forEach((x) => x.nodes.forEach((id) => { if (S[id]) S[id].facts.push(["Ticked off", x.n + " " + x.words]); }));
   return S;
 }
 
