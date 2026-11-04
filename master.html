@@ -4044,20 +4044,17 @@ function brainSize() {
   if (BRAIN.g && st.clientWidth) BRAIN.g.width(st.clientWidth).height(st.clientHeight);
 }
 
-/* Everything orbits Oma (3 Nov 2026: "let everything orbit around oma").
-   When the layout has settled, each cluster (Parts, People, Money, Work waiting,
-   with all its dots) is kept as it settled and turned about Oma on its own tilted
-   axis at its own speed, so the four clusters circle the middle like planets while
-   Oma stays still. Distances to Oma never change, so nothing drifts away. It runs as
-   the last "force" of the layout engine, which keeps ticking, so the dots, lines,
-   sparks and labels all follow. It stops while a dot is open (so you can read it),
-   with "Stop spinning", and for people who asked their phone for less motion. */
-const BRAIN_ORBITS = {
-  part:   { axis: [0.08, 1, 0.05],   speed: 0.14 },
-  people: { axis: [-0.18, 1, 0.12],  speed: -0.1 },
-  money:  { axis: [0.2, 1, -0.16],   speed: 0.07 },
-  work:   { axis: [0.1, 1, 0.22],    speed: -0.05 },
-};
+/* Everything orbits Oma (3 Nov 2026: "let everything orbit around oma"; 4 Nov 2026: "let it just
+   orbit clockwise around the oma center"). When the layout has settled, the whole picture is kept
+   exactly as it settled and turned about Oma as ONE piece: every dot and cluster at the same speed,
+   in the same direction, about the same upright line through Oma. So the order of things never
+   changes, nothing slides past anything else, and Oma stays still in the middle. Clockwise is as
+   seen from above (the near side of the picture sweeps to the left). To turn it the other way, make
+   BRAIN_ORBIT_SPEED positive. One turn takes about a minute. It runs as the last "force" of the layout
+   engine, which keeps ticking, so the dots, lines, sparks and labels all follow. It stops while a dot
+   is open (so you can read it), with "Stop spinning", and for people who asked their phone for less
+   motion. */
+const BRAIN_ORBIT_SPEED = -0.1;   // radians per second; negative = clockwise seen from above (about 63 s a turn)
 function brainOrbitStart() {
   const g = BRAIN.g;
   if (!g || BRAIN.orbit || brainReduced()) return;
@@ -4070,24 +4067,17 @@ function brainOrbitStart() {
   const cx0 = core.x || 0, cy0 = core.y || 0, cz0 = core.z || 0;
   BRAIN.nodes.forEach((n) => { n.bx = n.x - cx0; n.by = n.y - cy0; n.bz = n.z - cz0; n.x = n.bx; n.y = n.by; n.z = n.bz; });
   if (BRAIN.byId.oma) { core.fx = 0; core.fy = 0; core.fz = 0; }
-  for (const k in BRAIN_ORBITS) {
-    const o = BRAIN_ORBITS[k], m = Math.hypot(o.axis[0], o.axis[1], o.axis[2]);
-    o.u = [o.axis[0] / m, o.axis[1] / m, o.axis[2] / m];
-  }
   const force = () => {
     const now = performance.now();
     if (BRAIN.spin) BRAIN.orbT += Math.min(0.1, (now - BRAIN.orbLast) / 1000);
     BRAIN.orbLast = now;
+    const a = BRAIN_ORBIT_SPEED * BRAIN.orbT, c = Math.cos(a), sn = Math.sin(a);
     for (const n of BRAIN.nodes) {
-      const o = n.core ? null : BRAIN_ORBITS[n.g];
-      if (!o || n.bx == null) continue;
-      // Rodrigues: turn the settled position about the cluster's axis.
-      const a = o.speed * BRAIN.orbT, c = Math.cos(a), s = Math.sin(a), u = o.u;
-      const dot = u[0] * n.bx + u[1] * n.by + u[2] * n.bz;
-      const cx = u[1] * n.bz - u[2] * n.by, cy = u[2] * n.bx - u[0] * n.bz, cz = u[0] * n.by - u[1] * n.bx;
-      n.x = n.bx * c + cx * s + u[0] * dot * (1 - c);
-      n.y = n.by * c + cy * s + u[1] * dot * (1 - c);
-      n.z = n.bz * c + cz * s + u[2] * dot * (1 - c);
+      if (n.core || n.bx == null) continue;
+      // The settled position turned about the upright line through Oma (height never changes).
+      n.x = n.bx * c + n.bz * sn;
+      n.y = n.by;
+      n.z = n.bz * c - n.bx * sn;
       n.vx = n.vy = n.vz = 0;
     }
   };
