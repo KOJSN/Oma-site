@@ -594,6 +594,8 @@ const API = (() => {
     send:          (bookingId, body)        => live() ? rpc("api_send", { p_booking: bookingId, p_body: body }) : MOCK.send(bookingId, body),
     threads:       ()                       => live() ? rpc("api_threads") : MOCK.threads(),
     readThread:    (bookingId)              => live() ? rpc("api_read", { p_booking: bookingId }) : MOCK.readThread(bookingId),
+    // Special designs (p25_special.js): the conversation that comes BEFORE a booking. Live only.
+    special:       (fn, args)               => live() ? rpc(fn, args || {}) : Promise.reject(new Error("Special designs need the live app and an account.")),
 
     // These two go to edge functions, because they talk to somebody else's API.
     payInit:       (bookingId)              => live() ? edge("pay-init", { booking_id: bookingId }) : MOCK.payInit(bookingId),

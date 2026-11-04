@@ -86,6 +86,10 @@ function paint() {
     case "job": html = vJob(ROUTE.a); break;
     case "chat": html = vChat(ROUTE.a); break;
     case "review": html = vReview(ROUTE.a); break;
+    case "specials": html = vSpecials(); break;
+    case "special": html = vSpecialThread(ROUTE.a); break;
+    case "specialask": html = vSpecialAsk(ROUTE.a); break;
+    case "specialoffer": html = vSpecialOffer(ROUTE.a); break;
     default: html = DB.role === "tech" ? vRequestsLive() : vFind();
   }
   if (typeof stopCamera === "function") stopCamera();
@@ -93,13 +97,14 @@ function paint() {
   // has to be dismantled before its container is thrown away.
   if (typeof stopMap === "function") stopMap();
   if (typeof stopChat === "function") stopChat();
+  if (typeof stopSpecial === "function") stopSpecial();
   if (typeof stopFind === "function") stopFind();
   v.innerHTML = html;
-  const bare = ["welcome", "role", "signup", "setup", "signin", "chat"].includes(ROUTE.v);
+  const bare = ["welcome", "role", "signup", "setup", "signin", "chat", "special", "specialask", "specialoffer"].includes(ROUTE.v);
   v.classList.toggle("nonav", bare || !DB.role);
   // Home is the one screen that fills its height instead of scrolling.
   v.classList.toggle("map", ROUTE.v === "home");
-  v.classList.toggle("chat", ROUTE.v === "chat");
+  v.classList.toggle("chat", ROUTE.v === "chat" || ROUTE.v === "special");
   bottomNav();
   if (ROUTE.v === "sheet") paintSheetPreview();
   // Async screens fill themselves in after their frame is on the page.
@@ -470,6 +475,7 @@ document.getElementById("shell").addEventListener("click", e => {
   if (a === "rate-save") return saveReview();
 
   if (a === "send-msg") return sendMessage(el.dataset.id);
+  if (a.startsWith("sp-") && typeof specialAction === "function") return specialAction(a, el);
   if (a === "map-clear") return choosePin(null);
   if (a === "map-me") return recentreMap();
   if (a === "ask-loc") return askLocation();

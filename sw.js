@@ -1,4 +1,4 @@
-/* Oma service worker — build 33b6d0f491
+/* Oma service worker — build 84c13ee6f0
    Lives at the root of omanails.com, next to app.html.
 
    This is NOT the pwa/ one. That worker was written for a folder whose shell
@@ -14,7 +14,7 @@
    the next launch is current — nobody is ever more than one launch behind, and
    nobody is ever stuck. */
 
-const CACHE = "oma-33b6d0f491";
+const CACHE = "oma-84c13ee6f0";
 const SHELL = "/app.html";
 /* "/" is in here so the landing page survives offline too. It could be left
    out and the site would still work online — but a worker that caches the app
