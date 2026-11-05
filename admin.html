@@ -1344,19 +1344,19 @@ function drawBookings(data, errMsg) {
     return;
   }
   const rows = data.bookings || [];
-  // 5 Nov 2026: "let damage control be able to see the bookings". Damage control sees the LIST only: no Chat
-  // column (a booking's chat is owner-only in the database) and no Refund button (refunding is owner-only too).
-  const lite = DEPT === "damage";
+  // 5 Nov 2026: "let damage control be able to see the bookings", then "...the bookings chat too". Damage control
+  // sees the list and each booking's chat, but there is no Refund button for it (refunding is owner-only in the database).
+  const noRefund = DEPT === "damage";
   el.innerHTML = rows.length
     ? `<table><thead><tr>
-        <th>When</th><th>Customer</th><th>Tech</th><th>Amount</th><th>Status</th>${lite ? "" : "<th>Chat</th><th></th>"}
+        <th>When</th><th>Customer</th><th>Tech</th><th>Amount</th><th>Status</th><th>Chat</th>${noRefund ? "" : "<th></th>"}
       </tr></thead><tbody>${rows.map((b) => `<tr>
         <td>${esc(ago(b.created_at))}${b.at_home ? " · at home" : ""}</td>
         <td>${esc(b.customer)}</td>
         <td>${esc(b.tech)}</td>
         <td class="tnum">${naira(b.total_kobo)}</td>
-        <td>${bkChip(b.status)}</td>${lite ? "" : `
-        <td><button class="btn sm plain" data-bkopen="${esc(b.id)}" type="button">Open<span class="faint" data-bkn="${esc(b.id)}"></span></button></td>
+        <td>${bkChip(b.status)}</td>
+        <td><button class="btn sm plain" data-bkopen="${esc(b.id)}" type="button">Open<span class="faint" data-bkn="${esc(b.id)}"></span></button></td>${noRefund ? "" : `
         <td>${(b.status === "disputed" || b.status === "paid")
           ? `<button class="btn sm plain" data-refund="${esc(b.id)}" type="button">Refund customer</button>`
           : ""}</td>`}
@@ -1392,7 +1392,7 @@ async function loadBookings(resetPage) {
       if (DEPT === "damage") {
         try { await rpc("api_staff_me", { p_token: t }); }
         catch (e2) { return lockOut(); }
-        return drawBookings(null, "not switched on for Damage control yet. Ask the owner to run \u201cLet Damage control see the bookings\u201d in Supabase.");
+        return drawBookings(null, "not switched on for Damage control yet. Ask the owner to run \u201cLet Damage control see the bookings and their chats\u201d in Supabase.");
       }
       return lockOut();
     }
@@ -1438,7 +1438,7 @@ const bkWhen = (iso) => iso
 
 async function bkCounts(ids) {
   const t = token();
-  if (!t || !ids.length || DEPT === "damage") return;   // Damage control has no chat column
+  if (!t || !ids.length) return;
   let r = null;
   try { r = await rpc("api_admin_chat_counts", { p_token: t, p_ids: ids }); }
   catch (e) { return; }   // the SQL may not be run yet: Open still works
@@ -1498,7 +1498,20 @@ async function loadSheet(first) {
   let r;
   try { r = await rpc("api_admin_booking_chat", { p_token: t, p_booking: id }); }
   catch (e) {
-    if (e.status === 401 || /sign in again/i.test(e.message)) { closeSheet(); return lockOut(); }
+    if (e.status === 401 || /sign in again/i.test(e.message)) {
+      // Damage control before "Let Damage control see the bookings and their chats" has been run: the database still
+      // only knows the owner and says "sign in again". That is not an expired session, so do not sign her out; check
+      // the session with a call she may make, and only sign out if THAT fails too.
+      if (DEPT === "damage") {
+        try { await rpc("api_staff_me", { p_token: t }); }
+        catch (e2) { closeSheet(); return lockOut(); }
+        if (SHEET.id !== id) return;
+        clearInterval(SHEET.timer);
+        sheetError("Booking chats are not switched on for Damage control yet. Ask the owner to run <b>Let Damage control see the bookings and their chats</b> in Supabase.");
+        return;
+      }
+      closeSheet(); return lockOut();
+    }
     if (SHEET.id !== id || !first) return;
     sheetError(/api_admin_booking_chat|could not find the function|does not exist/i.test(e.message)
       ? "Run <b>Admin booking chats</b> in the Supabase SQL editor to switch this on."
@@ -2190,7 +2203,7 @@ document.addEventListener("click", (e) => {
 const DEPTS = {
   care:    { label: "Customer care",  blurb: "Reply to the live chats from omanails.com", pages: ["care"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.1A8.4 8.4 0 1 1 21 11.5Z"/></svg>` },
   finance: { label: "Finance",        blurb: "Withdrawals, refunds and money switches. View only", pages: ["finances"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19V5l10 14V5M4 9.5h16M4 14.5h16"/></svg>` },
-  damage:  { label: "Damage control", blurb: "Mischief reports, Control, Reports and the list of bookings", pages: ["mischief", "control", "reports", "bookings"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>` },
+  damage:  { label: "Damage control", blurb: "Mischief reports, Control, Reports and the bookings with their chats", pages: ["mischief", "control", "reports", "bookings"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>` },
 };
 let STAFF = null;     // { name, depts, expires_at } from api_staff_me
 let DEPT = null;      // the department being worked in
