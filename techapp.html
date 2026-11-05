@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /techapp-manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as 56fbc3df70/tech. -->
+     (start_url /techapp.html) — same fix shape as 46d1e37a39/tech. -->
 <link rel="manifest" href="/techapp-manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1429,7 +1429,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "56fbc3df70";
+const BUILD_ID = "46d1e37a39";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -4249,6 +4249,7 @@ const API = (() => {
     // appointment; the nail tech's "Client didn't come" and "I can't make it".
     payoutQuote:   (kobo)                   => live() ? rpc("api_payout_quote", { p_amount: kobo }) : MOCK.payoutQuote(kobo),
     checkIn:       (b, lat, lng)            => live() ? rpc("api_booking_checkin", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.checkIn(),
+    arrived:       (b, lat, lng)            => live() ? rpc("api_booking_arrived", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.arrived(b, lat, lng),
     techNoShow:    (b, lat, lng)            => live() ? rpc("api_tech_noshow", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.techNoShow(),
     cannotMakeIt:  (b, why)                 => live() ? rpc("api_tech_cannot_make_it", { p_booking: b, p_reason: why || null }) : MOCK.cannotMakeIt(),
     // 9 Oct 2026 ("Visits count" SQL): one call each time a signed-in person
@@ -5056,6 +5057,9 @@ const API = (() => {
 
       payoutQuote: async (kobo) => ({ amount_kobo: kobo, fee_kobo: 1500, receive_kobo: Math.max(kobo - 1500, 0) }),
       checkIn: async () => ({ ok: true, counted: false }),
+      arrived: async (b, lat) => lat == null
+        ? { ok: true, ready: true, open: true, counted: false }
+        : { ok: true, ready: true, open: true, counted: true, near: true, message: "Practice mode: nothing was sent." },
       techNoShow: async () => ({ ok: true, accepted: false, message: "Practice mode: nothing was sent." }),
       cannotMakeIt: async () => ({ ok: true }),
 
@@ -8551,10 +8555,12 @@ function vTicket(bookingId) {
         </div>
         <div class="note pink"><div><b>Do not show this before she has done your
           nails.</b> Scanning it is what pays her, and it only works once.</div></div>
+        <div id="hereSlot"></div>
         <div id="checkinSlot"></div>
       </div>`);
     fillPlace(b.id);
     maybeCheckIn(b);
+    maybeHere(b);
   });
   return head("Your appointment", "The code that pays her") + host();
 }
@@ -9485,6 +9491,34 @@ const CHECKIN_NOTE = `<div class="tiny sub" style="text-align:center">While this
   your phone tells Oma only <b>how far you are from the place</b>, never where you are.
   It is used to settle a no-show fairly and is deleted after 30 days.</div>`;
 
+/* "I'm here" (Kamsy, 5 Nov 2026, no-show rule, option 1): an explicit button for
+   the CLIENT, shown from 1 hour before the appointment to 12 hours after. She
+   taps it when she gets to the place; the phone is asked for its position only
+   then, and only how far it is from the place is kept. Same rule as the
+   check-in above: the first call carries no position and only finds out whether
+   the server side exists, so the button never shows (and nobody is asked for
+   location) until the "I'm here button" SQL has been run. */
+function hereWindow(b) {
+  if (!b || b.status !== "paid" || !b.starts_at) return false;
+  const at = new Date(b.starts_at).getTime(), now = Date.now();
+  return now >= at - 3600e3 && now <= at + 12 * 3600e3;
+}
+const HERE_CARD = (id) => `
+  <div class="stack gap12"><div class="note pink"><div><b>Got to the place?</b> Tap the button so Oma knows you came.
+    If your nail tech later says you did not come, Oma can see that you were there.
+    Your phone sends only <b>how far you are from the place</b>, once, when you tap.</div></div>
+  <button class="btn" data-a="here" data-id="${esc(id)}">I'm here</button></div>`;
+function maybeHere(b) {
+  try {
+    if (!b || b.role === "tech" || !hereWindow(b) || !API.signedIn()) return;
+    API.arrived(b.id, null, null).then((r) => {
+      const slot = document.getElementById("hereSlot");
+      if (!slot || !r || !r.ready || !r.open) return;
+      slot.innerHTML = HERE_CARD(b.id);
+    }).catch(() => { /* not switched on yet, or not hers: stay quiet */ });
+  } catch (e) { /* never in the way of the screen */ }
+}
+
 function vJob(bookingId) {
   load(async () => {
     if (!API.signedIn()) return askToSignIn("this appointment");
@@ -9553,6 +9587,7 @@ function vJob(bookingId) {
           ? `<div class="note"><div>Waited 30 minutes and she has not come? If you are at the place,
                tap this and you are paid the whole price. Your phone must be at the place.</div></div>
              <button class="btn ghost" data-a="noshow" data-id="${esc(b.id)}">Client didn't come</button>` : ""}
+        <div id="hereSlot"></div>
         <div id="checkinSlot"></div>
         ${asTech && b.status === "paid"
           ? `<div style="text-align:center"><button class="tag" data-a="cantmake" data-id="${esc(b.id)}"
@@ -9599,6 +9634,7 @@ function vJob(bookingId) {
       </div>`);
     fillWhere(bookingId);
     maybeCheckIn(b);
+    maybeHere(b);
   });
   return head("Appointment", "") + host();
 }
@@ -13510,6 +13546,20 @@ document.getElementById("shell").addEventListener("click", e => {
       return API.techNoShow(id, p.lat, p.lng).then((r) => {
         toast((r && r.message) || "Done.");
         paint();
+      });
+    }).catch((err) => toast(/could not find|schema cache/i.test(err.message || "") ? "This is not switched on yet." : err.message));
+  }
+  // 5 Nov 2026: the client taps "I'm here" at the place. Position is asked for only now.
+  if (a === "here") {
+    toast("Checking where you are…");
+    return currentPos().then((p) => {
+      if (!p) return toast("Turn on location so Oma can see you are at the place, then tap again.");
+      return API.arrived(id, p.lat, p.lng).then((r) => {
+        toast((r && r.message) || "Done.");
+        if (r && r.near) {
+          const slot = document.getElementById("hereSlot");
+          if (slot) slot.innerHTML = `<div class="note"><div>${esc(r.message || "Oma can see you are at the place.")}</div></div>`;
+        }
       });
     }).catch((err) => toast(/could not find|schema cache/i.test(err.message || "") ? "This is not switched on yet." : err.message));
   }
