@@ -494,6 +494,9 @@ body.dept-finance .page[data-page="finances"] textarea{display:none!important}
       <button class="navbtn" type="button" data-page="control">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M12 8v4l3 2"/></svg>
         Control</button>
+      <button class="navbtn" type="button" data-page="bookings">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Bookings</button>
       <button class="navbtn" type="button" data-page="reports">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
         Reports</button>
@@ -1341,19 +1344,22 @@ function drawBookings(data, errMsg) {
     return;
   }
   const rows = data.bookings || [];
+  // 5 Nov 2026: "let damage control be able to see the bookings". Damage control sees the LIST only: no Chat
+  // column (a booking's chat is owner-only in the database) and no Refund button (refunding is owner-only too).
+  const lite = DEPT === "damage";
   el.innerHTML = rows.length
     ? `<table><thead><tr>
-        <th>When</th><th>Customer</th><th>Tech</th><th>Amount</th><th>Status</th><th>Chat</th><th></th>
+        <th>When</th><th>Customer</th><th>Tech</th><th>Amount</th><th>Status</th>${lite ? "" : "<th>Chat</th><th></th>"}
       </tr></thead><tbody>${rows.map((b) => `<tr>
         <td>${esc(ago(b.created_at))}${b.at_home ? " · at home" : ""}</td>
         <td>${esc(b.customer)}</td>
         <td>${esc(b.tech)}</td>
         <td class="tnum">${naira(b.total_kobo)}</td>
-        <td>${bkChip(b.status)}</td>
+        <td>${bkChip(b.status)}</td>${lite ? "" : `
         <td><button class="btn sm plain" data-bkopen="${esc(b.id)}" type="button">Open<span class="faint" data-bkn="${esc(b.id)}"></span></button></td>
         <td>${(b.status === "disputed" || b.status === "paid")
           ? `<button class="btn sm plain" data-refund="${esc(b.id)}" type="button">Refund customer</button>`
-          : ""}</td>
+          : ""}</td>`}
       </tr>`).join("")}</tbody></table>`
     : `<div class="empty">No bookings match.</div>`;
   const total = data.total || 0;
@@ -1379,7 +1385,17 @@ async function loadBookings(resetPage) {
     drawBookings(data);
     bkCounts(((data && data.bookings) || []).map((b) => b.id));
   } catch (e) {
-    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    if (e.status === 401 || /sign in again/i.test(e.message)) {
+      // Damage control before "Let Damage control see the bookings" has been run in Supabase: the database says
+      // "sign in again" because it still only knows the owner. That is not an expired session, so do not sign her
+      // out; check the session with a call she is allowed to make, and only sign out if THAT fails too.
+      if (DEPT === "damage") {
+        try { await rpc("api_staff_me", { p_token: t }); }
+        catch (e2) { return lockOut(); }
+        return drawBookings(null, "not switched on for Damage control yet. Ask the owner to run \u201cLet Damage control see the bookings\u201d in Supabase.");
+      }
+      return lockOut();
+    }
     drawBookings(null, e && e.message);
   }
 }
@@ -1422,7 +1438,7 @@ const bkWhen = (iso) => iso
 
 async function bkCounts(ids) {
   const t = token();
-  if (!t || !ids.length) return;
+  if (!t || !ids.length || DEPT === "damage") return;   // Damage control has no chat column
   let r = null;
   try { r = await rpc("api_admin_chat_counts", { p_token: t, p_ids: ids }); }
   catch (e) { return; }   // the SQL may not be run yet: Open still works
@@ -2174,7 +2190,7 @@ document.addEventListener("click", (e) => {
 const DEPTS = {
   care:    { label: "Customer care",  blurb: "Reply to the live chats from omanails.com", pages: ["care"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.1A8.4 8.4 0 1 1 21 11.5Z"/></svg>` },
   finance: { label: "Finance",        blurb: "Withdrawals, refunds and money switches. View only", pages: ["finances"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19V5l10 14V5M4 9.5h16M4 14.5h16"/></svg>` },
-  damage:  { label: "Damage control", blurb: "Mischief reports, Control and Reports", pages: ["mischief", "control", "reports"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>` },
+  damage:  { label: "Damage control", blurb: "Mischief reports, Control, Reports and the list of bookings", pages: ["mischief", "control", "reports", "bookings"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>` },
 };
 let STAFF = null;     // { name, depts, expires_at } from api_staff_me
 let DEPT = null;      // the department being worked in
