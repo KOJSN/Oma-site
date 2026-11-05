@@ -573,6 +573,7 @@ const API = (() => {
     // appointment; the nail tech's "Client didn't come" and "I can't make it".
     payoutQuote:   (kobo)                   => live() ? rpc("api_payout_quote", { p_amount: kobo }) : MOCK.payoutQuote(kobo),
     checkIn:       (b, lat, lng)            => live() ? rpc("api_booking_checkin", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.checkIn(),
+    arrived:       (b, lat, lng)            => live() ? rpc("api_booking_arrived", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.arrived(b, lat, lng),
     techNoShow:    (b, lat, lng)            => live() ? rpc("api_tech_noshow", { p_booking: b, p_lat: lat, p_lng: lng }) : MOCK.techNoShow(),
     cannotMakeIt:  (b, why)                 => live() ? rpc("api_tech_cannot_make_it", { p_booking: b, p_reason: why || null }) : MOCK.cannotMakeIt(),
     // 9 Oct 2026 ("Visits count" SQL): one call each time a signed-in person
@@ -1380,6 +1381,9 @@ const API = (() => {
 
       payoutQuote: async (kobo) => ({ amount_kobo: kobo, fee_kobo: 1500, receive_kobo: Math.max(kobo - 1500, 0) }),
       checkIn: async () => ({ ok: true, counted: false }),
+      arrived: async (b, lat) => lat == null
+        ? { ok: true, ready: true, open: true, counted: false }
+        : { ok: true, ready: true, open: true, counted: true, near: true, message: "Practice mode: nothing was sent." },
       techNoShow: async () => ({ ok: true, accepted: false, message: "Practice mode: nothing was sent." }),
       cannotMakeIt: async () => ({ ok: true }),
 

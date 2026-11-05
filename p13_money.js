@@ -663,10 +663,12 @@ function vTicket(bookingId) {
         </div>
         <div class="note pink"><div><b>Do not show this before she has done your
           nails.</b> Scanning it is what pays her, and it only works once.</div></div>
+        <div id="hereSlot"></div>
         <div id="checkinSlot"></div>
       </div>`);
     fillPlace(b.id);
     maybeCheckIn(b);
+    maybeHere(b);
   });
   return head("Your appointment", "The code that pays her") + host();
 }

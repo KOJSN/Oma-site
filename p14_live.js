@@ -231,6 +231,34 @@ const CHECKIN_NOTE = `<div class="tiny sub" style="text-align:center">While this
   your phone tells Oma only <b>how far you are from the place</b>, never where you are.
   It is used to settle a no-show fairly and is deleted after 30 days.</div>`;
 
+/* "I'm here" (Kamsy, 5 Nov 2026, no-show rule, option 1): an explicit button for
+   the CLIENT, shown from 1 hour before the appointment to 12 hours after. She
+   taps it when she gets to the place; the phone is asked for its position only
+   then, and only how far it is from the place is kept. Same rule as the
+   check-in above: the first call carries no position and only finds out whether
+   the server side exists, so the button never shows (and nobody is asked for
+   location) until the "I'm here button" SQL has been run. */
+function hereWindow(b) {
+  if (!b || b.status !== "paid" || !b.starts_at) return false;
+  const at = new Date(b.starts_at).getTime(), now = Date.now();
+  return now >= at - 3600e3 && now <= at + 12 * 3600e3;
+}
+const HERE_CARD = (id) => `
+  <div class="stack gap12"><div class="note pink"><div><b>Got to the place?</b> Tap the button so Oma knows you came.
+    If your nail tech later says you did not come, Oma can see that you were there.
+    Your phone sends only <b>how far you are from the place</b>, once, when you tap.</div></div>
+  <button class="btn" data-a="here" data-id="${esc(id)}">I'm here</button></div>`;
+function maybeHere(b) {
+  try {
+    if (!b || b.role === "tech" || !hereWindow(b) || !API.signedIn()) return;
+    API.arrived(b.id, null, null).then((r) => {
+      const slot = document.getElementById("hereSlot");
+      if (!slot || !r || !r.ready || !r.open) return;
+      slot.innerHTML = HERE_CARD(b.id);
+    }).catch(() => { /* not switched on yet, or not hers: stay quiet */ });
+  } catch (e) { /* never in the way of the screen */ }
+}
+
 function vJob(bookingId) {
   load(async () => {
     if (!API.signedIn()) return askToSignIn("this appointment");
@@ -299,6 +327,7 @@ function vJob(bookingId) {
           ? `<div class="note"><div>Waited 30 minutes and she has not come? If you are at the place,
                tap this and you are paid the whole price. Your phone must be at the place.</div></div>
              <button class="btn ghost" data-a="noshow" data-id="${esc(b.id)}">Client didn't come</button>` : ""}
+        <div id="hereSlot"></div>
         <div id="checkinSlot"></div>
         ${asTech && b.status === "paid"
           ? `<div style="text-align:center"><button class="tag" data-a="cantmake" data-id="${esc(b.id)}"
@@ -345,6 +374,7 @@ function vJob(bookingId) {
       </div>`);
     fillWhere(bookingId);
     maybeCheckIn(b);
+    maybeHere(b);
   });
   return head("Appointment", "") + host();
 }

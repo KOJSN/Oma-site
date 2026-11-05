@@ -603,6 +603,20 @@ document.getElementById("shell").addEventListener("click", e => {
       });
     }).catch((err) => toast(/could not find|schema cache/i.test(err.message || "") ? "This is not switched on yet." : err.message));
   }
+  // 5 Nov 2026: the client taps "I'm here" at the place. Position is asked for only now.
+  if (a === "here") {
+    toast("Checking where you are…");
+    return currentPos().then((p) => {
+      if (!p) return toast("Turn on location so Oma can see you are at the place, then tap again.");
+      return API.arrived(id, p.lat, p.lng).then((r) => {
+        toast((r && r.message) || "Done.");
+        if (r && r.near) {
+          const slot = document.getElementById("hereSlot");
+          if (slot) slot.innerHTML = `<div class="note"><div>${esc(r.message || "Oma can see you are at the place.")}</div></div>`;
+        }
+      });
+    }).catch((err) => toast(/could not find|schema cache/i.test(err.message || "") ? "This is not switched on yet." : err.message));
+  }
   // …and the nail tech who cannot make a paid appointment: the client is refunded at once.
   if (a === "cantmake") {
     if (!confirm("Cancel this appointment? The client gets her money back straight away and you are not paid for it.")) return;
