@@ -60,18 +60,24 @@
    Kamsy: "a company brain ... stuff hovering around but you can tap a dot and
    see information in it ... 3D so i could move around it ... the dots are
    gonna connect ... if any part of the brain is damaged i can go there and
-   the pink dots just beep red." The stage is dark in light mode too: dots
-   floating in space read badly on white. */
+   the pink dots just beep red." 5 Nov 2026: "if i put the master page in light
+   mode let it also set the globe to light mode". The stage is dark by default
+   and gets .lt (light) whenever the page is in light mode; brainApplyTheme()
+   in the script below keeps the two in step, live. The colours that change
+   between the two are the --b-* tokens here. */
 .navbtn .nbadge.red{background:#e0352f;color:#fff;animation:bnav 1.2s ease-in-out infinite}
 .navbtn.on .nbadge.red{background:#fff;color:#c4271f}
 .navbtn .nbadge.yellow{background:#ffd60a;color:#3d3000;animation:bnavy 1.5s ease-in-out infinite}
 .navbtn.on .nbadge.yellow{background:#fff;color:#8a6a00}
 @keyframes bnavy{0%,100%{box-shadow:0 0 0 0 rgba(255,214,10,.65)}50%{box-shadow:0 0 0 5px rgba(255,214,10,0)}}
 @keyframes bnav{0%,100%{box-shadow:0 0 0 0 rgba(224,53,47,.55)}50%{box-shadow:0 0 0 5px rgba(224,53,47,0)}}
-.brainstage{position:relative;height:min(70vh,660px);min-height:420px;border-radius:18px;
+.brainstage{--b-pink:#ff5f96;--b-amber:#ffd60a;--b-violet:#8b5cf6;--b-gold:#e6b422;--b-grey:#8f93a8;--b-sub:#cfc4da;
+  position:relative;height:min(70vh,660px);min-height:420px;border-radius:18px;
   overflow:hidden;border:1px solid var(--line);
   background:radial-gradient(120% 90% at 50% 38%,#2b1736 0%,#150d1d 55%,#09060d 100%);
   touch-action:none}
+.brainstage.lt{--b-pink:#f0518d;--b-amber:#e3a008;--b-violet:#7c4ae0;--b-gold:#c98a08;--b-grey:#7b8098;--b-sub:#6b5f78;
+  background:radial-gradient(120% 90% at 50% 38%,#ffffff 0%,#f9eff5 55%,#efe2ec 100%)}
 #brainCanvas{position:absolute;inset:0}
 #brainCanvas canvas{display:block;outline:none}
 #brainLabels{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1}
@@ -124,8 +130,8 @@
   text-transform:uppercase;color:#cfc4da}
 .bpanel .bst{margin:8px 0 2px;font-size:13.5px;font-weight:700;display:flex;gap:7px;align-items:flex-start}
 .bpanel .bst i{width:10px;height:10px;border-radius:50%;margin-top:4px;flex:none}
-.bpanel .ok i{background:#ff5f96}.bpanel .warn i{background:#ffd60a}
-.bpanel .bad i{background:#ff3b30}.bpanel .none i{background:#8f93a8}
+.bpanel .ok i{background:var(--b-pink)}.bpanel .warn i{background:var(--b-amber)}
+.bpanel .bad i{background:#ff3b30}.bpanel .none i{background:var(--b-grey)}
 .bpanel .bad{color:#ff9a92}.bpanel .warn{color:#ffe566}
 .bpanel p{margin:6px 0 0;font-size:13px;line-height:1.45;color:#d9cfe4}
 .bpanel .bkv{margin-top:10px;border-top:1px solid rgba(255,255,255,.12)}
@@ -163,6 +169,32 @@
 .brainstage:fullscreen .bl.hub .t,.brainstage.full .bl.hub .t{font-size:14.5px}
 .brainstage:fullscreen .bl.core .t,.brainstage.full .bl.core .t{font-size:17px}
 html.brainfull{overflow:hidden}
+
+/* ── company brain in light mode (the page is in light mode) ── */
+.brainstage.lt .bl .t{color:#2a1d35;text-shadow:0 1px 3px #fff,0 0 7px #fff,0 0 12px rgba(255,255,255,.9)}
+.brainstage.lt .bl.bad .t{color:#c0392b}
+.brainstage.lt .bl.warn .t{color:#8f5f00}
+.brainstage.lt .bl.sel .t{color:#000}
+.brainstage.lt .bstat{background:rgba(255,255,255,.78);color:#2a1d35;border-color:rgba(42,29,53,.16)}
+.brainstage.lt .bstat.warn{background:rgba(227,160,8,.18);border-color:rgba(184,121,27,.55);color:#7a5200}
+.brainstage.lt .bstat.bad{background:rgba(255,59,48,.12);border-color:rgba(192,57,43,.5);color:#a8281c}
+.brainstage.lt .bstat.warn i{background:var(--b-amber)}
+.brainstage.lt .btools button{color:#2a1d35;background:rgba(255,255,255,.78);border-color:rgba(42,29,53,.16)}
+.brainstage.lt .btools button:hover{background:#fff}
+.brainstage.lt .blegend{color:#4b3f58}
+.brainstage.lt .bpanel{background:rgba(255,255,255,.96);color:#2a1d35;border-color:rgba(42,29,53,.16);
+  box-shadow:0 10px 30px rgba(42,29,53,.2)}
+.brainstage.lt .bpanel .bx{background:rgba(42,29,53,.07);color:#2a1d35}
+.brainstage.lt .bpanel h3{color:#1c1424}
+.brainstage.lt .bpanel .bg{color:#6b5f78}
+.brainstage.lt .bpanel .bad{color:#c0392b}.brainstage.lt .bpanel .warn{color:#8f5f00}
+.brainstage.lt .bpanel p{color:#3f3349}
+.brainstage.lt .bpanel .bkv{border-top-color:rgba(42,29,53,.12)}
+.brainstage.lt .bpanel .bkv div{border-bottom-color:rgba(42,29,53,.08)}
+.brainstage.lt .bpanel .bkv span,.brainstage.lt .bpanel .bconn{color:#6b5f78}
+.brainstage.lt .bpanel .bkv b{color:#1c1424}
+.brainstage.lt .bpanel .bconn button{border-color:rgba(42,29,53,.2);background:rgba(42,29,53,.05);color:#2a1d35}
+.brainstage.lt .bpanel .bgo{background:#f0518d;border-color:#f0518d;color:#fff}
 
 /* A person, once the globe has become a map. Fixed size on screen, because
    the thing under it is now streets and a marker that grows would cover
@@ -679,12 +711,12 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
                 </span>
               </div>
               <div class="blegend" aria-hidden="true">
-                <span><i style="background:#ff5f96"></i>Part of Oma, working</span>
-                <span><i style="background:#ffd60a"></i>Needs a look</span>
+                <span><i style="background:var(--b-pink)"></i>Part of Oma, working</span>
+                <span><i style="background:var(--b-amber)"></i>Needs a look</span>
                 <span><i style="background:#ff3b30"></i>Damaged</span>
-                <span><i style="background:#8b5cf6"></i>People</span>
-                <span><i style="background:#e6b422"></i>Money</span>
-                <span><i style="background:#8f93a8"></i>Work waiting</span>
+                <span><i style="background:var(--b-violet)"></i>People</span>
+                <span><i style="background:var(--b-gold)"></i>Money</span>
+                <span><i style="background:var(--b-grey)"></i>Work waiting</span>
               </div>
               <div class="bpanel" id="brainPanel" hidden></div>
             </div>
@@ -3627,6 +3659,16 @@ document.addEventListener("click", (e) => {
    opens the same panel. Visitor-supplied text never reaches this page, but
    everything shown goes through esc() anyway. */
 const BRAIN_RED = "#ff3b30", BRAIN_AMBER = "#ffd60a", BRAIN_PINK = "#ff5f96";   // BRAIN_AMBER is the yellow
+/* Dot and line colours for the dark stage and the light one. brainPal() picks by BRAIN.light, so a
+   colour accessor handed to the graph once keeps working after the theme flips (it is re-applied). */
+const BRAIN_PAL = {
+  dark:  { core: "#ffffff", pink: BRAIN_PINK, amber: BRAIN_AMBER, violet: "#8b5cf6", gold: "#e6b422", grey: "#8f93a8",
+           linkAmber: "rgba(255,214,10,.8)", linkOn: "rgba(255,255,255,.9)", linkOff: "rgba(255,255,255,.05)",
+           linkHub: "rgba(255,255,255,.13)", linkFlow: "rgba(255,255,255,.32)" },
+  light: { core: "#2a1d35", pink: "#f0518d", amber: "#e3a008", violet: "#7c4ae0", gold: "#c98a08", grey: "#7b8098",
+           linkAmber: "rgba(214,150,0,.85)", linkOn: "rgba(42,29,53,.85)", linkOff: "rgba(42,29,53,.06)",
+           linkHub: "rgba(42,29,53,.16)", linkFlow: "rgba(42,29,53,.34)" },
+};
 const BRAIN_GROUPS = {
   hub:    { name: "Oma",          col: "#ffffff" },
   part:   { name: "Parts of Oma", col: BRAIN_PINK },
@@ -3721,7 +3763,7 @@ const BRAIN_FLOWS = [
 const BRAIN = {
   nodes: BRAIN_NODES.map((n) => Object.assign({ st: "none", line: "", facts: [], val: n.core ? 18 : n.hub ? 9 : n.g === "part" ? 5 : 3.5 }, n)),
   links: [], byId: {}, nbr: {}, D: null, stores: null, storesAt: 0,
-  g: null, els: {}, sel: null, raf: 0, touched: false, spin: true, libFail: false,
+  g: null, els: {}, sel: null, raf: 0, touched: false, spin: true, libFail: false, light: null,
 };
 BRAIN.nodes.forEach((n) => { BRAIN.byId[n.id] = n; BRAIN.nbr[n.id] = []; });
 (function () {
@@ -3859,16 +3901,20 @@ const brainColor = (n) => {
   const c = brainBase(n);
   return brainDimmed(n.id) ? brainRgba(c, 0.2) : c;
 };
-const brainBase = (n) =>
-  n.g === "part" && !n.core
-    ? (n.st === "bad" ? BRAIN_RED : n.st === "warn" ? BRAIN_AMBER : BRAIN_PINK)
-    : n.g === "work" && !n.hub ? (n.st === "warn" ? BRAIN_AMBER : BRAIN_GROUPS.work.col)
-    : n.core ? (n.st === "bad" ? BRAIN_RED : "#ffffff") : BRAIN_GROUPS[n.g].col;
+const brainPal = () => (BRAIN.light === true ? BRAIN_PAL.light : BRAIN_PAL.dark);
+const brainBase = (n) => {
+  const P = brainPal();
+  return n.g === "part" && !n.core
+    ? (n.st === "bad" ? BRAIN_RED : n.st === "warn" ? P.amber : P.pink)
+    : n.g === "work" && !n.hub ? (n.st === "warn" ? P.amber : P.grey)
+    : n.core ? (n.st === "bad" ? BRAIN_RED : P.core)
+    : n.g === "people" ? P.violet : n.g === "money" ? P.gold : P.grey;
+};
 const brainLinkColor = (l) => {
-  const a = brainEnd(l.source), b = brainEnd(l.target), sel = BRAIN.sel;
-  if (sel) return a === sel || b === sel ? "rgba(255,255,255,.9)" : "rgba(255,255,255,.05)";
+  const P = brainPal(), a = brainEnd(l.source), b = brainEnd(l.target), sel = BRAIN.sel;
+  if (sel) return a === sel || b === sel ? P.linkOn : P.linkOff;
   const s = brainLinkState(l);
-  return s === "bad" ? BRAIN_RED : s === "warn" ? "rgba(255,214,10,.8)" : l.kind === "hub" ? "rgba(255,255,255,.13)" : "rgba(255,255,255,.32)";
+  return s === "bad" ? BRAIN_RED : s === "warn" ? P.linkAmber : l.kind === "hub" ? P.linkHub : P.linkFlow;
 };
 const brainEnd = (e) => (e && typeof e === "object" ? e.id : e);
 const brainLinkState = (l) => {
@@ -3879,6 +3925,37 @@ const brainLinkState = (l) => {
   if ((leaf(a) && a.st === "warn") || (leaf(b) && b.st === "warn")) return "warn";
   return "";
 };
+
+/* The stage follows the page: light page, light globe; dark page, dark globe. It switches the moment the
+   page's theme button is tapped (the page stamps data-theme on <html>), and, while she has not chosen,
+   when the phone's own setting changes. Same rule as the page's own tokens: an explicit stamp wins,
+   otherwise follow the phone, and the bare default is light. */
+const brainIsLight = () => {
+  const t = document.documentElement.getAttribute("data-theme");
+  if (t === "light") return true;
+  if (t === "dark") return false;
+  return !(window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+};
+function brainApplyTheme() {
+  const lt = brainIsLight();
+  if (BRAIN.light === lt) return;
+  BRAIN.light = lt;
+  const st = document.getElementById("brainStage");
+  if (st) st.classList.toggle("lt", lt);
+  const g = BRAIN.g;
+  if (g) {
+    g.nodeColor(g.nodeColor());
+    g.linkColor(g.linkColor());
+    g.linkDirectionalParticleColor(g.linkDirectionalParticleColor());
+    g.linkDirectionalParticles(g.linkDirectionalParticles());
+  }
+}
+brainApplyTheme();
+new MutationObserver(brainApplyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+if (window.matchMedia) {
+  const mq = matchMedia("(prefers-color-scheme: dark)");
+  if (mq.addEventListener) mq.addEventListener("change", brainApplyTheme); else if (mq.addListener) mq.addListener(brainApplyTheme);
+}
 
 function brainSet(D) {
   BRAIN.D = D;
@@ -4118,7 +4195,7 @@ async function brainEnter() {
       .linkDirectionalParticles((l) => { if (brainReduced()) return 0; const k = brainLinkState(l); return k === "bad" ? 3 : k === "warn" ? 2 : 0; })
       .linkDirectionalParticleWidth(1.8)
       .linkDirectionalParticleSpeed(0.007)
-      .linkDirectionalParticleColor((l) => (brainLinkState(l) === "warn" ? BRAIN_AMBER : BRAIN_RED))
+      .linkDirectionalParticleColor((l) => (brainLinkState(l) === "warn" ? brainPal().amber : BRAIN_RED))
       .onNodeClick((n) => brainOpen(n.id, true))
       .onBackgroundClick(() => brainClose())
       .enableNodeDrag(false)   // dragging a dot is not needed, and its simulated pointer-up trips OrbitControls
@@ -4154,7 +4231,7 @@ async function brainEnter() {
   } catch (e) {
     BRAIN.libFail = true;
     document.getElementById("brainCanvas").innerHTML =
-      '<div class="empty" style="color:#cfc4da;padding:70px 24px;text-align:center">The 3D picture could not load here '
+      '<div class="empty" style="color:var(--b-sub);padding:70px 24px;text-align:center">The 3D picture could not load here '
       + "(it needs a WebGL phone or browser and a connection to cdn.jsdelivr.net). The list underneath shows every part and what state it is in, and "
       + "tapping a row opens the same information.</div>";
     document.querySelector(".btools").hidden = true;
