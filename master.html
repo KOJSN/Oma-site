@@ -3709,7 +3709,7 @@ const BRAIN_NODES = [
   { id: "signin", g: "part", name: "Sign-in", page: "users",
     desc: "Accounts and logging in, for customers, techs and the team." },
   { id: "idchecks", g: "part", name: "ID checks", page: "users",
-    desc: "The optional NIN check that gives a tech the pink verified badge." },
+    desc: "The optional NIN check that gives a tech the pink verified badge. The check belongs to the person, and her listing should always agree with it: this dot turns amber if a listing says not verified although its owner passed." },
   { id: "website", g: "part", name: "Website", page: null,
     desc: "omanails.com: the public site, the customer web app, the tech web app and these dashboards." },
   { id: "app_ci", g: "part", name: "Customer iPhone", page: null, store: "customer_ios",
@@ -3837,9 +3837,22 @@ function brainCompute(D) {
   stuck("signin", "ok", "No live check on this part yet. It shows pink unless the database is down.",
     [f("People signed up", num(P.users))]);
   const kf = n0(t.kyc_failed), kp = n0(t.kyc_pending);
-  stuck("idchecks", kf || kp ? "warn" : "ok",
-    kf || kp ? [kp ? kp + " pending" : "", kf ? kf + " failed" : ""].filter(Boolean).join(" · ") : "Nothing waiting",
-    [f("Pending", num(kp)), f("Failed", num(kf)), f("Techs verified", num(P.verified)), f("Techs awaiting ID", num(P.awaiting_kyc))]);
+  // 5 Nov 2026 (Nailsbyannie: verified beside her name, "none" in the ID column): a person's ID check and her listing's
+  // ID are meant to always agree. This looks at the newest 100 listings the Users page already fetched and flags any
+  // whose owner has passed while the listing says otherwise. It needs the "Listing owners" SQL (owner_verified);
+  // without it, it says nothing rather than guessing.
+  const drift = Array.isArray(D.ls)
+    ? D.ls.filter((x) => x && x.owner_verified && x.kyc !== "verified" && !/^\s*a former nail tech\s*$/i.test(String(x.name || "")))
+    : [];
+  const dn = drift.length;
+  stuck("idchecks", kf || kp || dn ? "warn" : "ok",
+    kf || kp || dn
+      ? [kp ? kp + " pending" : "", kf ? kf + " failed" : "",
+         dn ? dn + (dn === 1 ? " listing says" : " listings say") + " not verified though the owner passed: "
+              + drift.slice(0, 3).map((x) => x.name).join(", ") + (dn > 3 ? ", …" : "") : ""].filter(Boolean).join(" · ")
+      : "Nothing waiting",
+    [f("Pending", num(kp)), f("Failed", num(kf)), f("Techs verified", num(P.verified)), f("Techs awaiting ID", num(P.awaiting_kyc)),
+     dn ? f("Listings that disagree with their owner", num(dn)) : null]);
   put("website", "ok", "Serving this page right now", [f("Address", location.host)]);
 
   // The apps. The file is written by hand, so say how old it is.
@@ -4446,12 +4459,14 @@ async function load() {
       rpc("api_admin_visits", { p_token: t }).catch(() => null),
       // listing-owners.sql may not be loaded yet: without it the list simply has
       // no owner names (and the deleted techs are still hidden below).
-      rpc("api_admin_listings", { p_token: t, p_limit: 12 }).catch(() => null),
+      // 100, not 12: the table still shows 12, but the company brain checks every one of them against its
+      // owner's ID check (see "drift" in brainCompute).
+      rpc("api_admin_listings", { p_token: t, p_limit: 100 }).catch(() => null),
     ]);
 
     drawTrouble(tr);
     drawGlobe(globe);
-    try { brainSet({ ok: true, ms: Math.round(performance.now() - __t0), at: Date.now(), o, tr }); }
+    try { brainSet({ ok: true, ms: Math.round(performance.now() - __t0), at: Date.now(), o, tr, ls: listings }); }
     catch (e) { /* the brain must never take the dashboard down */ }
     setVisits(visits);
     drawPeople(folk);
@@ -4572,7 +4587,7 @@ async function load() {
     // or a server error). A bug while drawing the page, or a missing SQL file
     // (404), is not the database being damaged.
     if (err.status >= 500 || /failed to fetch|networkerror|load failed|network request failed|not connected/i.test(err.message || "")) {
-      try { brainSet({ ok: false, err: err.message, at: Date.now(), o: BRAIN.D && BRAIN.D.o, tr: BRAIN.D && BRAIN.D.tr }); }
+      try { brainSet({ ok: false, err: err.message, at: Date.now(), o: BRAIN.D && BRAIN.D.o, tr: BRAIN.D && BRAIN.D.tr, ls: BRAIN.D && BRAIN.D.ls }); }
       catch (e) { /* the brain must never take the dashboard down */ }
     }
     // Anything else is worth seeing rather than swallowing — a dashboard that
