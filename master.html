@@ -3684,7 +3684,7 @@ const BRAIN_NODES = [
   { id: "oma", g: "hub", core: 1, name: "Oma", page: "dashboard",
     desc: "Everything Oma is, in one picture. Pink dots are the working parts (they turn amber when something needs a look and red when something is damaged). Violet dots are people, green dots are money, grey dots are work waiting for you." },
   { id: "c_part", g: "part", hub: 1, name: "Parts of Oma",
-    desc: "The things that have to keep working: the database, bookings, payments, escrow, payouts, alerts, care chat, sign-in, ID checks, the website and the four apps." },
+    desc: "The things that have to keep working: the database, bookings, payments, escrow, payouts, alerts, care chat, sign-in, ID checks, the website, the four apps, and the newer features (calls, salon accounts, bans, profile pictures, reminders and same-day booking)." },
   { id: "c_people", g: "people", hub: 1, name: "People",
     desc: "Customers, nail techs and what they have done lately." },
   { id: "c_money", g: "money", hub: 1, name: "Money",
@@ -3720,6 +3720,21 @@ const BRAIN_NODES = [
     desc: "The nail tech app on the App Store." },
   { id: "app_ta", g: "part", name: "Tech Android", page: null, store: "tech_android",
     desc: "The nail tech app on Google Play." },
+
+  // 5 Nov 2026 ("add all of them"): the newer features. None has a live check yet, so each stays pink unless the
+  // database is down; what they are is written by hand, so it says nothing about whether a switch is on today.
+  { id: "calls", g: "part", name: "In-app calls", page: null,
+    desc: "The customer and the nail tech of one paid booking can speak to each other inside the apps (the sound is by Agora). Phone numbers are never shown, calls are not recorded and nobody else can join. A switch in the database (in_app_calls) stops every call at once." },
+  { id: "business", g: "part", name: "Salon business accounts", page: null,
+    desc: "A salon owner makes a business with one bank account and adds her techs by email. Their payouts go to the business, and she sees each tech's figures but never their chats. Only the owner needs a verified ID." },
+  { id: "bans", g: "part", name: "Bans", page: "users",
+    desc: "Banning a person by email or by name. She is signed out, cannot sign in or sign up again and her listing is hidden; money is never touched. You ban from Users, Damage control bans from Control." },
+  { id: "avatars", g: "part", name: "Profile pictures", page: null,
+    desc: "The pictures customers and nail techs upload for themselves. A listed tech's picture is shown to anyone signed in; a customer's only to her and the tech she has a booking with. A bad picture can be taken down by hand in the database." },
+  { id: "reminders", g: "part", name: "Appointment and listing reminders", page: null,
+    desc: "Alerts that send themselves: the customer 30 minutes before a paid appointment, the tech the same, and a daily 9 am nudge to techs who have not listed yet. The tech and listing reminders each have their own switch in the database." },
+  { id: "sameday", g: "part", name: "Same-day booking", page: "bookings",
+    desc: "Customers can book today as well as the next seven days. Today shows only whole hours at least an hour from now. Live on the website; the customer apps have it from iPhone 1.2.0 and the newest Android build (status as of 2 Nov)." },
 
   { id: "p_customers", g: "people", name: "Customers", page: "users", desc: "People who book nail techs." },
   { id: "p_techs", g: "people", name: "Nail techs", page: "users", desc: "Everyone who has set up a nail tech profile." },
@@ -3758,6 +3773,12 @@ const BRAIN_FLOWS = [
   ["app_ci", "signin"], ["app_ca", "signin"], ["app_ti", "signin"], ["app_ta", "signin"], ["app_ci", "bookings"], ["app_ti", "bookings"],
   ["w_disputes", "escrow"], ["w_unscanned", "bookings"], ["w_unscanned", "escrow"], ["w_payouts", "payouts"],
   ["w_kyc", "idchecks"], ["w_expired", "bookings"], ["w_alerts", "alerts"],
+  ["calls", "bookings"], ["calls", "alerts"], ["calls", "database"], ["calls", "app_ci"], ["calls", "app_ti"], ["calls", "app_ta"],
+  ["business", "p_techs"], ["business", "payouts"], ["business", "idchecks"], ["business", "database"], ["business", "app_ti"], ["business", "app_ta"],
+  ["bans", "signin"], ["bans", "p_customers"], ["bans", "p_techs"], ["bans", "database"],
+  ["avatars", "p_customers"], ["avatars", "p_techs"], ["avatars", "database"],
+  ["reminders", "bookings"], ["reminders", "alerts"], ["reminders", "p_customers"], ["reminders", "p_techs"],
+  ["sameday", "bookings"], ["sameday", "website"], ["sameday", "app_ci"], ["sameday", "app_ca"],
 ];
 
 const BRAIN = {
@@ -3853,6 +3874,8 @@ function brainCompute(D) {
       : "Nothing waiting",
     [f("Pending", num(kp)), f("Failed", num(kf)), f("Techs verified", num(P.verified)), f("Techs awaiting ID", num(P.awaiting_kyc)),
      dn ? f("Listings that disagree with their owner", num(dn)) : null]);
+  ["calls", "business", "bans", "avatars", "reminders", "sameday"].forEach((id) =>
+    stuck(id, "ok", "No live check on this part yet. It shows pink unless the database is down.", []));
   put("website", "ok", "Serving this page right now", [f("Address", location.host)]);
 
   // The apps. The file is written by hand, so say how old it is.
@@ -4012,7 +4035,7 @@ function brainRefresh() {
     "Checked from the dashboard’s own numbers, about every minute while this page is open: the database, bookings, escrow, payouts, "
     + "alerts, care chat and ID checks. The four apps come from a status file"
     + (BRAIN.stores && BRAIN.stores.asOf ? " last updated " + esc(BRAIN.stores.asOf) : " that is not there yet")
-    + ". Card payments and sign-in have no live check yet, so they stay pink unless the database is down.";
+    + ". Card payments, sign-in and the newer features (calls, salon accounts, bans, profile pictures, reminders, same-day booking) have no live check yet, so they stay pink unless the database is down.";
 
   brainList();
   BRAIN.nodes.forEach((n) => {
