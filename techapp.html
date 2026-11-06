@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /techapp-manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as efa7debac6/tech. -->
+     (start_url /techapp.html) — same fix shape as 62bf3d5ab8/tech. -->
 <link rel="manifest" href="/techapp-manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -183,6 +183,32 @@ a{color:var(--pink);text-decoration:none}
   height:100dvh;min-height:100dvh;overflow:hidden;
   background:var(--bg);display:flex;flex-direction:column;
 }
+/* 6 Nov 2026, Kamsy: "let the web app always urge users to download the app on
+   playstore and appstore." One slim bar above every screen, both builds
+   (app.html -> the customer apps, techapp.html -> the nail tech apps). It is
+   filled in once at boot (p8_wire.js) and never goes away on purpose. */
+#col{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;position:relative}
+#col.hasbar{--sat:0px}
+#getapp{flex:none;display:none}
+#getapp.on{
+  display:flex;align-items:center;gap:8px;
+  padding:calc(7px + env(safe-area-inset-top)) 12px 7px 14px;
+  background:var(--tint);border-bottom:1px solid var(--line);
+  font-size:12.5px;line-height:1.25;color:var(--ink);
+}
+#getapp .ga-t{flex:1;min-width:0;font-weight:600}
+#getapp .ga-t span{display:block;font-weight:500;color:var(--sub);font-size:11.5px}
+#getapp a.ga-b{
+  flex:none;display:inline-flex;align-items:center;gap:5px;
+  padding:6px 10px;border-radius:999px;background:var(--pink);color:var(--onpink);
+  font-size:12px;font-weight:700;white-space:nowrap;text-decoration:none;
+}
+#getapp a.ga-b svg{width:13px;height:13px;fill:currentColor;flex:none}
+#getapp a.ga-b.alt{background:var(--card);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+@media (max-width:360px){
+  #getapp .ga-t span{display:none}
+  #getapp a.ga-b{padding:6px 8px}
+}
 #view{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
   padding-bottom:calc(80px + env(safe-area-inset-bottom))}
 #view.nonav{padding-bottom:32px}
@@ -194,6 +220,9 @@ a{color:var(--pink);text-decoration:none}
    float on top of it. The gap below is the bottom bar's, so nothing important
    ever hides behind it. */
 :root{--navgap:calc(74px + env(safe-area-inset-bottom))}
+/* The status-bar gap. Screens pad themselves by it; when the get-the-app bar
+   is on top it takes the gap itself and the screens under it get none. */
+:root{--sat:env(safe-area-inset-top)}
 /* The map is the whole screen — under the greeting, under the sheet, behind
    the bar — rather than a rectangle between two pieces of furniture. Everything
    else floats on top of it. */
@@ -205,7 +234,7 @@ a{color:var(--pink);text-decoration:none}
 
 /* the greeting, floating */
 .maptop{position:absolute;top:0;left:0;right:0;z-index:7;
-  padding:calc(10px + env(safe-area-inset-top)) 14px 0;
+  padding:calc(10px + var(--sat)) 14px 0;
   pointer-events:none}          /* the map is draggable around the card */
 .maptop > *{pointer-events:auto}
 .mapgreet{
@@ -230,7 +259,7 @@ a{color:var(--pink);text-decoration:none}
    classes — a single-class rule of ours loses to it and the credit stays welded
    to the top edge, under the greeting. Match its specificity and it moves. */
 .leaflet-top .leaflet-control-attribution{
-  margin:calc(84px + env(safe-area-inset-top)) 0 0 14px}
+  margin:calc(84px + var(--sat)) 0 0 14px}
 /* OpenStreetMap has no dark tiles, and a white map inside a dark app is a
    torch in the face. Inverting the tiles alone gets close enough. */
 @media (prefers-color-scheme:dark){
@@ -265,7 +294,7 @@ a{color:var(--pink);text-decoration:none}
 /* Below the greeting AND below the scope pill — they used to share the same
    strip, and the greeting card, which is painted last, silently swallowed
    every tap meant for the scope. */
-.mapbtns{position:absolute;top:calc(132px + env(safe-area-inset-top));right:14px;z-index:5;
+.mapbtns{position:absolute;top:calc(132px + var(--sat));right:14px;z-index:5;
   display:flex;flex-direction:column;gap:10px}
 .mapbtn{width:46px;height:46px;border-radius:16px;background:var(--card);
   border:1px solid var(--line);box-shadow:var(--card-shadow);
@@ -348,7 +377,7 @@ a{color:var(--pink);text-decoration:none}
    and leaves a dead band under the composer. */
 #view.chat > #ahost{flex:1;min-height:0;display:flex;flex-direction:column}
 .chathead{flex:none;display:flex;align-items:center;gap:10px;
-  padding:calc(12px + env(safe-area-inset-top)) 14px 12px;
+  padding:calc(12px + var(--sat)) 14px 12px;
   background:var(--card);border-bottom:1px solid var(--line)}
 .chatlog{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
   padding:10px 16px 14px;display:flex;flex-direction:column;gap:7px}
@@ -388,7 +417,7 @@ a{color:var(--pink);text-decoration:none}
    sentence explaining what a hand scan is was the one thing you could not
    read. The greeting stays on top; everything else now begins below it. */
 .maplist{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
-  padding-top:calc(78px + env(safe-area-inset-top));
+  padding-top:calc(78px + var(--sat));
   padding-bottom:var(--navgap)}
 
 /* ═══ type ═══════════════════════════════════════════ */
@@ -413,7 +442,7 @@ h3{font-size:16px}
 
 /* ═══ topbar ═══════════════════════════════════════════ */
 .topbar{
-  flex:none;background:var(--card);padding:calc(14px + env(safe-area-inset-top)) 20px 18px;
+  flex:none;background:var(--card);padding:calc(14px + var(--sat)) 20px 18px;
   border-radius:0 0 26px 26px;
 }
 .topbar.plain{border-radius:0;background:transparent}
@@ -809,7 +838,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
 .svcflag:hover,.svcflag:focus-visible{opacity:1}
 
 /* The map's scope: near me, or the whole state. */
-.scope{position:absolute;top:calc(74px + env(safe-area-inset-top));left:50%;
+.scope{position:absolute;top:calc(74px + var(--sat));left:50%;
   transform:translateX(-50%);z-index:420;display:flex;gap:4px;padding:4px;
   border-radius:99px;background:var(--card);border:1px solid var(--line);
   box-shadow:0 6px 18px rgba(0,0,0,.16);max-width:min(92vw,340px)}
@@ -932,7 +961,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
 }
 .scanhead{position:relative;flex:none;display:flex;align-items:center;
   justify-content:space-between;gap:12px;
-  padding:calc(14px + env(safe-area-inset-top)) 20px 4px}
+  padding:calc(14px + var(--sat)) 20px 4px}
 .scanhead .t{font-size:14.5px;font-weight:700}
 .scanhead .iconbtn{background:var(--sc-soft);color:var(--sc-ink)}
 .step{display:none;position:relative;flex:1;min-height:0;flex-direction:column}
@@ -1048,7 +1077,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
 #resultHost .resulthead{color:#fff}
 .resulthead{
   position:relative;background:var(--grad);color:#fff;
-  padding:calc(14px + env(safe-area-inset-top)) 20px 34px;
+  padding:calc(14px + var(--sat)) 20px 34px;
 }
 .shapeart{width:96px;height:96px;flex:none;border-radius:32px;background:rgba(255,255,255,.2);
   border:1px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center}
@@ -1228,7 +1257,10 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
 </head>
 <body>
 <div id="shell">
-  <div id="view"></div>
+  <div id="col">
+    <div id="getapp" role="complementary" aria-label="Get the Oma app"></div>
+    <div id="view"></div>
+  </div>
   <nav id="nav" class="hidden"></nav>
 </div>
 
@@ -1429,7 +1461,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "efa7debac6";
+const BUILD_ID = "62bf3d5ab8";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -14684,7 +14716,51 @@ function openTechLink() {
 }
 addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink(); });
 
+/* ══ get the app ═════════════════════════════════════════
+   Kamsy, 6 Nov 2026: "let the web app always urge users to download the app
+   on playstore and appstore — do it for both techs and customers."
+   One slim bar above every screen. app.html points at the two customer apps,
+   techapp.html at the two nail tech apps (APP_MODE tells them apart). The
+   phone's own store goes first. It is plain links that open the store in a new
+   tab, so it needs no sign-in, sends nothing, and cannot break a screen. */
+const STORE_LINKS = {
+  customer: {
+    name: "Oma",
+    note: "Booking alerts and calls work best in the app.",
+    ios: "https://apps.apple.com/ng/app/oma-nail-booking/id6819399401",
+    android: "https://play.google.com/store/apps/details?id=com.omanails.oma",
+  },
+  tech: {
+    name: "Oma Nail Tech",
+    note: "Job alerts and calls work best in the app.",
+    ios: "https://apps.apple.com/ng/app/oma-nail-tech/id6820434529",
+    android: "https://play.google.com/store/apps/details?id=com.omanails.nailtechs",
+  },
+};
+const STORE_ICON = {
+  ios: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12.7c0-2.2 1.8-3.3 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.4.8-.7 0-1.8-.8-2.9-.8-1.5 0-2.9.9-3.6 2.2-1.6 2.7-.4 6.7 1.1 8.9.7 1.1 1.6 2.3 2.8 2.2 1.1 0 1.5-.7 2.9-.7s1.7.7 2.9.7c1.2 0 2-1.1 2.7-2.2.8-1.2 1.2-2.4 1.2-2.5 0 0-2.3-.9-2.4-3.6zM14.3 5.5c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 2-.5 2.6-1.2z"/></svg>',
+  android: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 2.3c-.2.3-.3.6-.3 1v17.4c0 .4.1.8.3 1l9.2-9.7L3.6 2.3zm10.6 8.2l2.6-2.8-9-5.1c-.3-.2-.6-.2-.9-.2l7.3 8.1zm0 3l-7.3 8.2c.3 0 .6 0 .9-.2l9-5.2-2.6-2.8zm5.6-3.4l-2.1-1.2-2.8 3 2.8 3 2.1-1.2c.9-.5.9-2.1 0-2.6z"/></svg>',
+};
+function showGetApp() {
+  const bar = document.getElementById("getapp");
+  const col = document.getElementById("col");
+  if (!bar || !col) return;
+  const L = STORE_LINKS[APP_MODE === "tech" ? "tech" : "customer"];
+  const ua = (navigator.userAgent || "") + " " + (navigator.platform || "");
+  const onAndroid = /Android/i.test(ua);
+  const order = onAndroid ? ["android", "ios"] : ["ios", "android"];
+  const label = { ios: "App Store", android: "Google Play" };
+  bar.innerHTML =
+    '<div class="ga-t">Get the ' + L.name + ' app<span>' + L.note + '</span></div>' +
+    order.map((k, i) =>
+      '<a class="ga-b' + (i ? " alt" : "") + '" data-store="' + k + '" href="' + L[k] +
+      '" target="_blank" rel="noopener">' + STORE_ICON[k] + label[k] + '</a>').join("");
+  bar.classList.add("on");
+  col.classList.add("hasbar");
+}
+
 (function boot() {
+  try { showGetApp(); } catch (e) { /* the bar is a nicety; never stop the app for it */ }
   // Google sends the session back in the URL fragment. Take it before anything
   // else looks at the hash, and before the address bar can be screenshotted
   // with an access token still in it.
