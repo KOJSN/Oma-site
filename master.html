@@ -3709,7 +3709,7 @@ const BRAIN_NODES = [
   { id: "chat", g: "part", name: "Customer care chat", page: "care",
     desc: "The chat on omanails.com and in the apps that reaches you and your care agents." },
   { id: "signin", g: "part", name: "Sign-in", page: "users",
-    desc: "Accounts and logging in, for customers, techs and the team." },
+    desc: "Accounts and logging in, for customers, techs and the team. Since 6 Nov the web apps keep people signed in through a weak signal, a busy server and several open tabs: only a sign-in that Supabase itself refuses ends it. The Android and iPhone apps have the same fix in test builds only (they sign people out on a failed renewal until they are updated). No live check." },
   { id: "idchecks", g: "part", name: "ID checks", page: "users",
     desc: "The optional NIN check that gives a tech the pink verified badge. The check belongs to the person, and her listing should always agree with it: this dot turns amber if a listing says not verified although its owner passed." },
   { id: "website", g: "part", name: "Website", page: null,

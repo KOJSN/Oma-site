@@ -105,21 +105,87 @@ const API = (() => {
     return s;
   }
 
-  async function refresh() {
-    if (!SESSION || !SESSION.refresh_token) return false;
-    const r = await fetch(`${cfg().url}/auth/v1/token?grant_type=refresh_token`, {
-      method: "POST",
-      headers: { apikey: cfg().anon, "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: SESSION.refresh_token }),
-    });
-    if (!r.ok) { setSession(null); return false; }
-    setSession(stamp(await r.json()));
+  /* Kamsy, 6 Nov 2026: "sometimes Oma logs users out to the sign in page, please
+     stop that." The old refresh() threw the whole session away on ANY answer
+     that was not a success: a busy server (429), a hiccup on Supabase's side
+     (5xx), or a second tab that had already used the same one-time refresh token.
+     On a weak connection that is a normal Tuesday. Now:
+       - only one renewal runs at a time (the rest wait for it);
+       - another tab's newer session is adopted instead of fought over;
+       - she is signed out ONLY when Supabase says, in so many words, that the
+         refresh token is no good (a 4xx other than "too busy"), and only after
+         checking that nobody else has just renewed it;
+       - anything else (offline, timeout, 429, 5xx) leaves her signed in, and the
+         one call that needed the renewal says so and can be tried again. */
+  function readStored() {
+    try { return JSON.parse(localStorage.getItem(SESS_KEY)); } catch { return null; }
+  }
+  // Another tab, or this page before the phone froze it, may already have renewed
+  // the sign-in. Adopt that session when it is a different, later one.
+  function adoptNewer() {
+    const s = readStored();
+    if (!s || !s.access_token || s.access_token === "mock" || !s.refresh_token) return false;
+    if (SESSION && s.refresh_token === SESSION.refresh_token) return false;
+    if (SESSION && (s.expires_at || 0) < (SESSION.expires_at || 0)) return false;
+    SESSION = s;
     return true;
   }
+  const fresh = () => !!(SESSION && SESSION.expires_at && Date.now() < SESSION.expires_at);
+  const renewFailed = () =>
+    new TypeError("Oma could not renew your sign-in just now. Check your connection and try again.");
+
+  let renewing = null;
+  function refresh() {
+    if (!renewing) renewing = doRefresh().finally(() => { renewing = null; });
+    return renewing;
+  }
+  async function doRefresh() {
+    if (adoptNewer() && fresh()) return true;
+    if (!SESSION || !SESSION.refresh_token) return false;
+    let r;
+    try {
+      r = await fetch(`${cfg().url}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: { apikey: cfg().anon, "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: SESSION.refresh_token }),
+      });
+    } catch { return false; }                       // offline or dropped: she stays signed in
+    if (r.ok) {
+      let j = null;
+      try { j = await r.json(); } catch { return false; }
+      if (!j || !j.access_token) return false;
+      setSession(stamp(j));
+      return true;
+    }
+    // Refused. Did someone else renew it while we were waiting?
+    if (adoptNewer() && fresh()) return true;
+    // Over only when the answer is a real "no": a 4xx that is not "wait" or "too busy".
+    if (r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429) setSession(null);
+    return false;
+  }
+  // Follow the other tabs: a renewal or a sign-out there is a renewal or a
+  // sign-out here. (The event never fires in the tab that wrote it.)
+  try {
+    addEventListener("storage", e => {
+      if (e.key !== SESS_KEY) return;
+      try { SESSION = e.newValue ? JSON.parse(e.newValue) : null; } catch { /* keep what we have */ }
+    });
+    // Coming back to the page (phone unlocked, tab switched back): pick up any newer
+    // session and renew a stale one quietly, so the first tap does not wait for it.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible" || !SESSION) return;
+      adoptNewer();
+      if (SESSION && SESSION.expires_at && Date.now() > SESSION.expires_at) refresh();
+    });
+  } catch { /* no window: nothing to follow */ }
 
   /* ── talking to Supabase ──────────────────────────────── */
   async function call(path, body, { auth = true, retry = true } = {}) {
-    if (auth && SESSION && SESSION.expires_at && Date.now() > SESSION.expires_at) await refresh();
+    if (auth && SESSION && SESSION.expires_at && Date.now() > SESSION.expires_at) {
+      await refresh();
+      // Still signed in but the renewal could not get through: this one call cannot go.
+      if (SESSION && SESSION.expires_at && Date.now() > SESSION.expires_at) throw renewFailed();
+    }
 
     const headers = { apikey: cfg().anon, "Content-Type": "application/json" };
     if (auth && SESSION) headers.Authorization = `Bearer ${SESSION.access_token}`;
@@ -128,8 +194,9 @@ const API = (() => {
       method: "POST", headers, body: JSON.stringify(body || {}),
     });
 
-    if (r.status === 401 && auth && retry && await refresh()) {
-      return call(path, body, { auth, retry: false });
+    if (r.status === 401 && auth && retry && SESSION) {
+      if (await refresh()) return call(path, body, { auth, retry: false });
+      if (SESSION) throw renewFailed();            // still signed in; the renewal just did not get through
     }
 
     const text = await r.text();
