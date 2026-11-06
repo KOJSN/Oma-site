@@ -1,23 +1,22 @@
 {
-  "asOf": "2026-11-01",
+  "asOf": "2026-11-06",
   "note": "Written by hand from App Store Connect and Play Console. The company brain shows when it was last checked.",
   "apps": {
     "customer_ios": {
-      "status": "review",
-      "since": "2026-10-30",
-      "text": "Version 1.1.0 (build 31) is waiting for App Review. The earlier version is live."
+      "status": "live",
+      "text": "Version 1.2.0 is live on the App Store (checked in App Store Connect on 6 Nov). Version 1.3.0 (build 40) is on TestFlight, not submitted."
     },
     "customer_android": {
       "status": "live",
-      "text": "Release 131 (1.0.31) is live. The new countries (UK, US, Ghana, Egypt) went to Google review on 31 Oct."
+      "text": "Release 131 (1.0.31) was live on 1 Nov. The new countries went to Google review on 3 Nov. Google Play was not rechecked on 6 Nov."
     },
     "tech_ios": {
       "status": "live",
-      "text": "Version 1.1.0 is live. Version 1.2.0 (build 38, salon business account) is on TestFlight, not submitted."
+      "text": "Version 1.2.1 is live on the App Store (checked in App Store Connect on 6 Nov). Version 1.3.0 (build 52) is on TestFlight, not submitted."
     },
     "tech_android": {
       "status": "live",
-      "text": "Release 132 (2.0.32) is live. The new countries (UK, US, Ghana, Egypt) went to Google review on 31 Oct."
+      "text": "Release 132 (2.0.32) was live on 1 Nov; release 133 (2.0.33, salon business account) went to Google review on 1 Nov. Google Play was not rechecked on 6 Nov."
     }
   }
 }
