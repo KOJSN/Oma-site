@@ -367,6 +367,12 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
   text-overflow:ellipsis;white-space:nowrap}
 .cc .ccm{margin-top:5px;display:flex;gap:6px;flex-wrap:wrap}
 .cc .ccm:empty{display:none}
+.msg.good{background:var(--goodbg);color:var(--good)}
+.tm-sub{color:var(--faint);font-size:12.5px;margin-top:2px}
+.tm-num{text-align:right;font-variant-numeric:tabular-nums}
+.tm-stats{display:none;color:var(--faint);font-size:12.5px;margin-top:2px}
+@media(max-width:640px){.tm-wide{display:none}.tm-stats{display:block}}
+.tm-note{padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .cgl{padding:8px 16px;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);background:var(--fill);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1}
 .cth .cas{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .cth .cas select{padding:8px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:13.5px}
@@ -500,6 +506,9 @@ body.dept-finance .page[data-page="finances"] textarea{display:none!important}
       <button class="navbtn" type="button" data-page="reports">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
         Reports</button>
+      <button class="navbtn gone" type="button" data-page="team">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        My team</button>
     </nav>
 
     <div class="main">
@@ -535,6 +544,15 @@ body.dept-finance .page[data-page="finances"] textarea{display:none!important}
               <div class="card"><div class="lbl">Money</div><div id="money"></div></div>
               <div class="card"><div class="lbl">Oma's own books</div><div id="oma"></div></div>
             </div>
+          </section>
+        </div>
+
+        <!-- Head of department only (heads-of-department.sql): who is in my department, and switch them on or off. -->
+        <div class="page" data-page="team">
+          <section>
+            <div class="lbl" id="teamLbl">My team</div>
+            <div id="teamBox"><div class="empty">Loading…</div></div>
+            <div id="teamMsg" role="status"></div>
           </section>
         </div>
 
@@ -2207,8 +2225,10 @@ const DEPTS = {
   finance: { label: "Finance",        blurb: "Withdrawals, refunds and money switches. View only", pages: ["finances"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19V5l10 14V5M4 9.5h16M4 14.5h16"/></svg>` },
   damage:  { label: "Damage control", blurb: "Mischief reports, Control, Reports and the bookings with their chats", pages: ["mischief", "control", "reports", "bookings"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>` },
 };
-let STAFF = null;     // { name, depts, expires_at } from api_staff_me
+let STAFF = null;     // { name, depts, expires_at, head_of } from api_staff_me + api_staff_heads
 let DEPT = null;      // the department being worked in
+// The departments this person is HEAD of (heads-of-department.sql). Empty until that query has been run.
+const isHead = (d) => !!(STAFF && (STAFF.head_of || []).includes(d));
 const pickEl = document.getElementById("pick");
 
 function showPick() {
@@ -2223,7 +2243,7 @@ function showPick() {
     ? "Which department are you working in?"
     : "You have not been given a department yet. Ask the owner.";
   document.getElementById("deptCards").innerHTML = have.map((d) =>
-    `<button class="dcard" type="button" data-dept="${d}">${DEPTS[d].icon}<div><b>${esc(DEPTS[d].label)}</b><span>${esc(DEPTS[d].blurb)}</span></div></button>`).join("");
+    `<button class="dcard" type="button" data-dept="${d}">${DEPTS[d].icon}<div><b>${esc(DEPTS[d].label)}</b>${isHead(d) ? ' <span class="chip ok">Head</span>' : ""}<span>${esc(DEPTS[d].blurb)}</span></div></button>`).join("");
   pickEl.classList.remove("gone");
 }
 
@@ -2234,9 +2254,9 @@ function enter(d) {
   app.style.display = "block";
   document.body.classList.remove("dept-care", "dept-finance", "dept-damage");
   document.body.classList.add("dept-" + d);
-  const pages = DEPTS[d].pages;
+  const pages = DEPTS[d].pages.concat(isHead(d) ? ["team"] : []);
   document.querySelectorAll(".navbtn").forEach((b) => b.classList.toggle("gone", !pages.includes(b.dataset.page)));
-  document.getElementById("deptName").textContent = DEPTS[d].label;
+  document.getElementById("deptName").textContent = DEPTS[d].label + (isHead(d) ? " · Head" : "");
   document.getElementById("switchDept").classList.toggle("gone", (STAFF.depts || []).filter((x) => DEPTS[x]).length < 2);
   document.getElementById("who").textContent = STAFF.name + " · until " +
     new Date(STAFF.expires_at).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
@@ -2274,6 +2294,14 @@ async function show(expires) {
     STAFF = await rpc("api_staff_me", { p_token: t });
   } catch (e) {
     return lockOut(e.status === 401 || /sign in again/i.test(e.message) ? "" : e.message);
+  }
+  // Which departments is she head of? Not there until "Heads of department" has been run: then nobody is.
+  STAFF.head_of = [];
+  try {
+    const hd = await rpc("api_staff_heads", { p_token: t });
+    STAFF.head_of = (hd && hd.head_of) || [];
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut("");
   }
   const have = (STAFF.depts || []).filter((d) => DEPTS[d]);
   let want = null;
@@ -3545,7 +3573,9 @@ function careTime(iso) {
 }
 
 function careBadgeUpdate() {
-  const n = careRows.filter((r) => r.unread > 0).length;
+  // A head can read every agent's chats but can only clear their own, so only their own and the
+  // unclaimed ones count toward the badge.
+  const n = careRows.filter((r) => r.unread > 0 && (!careIsHead() || r.mine || r.queue)).length;
   careBadge.hidden = !n;
   careBadge.textContent = n;
   document.title = n ? "(" + n + ") " + adminTitle : adminTitle;
@@ -3553,17 +3583,23 @@ function careBadgeUpdate() {
 
 const careIsMaster = TOKEN_KEY === "oma-master-token";
 let careAssignKey = "", careAgents = null, careAgentsAt = 0;
+// The head of Customer care (heads-of-department.sql) sees every chat, like the owner, but only
+// answers their own; they hand the rest to agents.
+const careIsHead = () => !careIsMaster && isHead("care");
+const careSeesAll = () => careIsMaster || careIsHead();
 
 // The list is grouped so each agent's chats are kept apart from the rest.
 // Agent: only their own chats, nothing else is ever sent to them. Owner: the
 // chats nobody has, then one group per agent.
 function careGroups() {
   const g = [];
-  if (careIsMaster) {
+  if (careSeesAll()) {
     const q = careRows.filter((r) => r.queue);
     if (q.length) g.push(["Unclaimed", q]);
+    const own = careRows.filter((r) => !r.queue && r.mine);
+    if (own.length) g.push(["Yours", own]);
     const by = new Map();
-    careRows.filter((r) => !r.queue).forEach((r) => {
+    careRows.filter((r) => !r.queue && !r.mine).forEach((r) => {
       const k = r.assigned_name || "An agent";
       if (!by.has(k)) by.set(k, []);
       by.get(k).push(r);
@@ -3583,7 +3619,7 @@ function careDrawList() {
     return;
   }
   if (!careRows.length) {
-    careListEl.innerHTML = '<div class="empty" style="padding:16px">' + (careIsMaster
+    careListEl.innerHTML = '<div class="empty" style="padding:16px">' + (careSeesAll()
       ? 'No chats yet. When someone writes on omanails.com it shows up here, and on your phone.'
       : 'No chats right now. A new one appears here as soon as a visitor writes to you.') + '</div>';
     return;
@@ -3593,7 +3629,7 @@ function careDrawList() {
     <button type="button" class="cc${r.unread > 0 ? " unread" : ""}${r.id === careOpen ? " on" : ""}" data-chat="${esc(r.id)}">
       <div class="cch"><span class="ccn">${esc(r.name)}</span><span class="ccw">${esc(ago(r.last_at))}</span></div>
       <div class="ccp">${r.last_from === "admin" ? "You: " : ""}${esc(r.preview || "")}</div>
-      <div class="ccm">${r.unread > 0 ? `<span class="chip warn">${esc(r.unread)} new</span>` : ""}${r.closed ? '<span class="chip">done</span>' : ""}${careIsMaster && r.queue && r.assigned_name ? `<span class="chip">was with ${esc(r.assigned_name)}</span>` : ""}</div>
+      <div class="ccm">${r.unread > 0 ? `<span class="chip warn">${esc(r.unread)} new</span>` : ""}${r.closed ? '<span class="chip">done</span>' : ""}${careSeesAll() && r.queue && r.assigned_name ? `<span class="chip">was with ${esc(r.assigned_name)}</span>` : ""}</div>
     </button>`).join("")).join("");
 }
 
@@ -3637,6 +3673,11 @@ function careDrawHeader(c) {
   bits.push("started " + ago(c.created_at));
   document.getElementById("careMeta").textContent = bits.join(" · ");
   document.getElementById("careClose").textContent = careClosed ? "Reopen" : "Mark done";
+  // The head can read any chat but only answers or closes their own.
+  const ro = careIsHead() && !c.mine;
+  document.getElementById("careReply").classList.toggle("gone", ro);
+  document.getElementById("careClose").classList.toggle("gone", ro);
+  document.getElementById("careRO").classList.toggle("gone", !ro);
   careDrawAssign(c);
 }
 
@@ -3647,8 +3688,10 @@ async function careAgentList() {
   const t = token();
   if (!t) return [];
   try {
-    const rows = await rpc("api_master_staff_list", { p_token: t });
-    careAgents = (rows || []).filter((r) => r.active && (r.depts || []).includes("care"));
+    const rows = careIsMaster
+      ? (await rpc("api_master_staff_list", { p_token: t })) || []
+      : (await rpc("api_staff_care_agents", { p_token: t })) || [];
+    careAgents = rows.filter((r) => r.active !== false && (r.depts ? r.depts.includes("care") : true));
     careAgentsAt = Date.now();
   } catch (e) {
     if (careLost(e)) lockOut();
@@ -3662,7 +3705,7 @@ async function careFillAgents(c) {
   if (!sel) return;
   const rows = await careAgentList();
   if (document.getElementById("careWhoSel") !== sel) return;
-  sel.innerHTML = '<option value="">Unclaimed</option>'
+  sel.innerHTML = (careIsHead() ? '<option value="" disabled>Unclaimed. Choose an agent…</option>' : '<option value="">Unclaimed</option>')
     + rows.map((r) => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join("");
   sel.value = c.queue ? "" : (c.assigned_to || "");
 }
@@ -3670,14 +3713,20 @@ async function careFillAgents(c) {
 function careDrawAssign(c) {
   const box = document.getElementById("careAssign");
   if (!box) return;
-  const key = careIsMaster ? String(c.assigned_to || "") + "|" + (c.queue ? 1 : 0) : (c.mine ? "mine" : "queue");
+  const key = careSeesAll() ? String(c.assigned_to || "") + "|" + (c.queue ? 1 : 0) + "|" + (c.mine ? 1 : 0) : (c.mine ? "mine" : "queue");
   if (key === careAssignKey) return;
   careAssignKey = key;
-  if (careIsMaster) {
+  if (careSeesAll()) {
     box.innerHTML = '<label class="faint" style="font-size:12.5px" for="careWhoSel">Handled by</label>'
       + '<select id="careWhoSel"><option value="">Unclaimed</option></select>';
+    if (careIsHead() && c.mine) {
+      box.insertAdjacentHTML("beforeend", '<button class="btn sm plain" type="button" id="careGive" title="Hands this chat back to the owner.">Give back to owner</button>');
+      document.getElementById("careGive").addEventListener("click", () => careMove("api_admin_support_assign", { p_staff: null }));
+    }
     careFillAgents(c);
-    document.getElementById("careWhoSel").addEventListener("change", (e) => careMove("api_admin_support_assign", { p_staff: e.target.value || null }));
+    document.getElementById("careWhoSel").addEventListener("change", (e) => {
+      if (e.target.value || careIsMaster) careMove("api_admin_support_assign", { p_staff: e.target.value || null });
+    });
   } else {
     box.innerHTML = '<span class="chip ok">Yours</span><button class="btn sm plain" type="button" id="careGive" title="Hands this chat back to the owner. You will no longer see it.">Give back to owner</button>';
     document.getElementById("careGive").addEventListener("click", () => careMove("api_admin_support_assign", { p_staff: null }));
@@ -3691,7 +3740,7 @@ async function careMove(fn, extra) {
   if (err) err.textContent = "";
   try {
     await rpc(fn, Object.assign({ p_token: t, p_chat: careOpen }, extra));
-    if (!careIsMaster) {
+    if (!careIsMaster && extra.p_staff == null) {
       // An agent giving a chat back no longer has it: close it, it is not theirs to see.
       careOpen = null; careAssignKey = "";
       careThreadEl.innerHTML = '<div class="empty" style="padding:24px">Handed back to the owner.</div>';
@@ -3718,6 +3767,7 @@ function careOpenChat(id) {
       <button class="btn sm plain" type="button" id="careClose">Mark done</button>
     </div>
     <div class="ctlog" id="careLogA"></div>
+    <div class="tm-note gone" id="careRO" style="border-top:1px solid var(--line);border-bottom:0"><span class="faint">Read only. This chat is not yours. Hand it to an agent, or to yourself, to answer it.</span></div>
     <form class="ctreply" id="careReply" novalidate>
       <textarea id="careText" rows="2" maxlength="2000" placeholder="Reply…" aria-label="Your reply"></textarea>
       <button class="btn sm" type="submit" id="careSendA">Send</button>
@@ -3793,7 +3843,7 @@ async function careLoadThread() {
       if (m.id > careAfter) careAfter = m.id;
     }
     // Opening it is what reads it — but only while she can actually see it.
-    if (d.chat.unread > 0 && careOnPage() && document.visibilityState === "visible") {
+    if (d.chat.unread > 0 && (careIsMaster || d.chat.mine) && careOnPage() && document.visibilityState === "visible") {
       await rpc("api_admin_support_read", { p_token: t, p_chat: id });
       const row = careRows.find((r) => r.id === id);
       if (row) { row.unread = 0; careBadgeUpdate(); careDrawList(); }
@@ -3820,6 +3870,95 @@ document.querySelector('.navbtn[data-page="care"]').addEventListener("click", ()
   careOff = false;                                     // retry: the SQL may just have been run
   careLoadList();
 });
+
+/* ══ My team: the head of a department, 6 Nov 2026 ═══════════════════════
+   Kamsy: "i want to be able to make some people in certain departments the head
+   of a department". The owner picks the head on the master Team page. The
+   database (heads-of-department.sql) lets a head see who is in their department
+   and switch them on or off, but only people who work only in departments they
+   head, and never themselves. No seed phrase ever reaches this page. */
+const teamBox = document.getElementById("teamBox");
+const teamMsgEl = document.getElementById("teamMsg");
+let TEAMDATA = null;
+const teamOnPage = () => { const p = document.querySelector('.page[data-page="team"]'); return !!p && p.classList.contains("on"); };
+function teamSay(kind, words) {
+  teamMsgEl.className = words ? "msg " + kind : "";
+  teamMsgEl.textContent = words || "";
+}
+const teamLabel = (k) => (DEPTS[k] ? DEPTS[k].label : k);
+
+function teamDrawMine() {
+  const tm = TEAMDATA && (TEAMDATA.teams || []).find((x) => x.dept === DEPT);
+  document.getElementById("teamLbl").textContent = "My team · " + teamLabel(DEPT);
+  if (!tm) {
+    teamBox.innerHTML = '<div class="empty">You are not the head of this department.</div>';
+    return;
+  }
+  const care = tm.dept === "care";
+  const rows = (tm.members || []).map((m) => {
+    const me = m.id === TEAMDATA.me;
+    const status = !m.active ? '<span class="chip no">switched off</span>'
+      : m.online ? '<span class="chip ok">signed in now</span>' : '<span class="chip">active</span>';
+    const also = (m.also_in || []).length ? `<div class="tm-sub">Also works in ${esc((m.also_in || []).map(teamLabel).join(", "))}</div>` : "";
+    const act = m.can_switch
+      ? `<button class="btn sm plain" type="button" data-tswitch="${esc(m.id)}" data-on="${m.active ? "0" : "1"}">${m.active ? "Switch off" : "Switch on"}</button>`
+      : `<span class="faint" style="font-size:12.5px">${me ? "You" : (m.also_in || []).length ? "Ask the owner" : ""}</span>`;
+    return `<tr>
+      <td><b>${esc(m.name)}</b>${me ? ' <span class="faint">(you)</span>' : ""}${m.is_head ? ' <span class="chip ok">Head</span>' : ""}${also}${care && m.active ? `<div class="tm-stats">${esc(m.open_chats)} open · ${esc(m.unread_chats)} unread · ${esc(m.replies_7d)} replies this week</div>` : ""}</td>
+      <td>${status}</td>
+      ${care ? `<td class="tm-num tm-wide">${m.active ? esc(m.open_chats) : '<span class="faint">–</span>'}</td>
+        <td class="tm-num tm-wide">${m.active ? esc(m.unread_chats) : '<span class="faint">–</span>'}</td>
+        <td class="tm-num tm-wide">${esc(m.replies_7d)}</td>` : ""}
+      <td class="tm-wide">${m.last_open_at ? esc(ago(m.last_open_at)) : '<span class="faint">never</span>'}</td>
+      <td class="tm-num">${act}</td></tr>`;
+  }).join("");
+  teamBox.innerHTML = `<div class="card scroll" style="padding:0">
+    ${care ? `<div class="tm-note"><span><b>${esc(tm.unclaimed || 0)}</b> chat${tm.unclaimed === 1 ? "" : "s"} nobody has right now</span>
+      <button class="btn sm plain" type="button" id="tmToCare">Open Customer care</button></div>` : ""}
+    <table><thead><tr><th>Name</th><th>Status</th>${care ? '<th class="tm-num tm-wide">Open chats</th><th class="tm-num tm-wide">Unread</th><th class="tm-num tm-wide">Replies, 7 days</th>' : ""}<th class="tm-wide">Last signed in</th><th></th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="7"><div class="empty">Nobody else works in this department yet.</div></td></tr>'}</tbody></table></div>
+    <div class="hint">You can switch people on or off if they work only in a department you head. Adding or removing people, changing departments and seed phrases stay with the owner.</div>`;
+  const go = document.getElementById("tmToCare");
+  if (go) go.addEventListener("click", () => document.querySelector('.navbtn[data-page="care"]').click());
+}
+
+async function teamLoadMine() {
+  const t = token();
+  if (!t || !DEPT) return;
+  try {
+    TEAMDATA = await rpc("api_staff_team", { p_token: t });
+    teamDrawMine();
+  } catch (e) {
+    if (careLost(e)) return lockOut();
+    teamBox.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+document.querySelector('.navbtn[data-page="team"]').addEventListener("click", () => { teamSay("", ""); teamLoadMine(); });
+teamBox.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-tswitch]");
+  if (!b) return;
+  const tm = TEAMDATA && (TEAMDATA.teams || []).find((x) => x.dept === DEPT);
+  const m = tm && tm.members.find((x) => x.id === b.dataset.tswitch);
+  if (!m) return;
+  const on = b.dataset.on === "1";
+  if (!on && !confirm("Switch off " + m.name + "?\n\nThey are signed out at once" + (DEPT === "care" ? " and their chats go back to Unclaimed." : "."))) return;
+  const t = token();
+  if (!t) return lockOut();
+  b.disabled = true;
+  teamSay("", "");
+  try {
+    await rpc("api_staff_team_set_active", { p_token: t, p_id: m.id, p_active: on });
+    await teamLoadMine();
+    teamSay("good", m.name + (on ? " is switched on." : " is switched off."));
+  } catch (err) {
+    if (careLost(err)) return lockOut();
+    teamSay("bad", err.message);
+    b.disabled = false;
+  }
+});
+setInterval(() => {
+  if (document.visibilityState === "visible" && token() && teamOnPage()) teamLoadMine();
+}, 30000);
 
 // A new chat is worth noticing within seconds on this page, within half a
 // minute from any other tab; an open conversation refreshes every four. The

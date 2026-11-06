@@ -565,6 +565,14 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
 .tact{min-width:230px}
 .tact .btn{margin:2px 4px 2px 0;padding:8px 13px;font-size:13px}
 .btn.danger{color:var(--bad)}
+.msg.good{background:var(--goodbg);color:var(--good)}
+.hrow{display:grid;grid-template-columns:minmax(120px,1fr) minmax(180px,1.4fr);gap:10px;align-items:center;padding:11px 0}
+.hrow + .hrow{border-top:1px solid var(--line)}
+.hrow .hd{font-size:14.5px}
+.hrow .hd .sub{display:block;color:var(--faint);font-size:12.5px;margin-top:2px}
+.hrow select{width:100%;padding:11px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:14px}
+.hrow select[disabled]{opacity:.55}
+@media(max-width:560px){.hrow{grid-template-columns:1fr}}
 .pmodal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;
   background:rgba(10,8,13,.62)}
 .pmodal[hidden]{display:none!important}
@@ -992,6 +1000,12 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
              browser, shown once, and only its hash reaches the database. -->
         <div class="page" data-page="team">
           <section>
+            <div class="lbl">Heads of department</div>
+            <div class="card" id="headsBox"><div class="empty">Loading…</div></div>
+            <div id="headsMsg" role="status"></div>
+            <div class="hint">One head per department. A head sees all of their team's work (in Customer care that is every chat, read only), can hand Customer care chats to agents, and can switch the people in their department on or off. Pick “No head” to take the role away. Taking a department away from a person, or removing them, ends their headship.</div>
+          </section>
+          <section>
             <div class="lbl">Admin accounts</div>
             <div class="card scroll" id="teamList"><div class="empty">Loading…</div></div>
             <div id="teamMsg" role="status"></div>
@@ -1021,6 +1035,7 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
               <div class="kv"><span>Customer care</span><b>Reads and answers the live chats from omanails.com.</b></div>
               <div class="kv"><span>Finance</span><b>Sees the money switches, no-show cases, fee income, refunds and withdrawals. View only: paying, refunding, the switches and the decisions stay with you.</b></div>
               <div class="kv"><span>Damage control</span><b>Mischief reports and reported pictures, Control (list or verify a nail tech), Reports (charts and photos), and the bookings with their chats (view only: no refunds).</b></div>
+              <div class="kv"><span>Head of a department</span><b>Sees all of their team's work, hands Customer care chats to agents, and switches the people in their department on or off. Cannot add or remove people, see seed phrases, or touch money.</b></div>
               <div class="kv"><span>Only you</span><b>Dashboard, Users, Bookings and this Team page.</b></div>
             </div>
           </section>
@@ -3707,7 +3722,9 @@ const BRAIN_NODES = [
   { id: "alerts", g: "part", name: "Alerts and push", page: "dashboard",
     desc: "The notifications that reach customers, techs and you. Red when some have given up, amber while some are still queued." },
   { id: "chat", g: "part", name: "Customer care chat", page: "care",
-    desc: "The chat on omanails.com and in the apps that reaches you and your care agents." },
+    desc: "The chat on omanails.com and in the apps that reaches you and your care agents. Each agent has their own private chats; the head of Customer care, if you have appointed one, can read every chat (read only) and hand chats to agents." },
+  { id: "team", g: "part", name: "Team and heads of department", page: "team",
+    desc: "Your staff. Each person signs in to the staff page with a seed phrase and works in Customer care, Finance or Damage control. Since 6 Nov you can make one person the head of each department on the Team page. A head sees all of their team's work (in Customer care that is every chat, read only), hands Customer care chats to agents, and switches the people in their department on or off. A head cannot add or remove people, see seed phrases or touch money. Needs the Supabase query \"Heads of department\". No live check." },
   { id: "signin", g: "part", name: "Sign-in", page: "users",
     desc: "Accounts and logging in, for customers, techs and the team. Since 6 Nov the web apps keep people signed in through a weak signal, a busy server and several open tabs: only a sign-in that Supabase itself refuses ends it. The Android and iPhone apps have the same fix in test builds only (they sign people out on a failed renewal until they are updated). No live check." },
   { id: "idchecks", g: "part", name: "ID checks", page: "users",
@@ -3774,6 +3791,7 @@ const BRAIN_FLOWS = [
   ["database", "bookings"], ["database", "signin"], ["database", "alerts"], ["database", "chat"], ["database", "payments"],
   ["database", "payouts"], ["database", "idchecks"], ["database", "website"],
   ["website", "chat"], ["website", "signin"],
+  ["team", "signin"], ["team", "chat"], ["team", "alerts"], ["team", "database"],
   ["app_ci", "signin"], ["app_ca", "signin"], ["app_ti", "signin"], ["app_ta", "signin"], ["app_ci", "bookings"], ["app_ti", "bookings"],
   ["w_disputes", "escrow"], ["w_unscanned", "bookings"], ["w_unscanned", "escrow"], ["w_payouts", "payouts"],
   ["w_kyc", "idchecks"], ["w_expired", "bookings"], ["w_alerts", "alerts"],
@@ -4088,7 +4106,7 @@ function brainPanel(id) {
     <p>${esc(n.desc || "")}</p>
     ${n.facts.length ? `<div class="bkv">${n.facts.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}</div>` : ""}
     ${nb.length ? `<div class="bconn">Connected to ${nb.slice(0, 12).map((x) => `<button type="button" data-bn="${esc(x.id)}">${esc(x.name)}</button>`).join("")}</div>` : ""}
-    ${n.page ? `<button type="button" class="bgo" data-bgo="${esc(n.page)}">Open ${esc(n.page === "dashboard" ? "the dashboard" : n.page === "users" ? "Users" : n.page === "finances" ? "Finances" : n.page === "bookings" ? "Bookings" : n.page === "care" ? "Customer care" : n.page)}</button>` : ""}`;
+    ${n.page ? `<button type="button" class="bgo" data-bgo="${esc(n.page)}">Open ${esc(n.page === "dashboard" ? "the dashboard" : n.page === "users" ? "Users" : n.page === "finances" ? "Finances" : n.page === "bookings" ? "Bookings" : n.page === "care" ? "Customer care" : n.page === "team" ? "Team" : n.page)}</button>` : ""}`;
   p.hidden = false;
 }
 
@@ -5023,6 +5041,76 @@ const TEAM_DEPTS = [["care", "Customer care"], ["finance", "Finance"], ["damage"
 const PHRASE_WORDS = "abandon ability able about above absent absorb abstract absurd abuse access accident account accuse achieve acid acoustic acquire across act action actor actress actual adapt add addict address adjust admit adult advance advice aerobic affair afford afraid again age agent agree ahead aim air airport aisle alarm album alcohol alert alien all alley allow almost alone alpha already also alter always amateur amazing among amount amused analyst anchor ancient anger angle angry animal ankle announce annual another answer antenna antique anxiety any apart apology appear apple approve april arch arctic area arena argue arm armed armor army around arrange arrest arrive arrow art artefact artist artwork ask aspect assault asset assist assume asthma athlete atom attack attend attitude attract auction audit august aunt author auto autumn average avocado avoid awake aware away awesome awful awkward axis baby bachelor bacon badge bag balance balcony ball bamboo banana banner bar barely bargain barrel base basic basket battle beach bean beauty because become beef before begin behave behind believe below belt bench benefit best betray better between beyond bicycle bid bike bind biology bird birth bitter black blade blame blanket blast bleak bless blind blood blossom blouse blue blur blush board boat body boil bomb bone bonus book boost border boring borrow boss bottom bounce box boy bracket brain brand brass brave bread breeze brick bridge brief bright bring brisk broccoli broken bronze broom brother brown brush bubble buddy budget buffalo build bulb bulk bullet bundle bunker burden burger burst bus business busy butter buyer buzz cabbage cabin cable cactus cage cake call calm camera camp can canal cancel candy cannon canoe canvas canyon capable capital captain car carbon card cargo carpet carry cart case cash casino castle casual cat catalog catch category cattle caught cause caution cave ceiling celery cement census century cereal certain chair chalk champion change chaos chapter charge chase chat cheap check cheese chef cherry chest chicken chief child chimney choice choose chronic chuckle chunk churn cigar cinnamon circle citizen city civil claim clap clarify claw clay clean clerk clever click client cliff climb clinic clip clock clog close cloth cloud clown club clump cluster clutch coach coast coconut code coffee coil coin collect color column combine come comfort comic common company concert conduct confirm congress connect consider control convince cook cool copper copy coral core corn correct cost cotton couch country couple course cousin cover coyote crack cradle craft cram crane crash crater crawl crazy cream credit creek crew cricket crime crisp critic crop cross crouch crowd crucial cruel cruise crumble crunch crush cry crystal cube culture cup cupboard curious current curtain curve cushion custom cute cycle dad damage damp dance danger daring dash daughter dawn day deal debate debris decade december decide decline decorate decrease deer defense define defy degree delay deliver demand demise denial dentist deny depart depend deposit depth deputy derive describe desert design desk despair destroy detail detect develop device devote diagram dial diamond diary dice diesel diet differ digital dignity dilemma dinner dinosaur direct dirt disagree discover disease dish dismiss disorder display distance divert divide divorce dizzy doctor document dog doll dolphin domain donate donkey donor door dose double dove draft dragon drama drastic draw dream dress drift drill drink drip drive drop drum dry duck dumb dune during dust dutch duty dwarf dynamic eager eagle early earn earth easily east easy echo ecology economy edge edit educate effort egg eight either elbow elder electric elegant element elephant elevator elite else embark embody embrace emerge emotion employ empower empty enable enact end endless endorse enemy energy enforce engage engine enhance enjoy enlist enough enrich enroll ensure enter entire entry envelope episode equal equip era erase erode erosion error erupt escape essay essence estate eternal ethics evidence evil evoke evolve exact example excess exchange excite exclude excuse execute exercise exhaust exhibit exile exist exit exotic expand expect expire explain expose express extend extra eye eyebrow fabric face faculty fade faint faith fall false fame family famous fan fancy fantasy farm fashion fat fatal father fatigue fault favorite feature february federal fee feed feel female fence festival fetch fever few fiber fiction field figure file film filter final find fine finger finish fire firm first fiscal fish fit fitness fix flag flame flash flat flavor flee flight flip float flock floor flower fluid flush fly foam focus fog foil fold follow food foot force forest forget fork fortune forum forward fossil foster found fox fragile frame frequent fresh friend fringe frog front frost frown frozen fruit fuel fun funny furnace fury future gadget gain galaxy gallery game gap garage garbage garden garlic garment gas gasp gate gather gauge gaze general genius genre gentle genuine gesture ghost giant gift giggle ginger giraffe girl give glad glance glare glass glide glimpse globe gloom glory glove glow glue goat goddess gold good goose gorilla gospel gossip govern gown grab grace grain grant grape grass gravity great green grid grief grit grocery group grow grunt guard guess guide guilt guitar gun gym habit hair half hammer hamster hand happy harbor hard harsh harvest hat have hawk hazard head health heart heavy hedgehog height hello helmet help hen hero hidden high hill hint hip hire history hobby hockey hold hole holiday hollow home honey hood hope horn horror horse hospital host hotel hour hover hub huge human humble humor hundred hungry hunt hurdle hurry hurt husband hybrid ice icon idea identify idle ignore ill illegal illness image imitate immense immune impact impose improve impulse inch include income increase index indicate indoor industry infant inflict inform inhale inherit initial inject injury inmate inner innocent input inquiry insane insect inside inspire install intact interest into invest invite involve iron island isolate issue item ivory jacket jaguar jar jazz jealous jeans jelly jewel job join joke journey joy judge juice jump jungle junior junk just kangaroo keen keep ketchup key kick kid kidney kind kingdom kiss kit kitchen kite kitten kiwi knee knife knock know lab label labor ladder lady lake lamp language laptop large later latin laugh laundry lava law lawn lawsuit layer lazy leader leaf learn leave lecture left leg legal legend leisure lemon lend length lens leopard lesson letter level liar liberty library license life lift light like limb limit link lion liquid list little live lizard load loan lobster local lock logic lonely long loop lottery loud lounge love loyal lucky luggage lumber lunar lunch luxury lyrics machine mad magic magnet maid mail main major make mammal man manage mandate mango mansion manual maple marble march margin marine market marriage mask mass master match material math matrix matter maximum maze meadow mean measure meat mechanic medal media melody melt member memory mention menu mercy merge merit merry mesh message metal method middle midnight milk million mimic mind minimum minor minute miracle mirror misery miss mistake mix mixed mixture mobile model modify mom moment monitor monkey monster month moon moral more morning mosquito mother motion motor mountain mouse move movie much muffin mule multiply muscle museum mushroom music must mutual myself mystery myth naive name napkin narrow nasty nation nature near neck need negative neglect neither nephew nerve nest net network neutral never news next nice night noble noise nominee noodle normal north nose notable note nothing notice novel now nuclear number nurse nut oak obey object oblige obscure observe obtain obvious occur ocean october odor off offer office often oil okay old olive olympic omit once one onion online only open opera opinion oppose option orange orbit orchard order ordinary organ orient original orphan ostrich other outdoor outer output outside oval oven over own owner oxygen oyster ozone pact paddle page pair palace palm panda panel panic panther paper parade parent park parrot party pass patch path patient patrol pattern pause pave payment peace peanut pear peasant pelican pen penalty pencil people pepper perfect permit person pet phone photo phrase physical piano picnic picture piece pig pigeon pill pilot pink pioneer pipe pistol pitch pizza place planet plastic plate play please pledge pluck plug plunge poem poet point polar pole police pond pony pool popular portion position possible post potato pottery poverty powder power practice praise predict prefer prepare present pretty prevent price pride primary print priority prison private prize problem process produce profit program project promote proof property prosper protect proud provide public pudding pull pulp pulse pumpkin punch pupil puppy purchase purity purpose purse push put puzzle pyramid quality quantum quarter question quick quit quiz quote rabbit raccoon race rack radar radio rail rain raise rally ramp ranch random range rapid rare rate rather raven raw razor ready real reason rebel rebuild recall receive recipe record recycle reduce reflect reform refuse region regret regular reject relax release relief rely remain remember remind remove render renew rent reopen repair repeat replace report require rescue resemble resist resource response result retire retreat return reunion reveal review reward rhythm rib ribbon rice rich ride ridge rifle right rigid ring riot ripple risk ritual rival river road roast robot robust rocket romance roof rookie room rose rotate rough round route royal rubber rude rug rule run runway rural sad saddle sadness safe sail salad salmon salon salt salute same sample sand satisfy satoshi sauce sausage save say scale scan scare scatter scene scheme school science scissors scorpion scout scrap screen script scrub sea search season seat second secret section security seed seek segment select sell seminar senior sense sentence series service session settle setup seven shadow shaft shallow share shed shell sheriff shield shift shine ship shiver shock shoe shoot shop short shoulder shove shrimp shrug shuffle shy sibling sick side siege sight sign silent silk silly silver similar simple since sing siren sister situate six size skate sketch ski skill skin skirt skull slab slam sleep slender slice slide slight slim slogan slot slow slush small smart smile smoke smooth snack snake snap sniff snow soap soccer social sock soda soft solar soldier solid solution solve someone song soon sorry sort soul sound soup source south space spare spatial spawn speak special speed spell spend sphere spice spider spike spin spirit split spoil sponsor spoon sport spot spray spread spring spy square squeeze squirrel stable stadium staff stage stairs stamp stand start state stay steak steel stem step stereo stick still sting stock stomach stone stool story stove strategy street strike strong struggle student stuff stumble style subject submit subway success such sudden suffer sugar suggest suit summer sun sunny sunset super supply supreme sure surface surge surprise surround survey suspect sustain swallow swamp swap swarm swear sweet swift swim swing switch sword symbol symptom syrup system table tackle tag tail talent talk tank tape target task taste tattoo taxi teach team tell ten tenant tennis tent term test text thank that theme then theory there they thing this thought three thrive throw thumb thunder ticket tide tiger tilt timber time tiny tip tired tissue title toast tobacco today toddler toe together toilet token tomato tomorrow tone tongue tonight tool tooth top topic topple torch tornado tortoise toss total tourist toward tower town toy track trade traffic tragic train transfer trap trash travel tray treat tree trend trial tribe trick trigger trim trip trophy trouble truck true truly trumpet trust truth try tube tuition tumble tuna tunnel turkey turn turtle twelve twenty twice twin twist two type typical ugly umbrella unable unaware uncle uncover under undo unfair unfold unhappy uniform unique unit universe unknown unlock until unusual unveil update upgrade uphold upon upper upset urban urge usage use used useful useless usual utility vacant vacuum vague valid valley valve van vanish vapor various vast vault vehicle velvet vendor venture venue verb verify version very vessel veteran viable vibrant vicious victory video view village vintage violin virtual virus visa visit visual vital vivid vocal voice void volcano volume vote voyage wage wagon wait walk wall walnut want warfare warm warrior wash wasp waste water wave way wealth weapon wear weasel weather web wedding weekend weird welcome west wet whale what wheat wheel when where whip whisper wide width wife wild will win window wine wing wink winner winter wire wisdom wise wish witness wolf woman wonder wood wool word work world worry worth wrap wreck wrestle wrist write wrong yard year yellow you young youth zebra zero zone zoo".split(" ");
 let TEAM_ROWS = [];
 
+/* ── Heads of department, 6 Nov 2026 ─────────────────────────────────────
+   Kamsy: "i want to be able to make some people in certain departments the
+   head of a department". One head per department, chosen here; the database
+   (heads-of-department.sql, "Heads of department") decides what a head can do.
+   Until that query is run the box says so and the rest of the page works. */
+let HEADS = [], HEADS_OFF = false;
+const headsMsg = document.getElementById("headsMsg");
+function headsSay(kind, words) {
+  headsMsg.className = words ? "msg " + kind : "";
+  headsMsg.textContent = words || "";
+}
+async function headsCall(fn, args) {
+  const t = token();
+  if (!t) { lockOut(); return null; }
+  try {
+    return await rpc(fn, Object.assign({ p_token: t }, args || {}));
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) { lockOut(); return null; }
+    if (fn === "api_master_heads" && sqlMissing(e)) { HEADS_OFF = true; return null; }
+    headsSay("bad", sqlMissing(e) ? "Run “Heads of department” in the Supabase SQL editor first." : e.message);
+    return null;
+  }
+}
+const teamDeptLabel = (k) => (TEAM_DEPTS.find((d) => d[0] === k) || [k, k])[1];
+function headChips(id, active) {
+  return HEADS.filter((h) => h.staff_id === id).map((h) =>
+    `<span class="chip ok" title="Head of ${esc(teamDeptLabel(h.dept))}">Head of ${esc(teamDeptLabel(h.dept))}${active ? "" : " (paused)"}</span>`).join(" ");
+}
+function headsDraw() {
+  const el = document.getElementById("headsBox");
+  if (HEADS_OFF) {
+    el.innerHTML = `<div class="empty">Not switched on yet. Run the <b>Heads of department</b> query in the Supabase SQL editor, then open this page again.</div>`;
+    return;
+  }
+  el.innerHTML = TEAM_DEPTS.map(([k, label]) => {
+    const cur = HEADS.find((h) => h.dept === k);
+    const pool = TEAM_ROWS.filter((r) => (r.depts || []).includes(k) && (r.active || (cur && cur.staff_id === r.id)));
+    const opts = `<option value="">No head</option>` + pool.map((r) =>
+      `<option value="${esc(r.id)}"${cur && cur.staff_id === r.id ? " selected" : ""}>${esc(r.name)}${r.active ? "" : " (switched off)"}</option>`).join("");
+    const sub = cur ? (cur.active ? "" : `<span class="sub">${esc(cur.name)} is switched off, so the headship is paused.</span>`)
+                    : (pool.length ? `<span class="sub">No head yet.</span>` : `<span class="sub">Nobody works here yet.</span>`);
+    return `<div class="hrow" data-hdept="${esc(k)}"><div class="hd"><b>${esc(label)}</b>${sub}</div>
+      <select aria-label="Head of ${esc(label)}"${pool.length ? "" : " disabled"}>${opts}</select></div>`;
+  }).join("");
+}
+async function headsLoad() {
+  HEADS_OFF = false;
+  const r = await headsCall("api_master_heads");
+  HEADS = r || [];
+  headsDraw();
+  if (r) teamDraw();            // the Head chips in the table
+}
+document.getElementById("headsBox").addEventListener("change", async (e) => {
+  const sel = e.target.closest("select");
+  const row = sel && sel.closest("[data-hdept]");
+  if (!row) return;
+  const k = row.dataset.hdept;
+  sel.disabled = true;
+  headsSay("", "");
+  const r = await headsCall("api_master_set_head", { p_dept: k, p_staff: sel.value || null });
+  if (r && r.ok) {
+    headsSay("good", r.staff_id
+      ? r.name + " is now head of " + teamDeptLabel(k) + (r.was && r.was !== r.name ? " (replacing " + r.was + ")." : ".")
+      : teamDeptLabel(k) + " has no head now" + (r.was ? " (" + r.was + " is an ordinary team member again)." : "."));
+  } else if (r) {
+    headsSay("warn", r.says || "That did not save.");
+  }
+  await headsLoad();
+});
+
 function newPhrase() {
   const buf = new Uint16Array(8);
   crypto.getRandomValues(buf);
@@ -5059,7 +5147,7 @@ function teamDraw() {
   el.innerHTML = `<table><thead><tr><th>Name</th><th>Departments</th><th>Status</th>
     <th>Last signed in</th><th></th></tr></thead><tbody>${TEAM_ROWS.map((r) => `
     <tr data-sid="${esc(r.id)}">
-      <td><b>${esc(r.name)}</b><div class="faint" style="font-size:12px;margin-top:2px">phrase made ${esc(ago(r.phrase_set_at))}${r.has_phrase ? "" : " · words not kept"}</div></td>
+      <td><b>${esc(r.name)}</b> ${headChips(r.id, r.active)}<div class="faint" style="font-size:12px;margin-top:2px">phrase made ${esc(ago(r.phrase_set_at))}${r.has_phrase ? "" : " · words not kept"}</div></td>
       <td><div class="dtogs">${TEAM_DEPTS.map(([k, label]) =>
         `<button type="button" class="dtog${r.depts.includes(k) ? " on" : ""}" data-dtog="${k}"
            aria-pressed="${r.depts.includes(k)}">${label}</button>`).join("")}</div></td>
@@ -5082,8 +5170,9 @@ async function teamLoad() {
   teamSay("", "");
   TEAM_ROWS = r;
   teamDraw();
+  await headsLoad();
 }
-document.querySelector('.navbtn[data-page="team"]').addEventListener("click", teamLoad);
+document.querySelector('.navbtn[data-page="team"]').addEventListener("click", () => { headsSay("", ""); teamLoad(); });
 
 /* The popup */
 let phraseNow = "";
@@ -5164,9 +5253,12 @@ document.getElementById("teamList").addEventListener("click", async (e) => {
     const next = row.depts.includes(k) ? row.depts.filter((d) => d !== k) : row.depts.concat(k);
     if (!next.length) return teamSay("warn", "Keep at least one department, or switch the account off.");
     tog.disabled = true;
+    const wasHead = !next.includes(k) && HEADS.some((h) => h.dept === k && h.staff_id === row.id);
     const r = await teamCall("api_master_staff_set", { p_id: row.id, p_depts: next });
     if (r && !r.ok) teamSay("bad", r.says || "That did not save.");
-    return teamLoad();
+    await teamLoad();
+    if (r && r.ok && wasHead) teamSay("warn", row.name + " is no longer head of " + teamDeptLabel(k) + " because they left that department.");
+    return;
   }
   if (!act) return;
   const a = act.dataset.tact;
