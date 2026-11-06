@@ -1737,7 +1737,51 @@ function openTechLink() {
 }
 addEventListener("hashchange", () => { if (!openFromNotification()) openTechLink(); });
 
+/* ══ get the app ═════════════════════════════════════════
+   Kamsy, 6 Nov 2026: "let the web app always urge users to download the app
+   on playstore and appstore — do it for both techs and customers."
+   One slim bar above every screen. app.html points at the two customer apps,
+   techapp.html at the two nail tech apps (APP_MODE tells them apart). The
+   phone's own store goes first. It is plain links that open the store in a new
+   tab, so it needs no sign-in, sends nothing, and cannot break a screen. */
+const STORE_LINKS = {
+  customer: {
+    name: "Oma",
+    note: "Booking alerts and calls work best in the app.",
+    ios: "https://apps.apple.com/ng/app/oma-nail-booking/id6819399401",
+    android: "https://play.google.com/store/apps/details?id=com.omanails.oma",
+  },
+  tech: {
+    name: "Oma Nail Tech",
+    note: "Job alerts and calls work best in the app.",
+    ios: "https://apps.apple.com/ng/app/oma-nail-tech/id6820434529",
+    android: "https://play.google.com/store/apps/details?id=com.omanails.nailtechs",
+  },
+};
+const STORE_ICON = {
+  ios: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12.7c0-2.2 1.8-3.3 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.4.8-.7 0-1.8-.8-2.9-.8-1.5 0-2.9.9-3.6 2.2-1.6 2.7-.4 6.7 1.1 8.9.7 1.1 1.6 2.3 2.8 2.2 1.1 0 1.5-.7 2.9-.7s1.7.7 2.9.7c1.2 0 2-1.1 2.7-2.2.8-1.2 1.2-2.4 1.2-2.5 0 0-2.3-.9-2.4-3.6zM14.3 5.5c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 2-.5 2.6-1.2z"/></svg>',
+  android: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 2.3c-.2.3-.3.6-.3 1v17.4c0 .4.1.8.3 1l9.2-9.7L3.6 2.3zm10.6 8.2l2.6-2.8-9-5.1c-.3-.2-.6-.2-.9-.2l7.3 8.1zm0 3l-7.3 8.2c.3 0 .6 0 .9-.2l9-5.2-2.6-2.8zm5.6-3.4l-2.1-1.2-2.8 3 2.8 3 2.1-1.2c.9-.5.9-2.1 0-2.6z"/></svg>',
+};
+function showGetApp() {
+  const bar = document.getElementById("getapp");
+  const col = document.getElementById("col");
+  if (!bar || !col) return;
+  const L = STORE_LINKS[APP_MODE === "tech" ? "tech" : "customer"];
+  const ua = (navigator.userAgent || "") + " " + (navigator.platform || "");
+  const onAndroid = /Android/i.test(ua);
+  const order = onAndroid ? ["android", "ios"] : ["ios", "android"];
+  const label = { ios: "App Store", android: "Google Play" };
+  bar.innerHTML =
+    '<div class="ga-t">Get the ' + L.name + ' app<span>' + L.note + '</span></div>' +
+    order.map((k, i) =>
+      '<a class="ga-b' + (i ? " alt" : "") + '" data-store="' + k + '" href="' + L[k] +
+      '" target="_blank" rel="noopener">' + STORE_ICON[k] + label[k] + '</a>').join("");
+  bar.classList.add("on");
+  col.classList.add("hasbar");
+}
+
 (function boot() {
+  try { showGetApp(); } catch (e) { /* the bar is a nicety; never stop the app for it */ }
   // Google sends the session back in the URL fragment. Take it before anything
   // else looks at the hash, and before the address bar can be screenshotted
   // with an access token still in it.

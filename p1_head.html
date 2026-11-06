@@ -183,6 +183,32 @@ a{color:var(--pink);text-decoration:none}
   height:100dvh;min-height:100dvh;overflow:hidden;
   background:var(--bg);display:flex;flex-direction:column;
 }
+/* 6 Nov 2026, Kamsy: "let the web app always urge users to download the app on
+   playstore and appstore." One slim bar above every screen, both builds
+   (app.html -> the customer apps, techapp.html -> the nail tech apps). It is
+   filled in once at boot (p8_wire.js) and never goes away on purpose. */
+#col{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;position:relative}
+#col.hasbar{--sat:0px}
+#getapp{flex:none;display:none}
+#getapp.on{
+  display:flex;align-items:center;gap:8px;
+  padding:calc(7px + env(safe-area-inset-top)) 12px 7px 14px;
+  background:var(--tint);border-bottom:1px solid var(--line);
+  font-size:12.5px;line-height:1.25;color:var(--ink);
+}
+#getapp .ga-t{flex:1;min-width:0;font-weight:600}
+#getapp .ga-t span{display:block;font-weight:500;color:var(--sub);font-size:11.5px}
+#getapp a.ga-b{
+  flex:none;display:inline-flex;align-items:center;gap:5px;
+  padding:6px 10px;border-radius:999px;background:var(--pink);color:var(--onpink);
+  font-size:12px;font-weight:700;white-space:nowrap;text-decoration:none;
+}
+#getapp a.ga-b svg{width:13px;height:13px;fill:currentColor;flex:none}
+#getapp a.ga-b.alt{background:var(--card);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+@media (max-width:360px){
+  #getapp .ga-t span{display:none}
+  #getapp a.ga-b{padding:6px 8px}
+}
 #view{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
   padding-bottom:calc(80px + env(safe-area-inset-bottom))}
 #view.nonav{padding-bottom:32px}
@@ -194,6 +220,9 @@ a{color:var(--pink);text-decoration:none}
    float on top of it. The gap below is the bottom bar's, so nothing important
    ever hides behind it. */
 :root{--navgap:calc(74px + env(safe-area-inset-bottom))}
+/* The status-bar gap. Screens pad themselves by it; when the get-the-app bar
+   is on top it takes the gap itself and the screens under it get none. */
+:root{--sat:env(safe-area-inset-top)}
 /* The map is the whole screen — under the greeting, under the sheet, behind
    the bar — rather than a rectangle between two pieces of furniture. Everything
    else floats on top of it. */
@@ -205,7 +234,7 @@ a{color:var(--pink);text-decoration:none}
 
 /* the greeting, floating */
 .maptop{position:absolute;top:0;left:0;right:0;z-index:7;
-  padding:calc(10px + env(safe-area-inset-top)) 14px 0;
+  padding:calc(10px + var(--sat)) 14px 0;
   pointer-events:none}          /* the map is draggable around the card */
 .maptop > *{pointer-events:auto}
 .mapgreet{
@@ -230,7 +259,7 @@ a{color:var(--pink);text-decoration:none}
    classes — a single-class rule of ours loses to it and the credit stays welded
    to the top edge, under the greeting. Match its specificity and it moves. */
 .leaflet-top .leaflet-control-attribution{
-  margin:calc(84px + env(safe-area-inset-top)) 0 0 14px}
+  margin:calc(84px + var(--sat)) 0 0 14px}
 /* OpenStreetMap has no dark tiles, and a white map inside a dark app is a
    torch in the face. Inverting the tiles alone gets close enough. */
 @media (prefers-color-scheme:dark){
@@ -265,7 +294,7 @@ a{color:var(--pink);text-decoration:none}
 /* Below the greeting AND below the scope pill — they used to share the same
    strip, and the greeting card, which is painted last, silently swallowed
    every tap meant for the scope. */
-.mapbtns{position:absolute;top:calc(132px + env(safe-area-inset-top));right:14px;z-index:5;
+.mapbtns{position:absolute;top:calc(132px + var(--sat));right:14px;z-index:5;
   display:flex;flex-direction:column;gap:10px}
 .mapbtn{width:46px;height:46px;border-radius:16px;background:var(--card);
   border:1px solid var(--line);box-shadow:var(--card-shadow);
@@ -348,7 +377,7 @@ a{color:var(--pink);text-decoration:none}
    and leaves a dead band under the composer. */
 #view.chat > #ahost{flex:1;min-height:0;display:flex;flex-direction:column}
 .chathead{flex:none;display:flex;align-items:center;gap:10px;
-  padding:calc(12px + env(safe-area-inset-top)) 14px 12px;
+  padding:calc(12px + var(--sat)) 14px 12px;
   background:var(--card);border-bottom:1px solid var(--line)}
 .chatlog{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
   padding:10px 16px 14px;display:flex;flex-direction:column;gap:7px}
@@ -388,7 +417,7 @@ a{color:var(--pink);text-decoration:none}
    sentence explaining what a hand scan is was the one thing you could not
    read. The greeting stays on top; everything else now begins below it. */
 .maplist{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
-  padding-top:calc(78px + env(safe-area-inset-top));
+  padding-top:calc(78px + var(--sat));
   padding-bottom:var(--navgap)}
 
 /* ═══ type ═══════════════════════════════════════════ */
@@ -413,7 +442,7 @@ h3{font-size:16px}
 
 /* ═══ topbar ═══════════════════════════════════════════ */
 .topbar{
-  flex:none;background:var(--card);padding:calc(14px + env(safe-area-inset-top)) 20px 18px;
+  flex:none;background:var(--card);padding:calc(14px + var(--sat)) 20px 18px;
   border-radius:0 0 26px 26px;
 }
 .topbar.plain{border-radius:0;background:transparent}
@@ -809,7 +838,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
 .svcflag:hover,.svcflag:focus-visible{opacity:1}
 
 /* The map's scope: near me, or the whole state. */
-.scope{position:absolute;top:calc(74px + env(safe-area-inset-top));left:50%;
+.scope{position:absolute;top:calc(74px + var(--sat));left:50%;
   transform:translateX(-50%);z-index:420;display:flex;gap:4px;padding:4px;
   border-radius:99px;background:var(--card);border:1px solid var(--line);
   box-shadow:0 6px 18px rgba(0,0,0,.16);max-width:min(92vw,340px)}
@@ -932,7 +961,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
 }
 .scanhead{position:relative;flex:none;display:flex;align-items:center;
   justify-content:space-between;gap:12px;
-  padding:calc(14px + env(safe-area-inset-top)) 20px 4px}
+  padding:calc(14px + var(--sat)) 20px 4px}
 .scanhead .t{font-size:14.5px;font-weight:700}
 .scanhead .iconbtn{background:var(--sc-soft);color:var(--sc-ink)}
 .step{display:none;position:relative;flex:1;min-height:0;flex-direction:column}
@@ -1048,7 +1077,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
 #resultHost .resulthead{color:#fff}
 .resulthead{
   position:relative;background:var(--grad);color:#fff;
-  padding:calc(14px + env(safe-area-inset-top)) 20px 34px;
+  padding:calc(14px + var(--sat)) 20px 34px;
 }
 .shapeart{width:96px;height:96px;flex:none;border-radius:32px;background:rgba(255,255,255,.2);
   border:1px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center}
