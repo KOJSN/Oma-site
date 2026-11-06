@@ -1125,6 +1125,7 @@ function factsLine(f) {
   bits.push(f.tech_tap ? "nail tech tapped “Client didn’t come” (" + (f.tech_tap === "accepted" ? "believed" : "not believed") + ")" : "no tap");
   bits.push("nail tech " + (f.tech_nearest_m != null ? "seen " + f.tech_nearest_m + " m from the place" : "never seen at the place"));
   bits.push("client " + (f.client_nearest_m != null ? "seen " + f.client_nearest_m + " m from the place" : "never seen at the place"));
+  if (f.tech_tapped_here) bits.push("nail tech tapped “I’m here” at the place");
   if (f.client_tapped_here) bits.push("client tapped “I’m here” at the place");
   if (f.client_reported_no_show) bits.push("client reported a no-show");
   return bits.join(" · ");
