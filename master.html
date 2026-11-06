@@ -1034,7 +1034,7 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
             <div class="card">
               <div class="kv"><span>Customer care</span><b>Reads and answers the live chats from omanails.com.</b></div>
               <div class="kv"><span>Finance</span><b>Sees the money switches, no-show cases, fee income, refunds and withdrawals. View only: paying, refunding, the switches and the decisions stay with you.</b></div>
-              <div class="kv"><span>Damage control</span><b>Mischief reports and reported pictures, Control (list or verify a nail tech), Reports (charts and photos), and the bookings with their chats (view only: no refunds).</b></div>
+              <div class="kv"><span>Damage control</span><b>Mischief reports and reported pictures, Control (list or verify a nail tech), Reports (charts and photos), and the bookings with their chats (view only: no refunds). Gets a phone alert for every new service a tech adds and every paid booking.</b></div>
               <div class="kv"><span>Head of a department</span><b>Sees all of their team's work, hands Customer care chats to agents, and switches the people in their department on or off. Cannot add or remove people, see seed phrases, or touch money.</b></div>
               <div class="kv"><span>Only you</span><b>Dashboard, Users, Bookings and this Team page.</b></div>
             </div>
@@ -3720,11 +3720,11 @@ const BRAIN_NODES = [
   { id: "payouts", g: "part", name: "Payouts", page: "finances",
     desc: "Techs withdrawing their money to their own bank accounts, a day after an appointment is scanned." },
   { id: "alerts", g: "part", name: "Alerts and push", page: "dashboard",
-    desc: "The notifications that reach customers, techs and you. Red when some have given up, amber while some are still queued." },
+    desc: "The notifications that reach customers, techs and you. Red when some have given up, amber while some are still queued. Since 6 Nov the people in Damage control are also alerted on their phones whenever a tech adds a service to her menu (one alert per sitting) and whenever a tech is booked and the customer has paid; the words on the phone never include what a customer wrote. Needs the Supabase query \"Damage control alerts\"; each has an on/off switch (damage_new_service, damage_new_booking). No live check for that part." },
   { id: "chat", g: "part", name: "Customer care chat", page: "care",
     desc: "The chat on omanails.com and in the apps that reaches you and your care agents. Each agent has their own private chats; the head of Customer care, if you have appointed one, can read every chat (read only) and hand chats to agents." },
   { id: "team", g: "part", name: "Team and heads of department", page: "team",
-    desc: "Your staff. Each person signs in to the staff page with a seed phrase and works in Customer care, Finance or Damage control. Since 6 Nov you can make one person the head of each department on the Team page. A head sees all of their team's work (in Customer care that is every chat, read only), hands Customer care chats to agents, and switches the people in their department on or off. A head cannot add or remove people, see seed phrases or touch money. Needs the Supabase query \"Heads of department\". No live check." },
+    desc: "Your staff. Each person signs in to the staff page with a seed phrase and works in Customer care, Finance or Damage control. Since 6 Nov you can make one person the head of each department on the Team page. A head sees all of their team's work (in Customer care that is every chat, read only), hands Customer care chats to agents, and switches the people in their department on or off. A head cannot add or remove people, see seed phrases or touch money. Damage control members also get a phone alert for every new service and every paid booking (see Alerts and push). Needs the Supabase query \"Heads of department\". No live check." },
   { id: "signin", g: "part", name: "Sign-in", page: "users",
     desc: "Accounts and logging in, for customers, techs and the team. Since 6 Nov the web apps keep people signed in through a weak signal, a busy server and several open tabs: only a sign-in that Supabase itself refuses ends it. The Android and iPhone apps have the same fix in test builds only (they sign people out on a failed renewal until they are updated). No live check." },
   { id: "idchecks", g: "part", name: "ID checks", page: "users",
