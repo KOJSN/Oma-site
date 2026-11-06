@@ -400,6 +400,19 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
   border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;
   font-size:15px;min-height:48px;max-height:140px;resize:vertical}
 .ctreply textarea:focus{outline:2px solid var(--pink);outline-offset:1px;border-color:transparent}
+/* ── Messages (a group for each department), 6 Nov 2026 ── */
+.msgbox{padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:480px}
+.msgtabs{display:flex;gap:8px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--line)}
+.msgtabs:empty{display:none}
+.msgtab{padding:7px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--bg);
+  color:var(--sub);font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+.msgtab.on{background:var(--tint);color:var(--pink);border-color:var(--pink)}
+.msgtab .mdot{min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--pink);color:var(--onpink);
+  font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+.msgbox .ctlog{max-height:58vh;min-height:300px}
+.cmsg .cw{font-size:11.5px;font-weight:700;color:var(--faint);margin:0 4px 3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cday{align-self:center;font-size:11.5px;font-weight:700;color:var(--faint);padding:3px 12px;border-radius:99px;background:var(--fill)}
+.msgnote{font-size:12.5px;color:var(--faint);margin:10px 2px 0;line-height:1.45}
 .carebox .errline{padding:0 16px 12px;color:var(--bad);font-size:13px}
 .carebox .errline:empty{display:none}
 @media (max-width:820px){
@@ -506,6 +519,9 @@ body.dept-finance .page[data-page="finances"] textarea{display:none!important}
       <button class="navbtn" type="button" data-page="reports">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
         Reports</button>
+      <button class="navbtn gone" type="button" data-page="messages">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Messages<span class="nbadge" id="msgBadge" hidden></span></button>
       <button class="navbtn gone" type="button" data-page="team">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         My team</button>
@@ -544,6 +560,27 @@ body.dept-finance .page[data-page="finances"] textarea{display:none!important}
               <div class="card"><div class="lbl">Money</div><div id="money"></div></div>
               <div class="card"><div class="lbl">Oma's own books</div><div id="oma"></div></div>
             </div>
+          </section>
+        </div>
+
+        <!-- Messages (department-messages.sql): a group chat for each department. Only the people in the
+             department and the owner can read it. Shown only once that query has been run. -->
+        <div class="page" data-page="messages">
+          <section>
+            <div class="lbl" id="msgLbl">Messages</div>
+            <div class="card msgbox" id="msgBox">
+              <div class="msgtabs" id="msgTabs"></div>
+              <div class="cth">
+                <div class="ctw"><div class="ctn" id="msgTitle"></div><div class="cts" id="msgPeople"></div></div>
+              </div>
+              <div class="ctlog" id="msgLog" aria-live="polite"></div>
+              <form class="ctreply" id="msgForm" novalidate>
+                <textarea id="msgText" rows="2" maxlength="2000" placeholder="Write to the group…" aria-label="Write to the group"></textarea>
+                <button class="btn sm" type="submit" id="msgSend">Send</button>
+              </form>
+              <div class="errline" id="msgErr" style="padding:0 16px 12px;color:var(--bad);font-size:13px"></div>
+            </div>
+            <p class="msgnote" id="msgNote">Only the people in this department and the owner can read this group. Please keep customers' private details out of it. Messages are cleared after 180 days.</p>
           </section>
         </div>
 
@@ -2254,7 +2291,7 @@ function enter(d) {
   app.style.display = "block";
   document.body.classList.remove("dept-care", "dept-finance", "dept-damage");
   document.body.classList.add("dept-" + d);
-  const pages = DEPTS[d].pages.concat(isHead(d) ? ["team"] : []);
+  const pages = DEPTS[d].pages.concat(MSG_ON ? ["messages"] : [], isHead(d) ? ["team"] : []);
   document.querySelectorAll(".navbtn").forEach((b) => b.classList.toggle("gone", !pages.includes(b.dataset.page)));
   document.getElementById("deptName").textContent = DEPTS[d].label + (isHead(d) ? " · Head" : "");
   document.getElementById("switchDept").classList.toggle("gone", (STAFF.depts || []).filter((x) => DEPTS[x]).length < 2);
@@ -2262,7 +2299,9 @@ function enter(d) {
     new Date(STAFF.expires_at).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
   careOff = d !== "care";
   const wanted = location.hash.slice(1);
-  const land = pages.includes(wanted) ? wanted : pages[0];
+  const mh = /^messages(care|finance|damage)?$/.exec(wanted);
+  if (mh && mh[1]) msgWant = mh[1];
+  const land = mh && pages.includes("messages") ? "messages" : pages.includes(wanted) ? wanted : pages[0];
   document.querySelector('.navbtn[data-page="' + land + '"]').click();   // Care and Finance load on that click
   if (d === "damage") load();                                           // Reports' charts come from load()
 }
@@ -2303,12 +2342,16 @@ async function show(expires) {
   } catch (e) {
     if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut("");
   }
+  // Is Messages switched on? Not until "Department messages" has been run: then the button stays hidden.
+  if ((await msgProbe()) === "lost") return lockOut("");
   const have = (STAFF.depts || []).filter((d) => DEPTS[d]);
   let want = null;
   try { want = sessionStorage.getItem(DEPT_KEY); } catch (e) { /* fine */ }
-  // Opened from an alert (admin.html#care, #finances ...): go straight to the
+  // Opened from an alert (admin.html#care, #finances, #messagesdamage ...): go straight to the
   // department that page belongs to, if this person has it.
-  const landed = have.find((k) => DEPTS[k].pages.includes(location.hash.slice(1)));
+  const hm = /^messages(care|finance|damage)?$/.exec(location.hash.slice(1));
+  const landed = hm ? (MSG_ON && hm[1] && have.includes(hm[1]) ? hm[1] : null)
+                    : have.find((k) => DEPTS[k].pages.includes(location.hash.slice(1)));
   if (landed) enter(landed);
   else if (have.length === 1) enter(have[0]);
   else if (want && have.includes(want)) enter(want);
@@ -2484,6 +2527,15 @@ alertsPaint();
    /admin.html#finances or tells an already open page where to go. */
 function goToPage(name) {
   if (!STAFF || !/^[a-z]+$/.test(name || "")) return;
+  const gm = /^messages(care|finance|damage)?$/.exec(name);
+  if (gm) {                                              // an alert from one of the groups
+    if (!MSG_ON || (gm[1] && !(STAFF.depts || []).includes(gm[1]))) return;
+    msgWant = gm[1] || null;
+    if (!DEPT) enter(gm[1] || (STAFF.depts || []).find((x) => DEPTS[x]));
+    const mb = document.querySelector('.navbtn[data-page="messages"]');
+    if (mb && !mb.classList.contains("gone")) mb.click();
+    return;
+  }
   let b = document.querySelector('.navbtn[data-page="' + name + '"]');
   if (b && b.classList.contains("gone")) {
     // The alert is for another department this person has: switch to it first.
@@ -3975,6 +4027,210 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && token() && !careOff) {
     careLoadList();
     if (careOpen && careOnPage()) careLoadThread();
+  }
+});
+
+/* ══ Messages, 6 Nov 2026 ═══════════════════════════════════════════════
+   Kamsy: "lets create a group for each department to communicate with each other" ...
+   "the page will be called messages". Customer care, Finance and Damage control each have a
+   group: the people in that department and the owner. Plain text. A phone alert shows only the
+   sender's name. department-messages.sql holds the rules; this only draws them. */
+let MSG_ON = null;                 // true once "Department messages" has been run
+let msgGroups = [];                // [{ dept, label, unread, last_at, people }]
+let msgDept = null, msgWant = null, msgAfter = 0, msgTick = 0, msgDay = "";
+const msgSeen = new Set();
+const msgEl = (id) => document.getElementById(id);
+const msgOnPage = () => { const p = document.querySelector('.page[data-page="messages"]'); return !!p && p.classList.contains("on"); };
+const msgLost = (e) => e && (e.status === 401 || /sign in again/i.test(e.message || ""));
+const msgMissing = (e) => e && (e.status === 404 || /could not find the function|PGRST202/i.test(e.message || ""));
+
+async function msgProbe() {
+  const t = token();
+  if (!t) return null;
+  try {
+    msgGroups = (await rpc("api_group_list", { p_token: t })) || [];
+    MSG_ON = true;
+    msgPaintBadge();
+  } catch (e) {
+    if (msgLost(e)) return "lost";
+    MSG_ON = false;                // not switched on yet (or no connection): the button stays hidden
+  }
+  return null;
+}
+
+function msgPaintBadge() {
+  const n = msgGroups.reduce((a, g) => a + Number(g.unread || 0), 0);
+  const b = msgEl("msgBadge");
+  b.hidden = !n;
+  b.textContent = n > 99 ? "99+" : String(n);
+}
+
+function msgPaintTabs() {
+  const box = msgEl("msgTabs");
+  if (msgGroups.length < 2) { box.innerHTML = ""; return; }
+  box.innerHTML = msgGroups.map((g) =>
+    `<button type="button" class="msgtab${g.dept === msgDept ? " on" : ""}" data-d="${esc(g.dept)}">${esc(g.label)}` +
+    (Number(g.unread) > 0 && g.dept !== msgDept ? `<span class="mdot">${Number(g.unread) > 99 ? "99+" : Number(g.unread)}</span>` : "") + `</button>`).join("");
+}
+
+function msgPaintHead(people) {
+  const g = msgGroups.find((x) => x.dept === msgDept);
+  msgEl("msgTitle").textContent = g ? g.label : "";
+  const list = people || (g && g.people) || [];
+  msgEl("msgPeople").textContent = list.length
+    ? list.length + " in this group: " + list.map((p) => p.name + (p.head ? " (head)" : "")).join(", ")
+    : "";
+}
+
+async function msgRefreshList() {
+  const t = token();
+  if (!t || !MSG_ON) return;
+  try {
+    msgGroups = (await rpc("api_group_list", { p_token: t })) || [];
+    msgPaintBadge();
+    if (msgOnPage()) { msgPaintTabs(); msgPaintHead(); }
+  } catch (e) { if (msgLost(e)) lockOut(""); }
+}
+
+function msgAdd(m) {
+  const log = msgEl("msgLog");
+  const when = new Date(m.at);
+  const day = when.toDateString();
+  if (day !== msgDay) {
+    msgDay = day;
+    const dv = document.createElement("div");
+    dv.className = "cday";
+    dv.textContent = when.toLocaleDateString("en-NG", { weekday: "short", day: "numeric", month: "short" });
+    log.appendChild(dv);
+  }
+  const el = document.createElement("div");
+  el.className = "cmsg " + (m.mine ? "mine" : "theirs");
+  el.dataset.id = m.id;
+  el.innerHTML =
+    (m.mine ? "" : `<div class="cw">${esc(m.name)}${m.owner ? ' <span class="chip">Owner</span>' : ""}${m.head ? ' <span class="chip ok">Head</span>' : ""}</div>`) +
+    `<div class="cb">${esc(m.body)}</div>` +
+    `<div class="ct">${esc(when.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" }))}</div>`;
+  log.appendChild(el);
+}
+
+function msgEmptyNote() {
+  const log = msgEl("msgLog");
+  const has = log.querySelector(".cmsg");
+  let e = log.querySelector(".empty");
+  if (has && e) e.remove();
+  if (!has && !e) log.insertAdjacentHTML("afterbegin", '<div class="empty" style="padding:8px">No messages yet. Say hello.</div>');
+}
+
+async function msgLoad(full) {
+  const t = token(), d = msgDept;
+  if (!t || !d) return;
+  try {
+    const r = await rpc("api_group_read", { p_token: t, p_dept: d, p_after: full ? 0 : msgAfter, p_limit: 80 });
+    if (d !== msgDept) return;                                  // she switched while this loaded
+    const log = msgEl("msgLog");
+    const list = (r && r.messages) || [];
+    if (full) {
+      // a full read normally only adds to what is there; if something was deleted, draw it again
+      const ids = new Set(list.map((m) => m.id));
+      const lo = list.length ? list[0].id : Infinity;                // older ones are not in this read; leave them be
+      if ([...msgSeen].some((id) => (list.length ? id >= lo : true) && !ids.has(id))) { log.innerHTML = ""; msgSeen.clear(); msgDay = ""; msgAfter = 0; }
+    }
+    const near = log.scrollHeight - log.scrollTop - log.clientHeight < 90;
+    const first = msgSeen.size === 0;
+    let added = false;
+    log.querySelectorAll(".empty").forEach((x) => x.remove());
+    for (const m of list) {
+      if (msgSeen.has(m.id)) continue;
+      msgSeen.add(m.id); msgAdd(m); added = true;
+      if (m.id > msgAfter) msgAfter = m.id;
+    }
+    msgEmptyNote();
+    if (r && r.people) msgPaintHead(r.people);
+    if (added && (near || first)) log.scrollTop = log.scrollHeight;
+    msgEl("msgErr").textContent = "";
+    if (added || full) msgRefreshList();                        // the badge and the tabs
+  } catch (e) {
+    if (msgLost(e)) return lockOut("");
+    msgEl("msgErr").textContent = e.message || "Could not load the messages.";
+  }
+}
+
+function msgSwitch(d) {
+  msgDept = d; msgAfter = 0; msgSeen.clear(); msgDay = "";
+  msgEl("msgLog").innerHTML = "";
+  msgEl("msgErr").textContent = "";
+  msgPaintTabs(); msgPaintHead();
+  msgEl("msgText").disabled = msgEl("msgSend").disabled = !d;
+  msgLoad(true);
+}
+
+function msgOpen() {
+  const have = msgGroups.map((g) => g.dept);
+  if (!MSG_ON || !have.length) {
+    msgDept = null;
+    msgEl("msgTabs").innerHTML = ""; msgEl("msgLog").innerHTML = "";
+    msgEl("msgTitle").textContent = "Messages";
+    msgEl("msgPeople").textContent = "";
+    msgEl("msgLog").innerHTML = '<div class="empty" style="padding:8px">You are not in a department yet. Ask the owner.</div>';
+    msgEl("msgText").disabled = msgEl("msgSend").disabled = true;
+    return;
+  }
+  const d = msgWant && have.includes(msgWant) ? msgWant : (DEPT && have.includes(DEPT) ? DEPT : have[0]);
+  msgWant = null;
+  msgSwitch(d);
+  msgRefreshList();
+}
+
+document.querySelector('.navbtn[data-page="messages"]').addEventListener("click", msgOpen);
+msgEl("msgTabs").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-d]");
+  if (b && b.dataset.d !== msgDept) msgSwitch(b.dataset.d);
+});
+msgEl("msgText").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing && window.matchMedia("(pointer:fine)").matches) {
+    e.preventDefault();
+    msgEl("msgForm").requestSubmit ? msgEl("msgForm").requestSubmit() : msgEl("msgSend").click();
+  }
+});
+msgEl("msgForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = msgEl("msgText"), body = text.value.trim(), t = token(), d = msgDept;
+  if (!body || !d) return;
+  if (!t) return lockOut("");
+  const btn = msgEl("msgSend");
+  btn.disabled = true;
+  msgEl("msgErr").textContent = "";
+  try {
+    await rpc("api_group_send", { p_token: t, p_dept: d, p_body: body });
+    text.value = "";
+    await msgLoad(false);
+    const log = msgEl("msgLog");
+    log.scrollTop = log.scrollHeight;
+  } catch (err) {
+    if (msgLost(err)) return lockOut("");
+    msgEl("msgErr").textContent = err.message || "That did not send.";
+  } finally {
+    btn.disabled = false;
+    text.focus();
+  }
+});
+document.getElementById("refresh").addEventListener("click", () => { if (MSG_ON && msgOnPage()) { msgLoad(true); } });
+
+// An open group looks for new messages every four seconds (and rereads it all every minute so a
+// deleted message disappears); the badge and the tabs every 45 seconds from any page. Hidden tabs
+// do nothing. The phone alert is what covers everything when this page is closed.
+setInterval(() => {
+  if (document.visibilityState !== "visible" || !token() || !MSG_ON || !msgOnPage() || !msgDept) return;
+  msgTick++;
+  msgLoad(msgTick % 15 === 0);
+}, 4000);
+setInterval(() => {
+  if (document.visibilityState === "visible" && token() && MSG_ON) msgRefreshList();
+}, 45000);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && token() && MSG_ON) {
+    msgRefreshList();
+    if (msgOnPage() && msgDept) msgLoad(false);
   }
 });
 
