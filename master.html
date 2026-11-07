@@ -150,6 +150,13 @@
 .brow .sd{width:10px;height:10px;border-radius:50%;flex:none;background:var(--pink)}
 .brow .sd.warn{background:#ffd60a}.brow .sd.bad{background:#ff3b30}.brow .sd.none{background:#9aa0b4}
 .brow .sd.people{background:#8b5cf6}.brow .sd.money{background:#2bb673}
+.bgrow .nl{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.4}
+.bgrow .nl:last-child{border-bottom:0}
+.bgrow .nl i{width:9px;height:9px;border-radius:50%;flex:none;margin-top:5px;background:var(--pink)}
+.bgrow .nl.warn i{background:#ffd60a}.bgrow .nl.bad i{background:#ff3b30}.bgrow .nl.ok i{background:#2bb673}.bgrow .nl.info i{background:#9aa0b4}.bgrow .nl.new i{background:#8b5cf6}
+.bgrow .nl .tm{margin-left:auto;color:var(--sub);font-size:12px;white-space:nowrap;padding-left:8px}
+.bgrow .bsub{color:var(--sub);font-size:12.5px;margin:2px 0 6px}
+.bgrow .nm2{font-weight:600}.bgrow .nl .vv{color:var(--sub);font-size:12.5px;display:block}
 .brow .nm{font-weight:600;font-size:14px}.brow .sx{color:var(--sub);font-size:12.5px;margin-left:auto;text-align:right}
 .brow.bad .nm{color:var(--bad)}
 .bscope{font-size:12.5px;color:var(--sub);line-height:1.5;margin-top:10px}
@@ -747,6 +754,18 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
               <div class="bpanel" id="brainPanel" hidden></div>
             </div>
             <div class="bscope" id="brainScope"></div>
+          </section>
+          <section>
+            <div class="lbl">Today’s note</div>
+            <div class="card bgrow" id="brainNote"><div class="empty">Loading…</div></div>
+          </section>
+          <section>
+            <div class="lbl">What the brain has learned is normal</div>
+            <div class="card bgrow" id="brainNormal"><div class="empty">Loading…</div></div>
+          </section>
+          <section>
+            <div class="lbl">Timeline</div>
+            <div class="card bgrow" id="brainTimeline"><div class="empty">Loading…</div></div>
           </section>
           <section>
             <div class="lbl">Everything in the brain, as a list</div>
@@ -4069,6 +4088,7 @@ function brainSet(D) {
   BRAIN.D = D;
   brainRefresh();
   brainStores();
+  brainAuto();
 }
 
 async function brainStores() {
@@ -4080,9 +4100,218 @@ async function brainStores() {
   } catch (e) { /* no status file: the four apps say so */ }
 }
 
+
+/* ══ The brain grows and learns by itself (7 Nov 2026) ═══════════════════════
+   Kamsy: "let the company brain be learning and expanding on its own". The database does it
+   (Supabase query "Self-growing company brain"): every hour it lists its own scheduled jobs,
+   switches and groups of functions, records how many rows each table gets and learns what is
+   usual, keeps a timeline, and writes a note each morning. This page only reads it
+   (api_admin_brain) and draws it:
+     - a part with no dot of its own yet (a new feature, a job nobody drew) gets a new dot, by itself;
+     - a part that already has a dot (calls, reminders, inspo, bookings...) gives that dot a live
+       check instead of a second dot (BRAIN_FAM says which words belong to which dot);
+     - the colours this page works out for the hand-made dots are sent back (api_admin_brain_report),
+       so the timeline can say when one went amber and when it recovered (only while this page is open).
+   Missing SQL file = the brain just stays as it was and says what to run. */
+const BRAIN_FAM = [
+  // most specific first: a job or table is given to the FIRST dot one of its words belongs to
+  ["inspo", ["inspo"]],
+  ["calls", ["call", "agora"]],
+  ["business", ["business", "salon"]],
+  ["bans", ["ban"]],
+  ["avatars", ["avatar"]],
+  ["reminders", ["reminder", "remind"]],
+  ["sameday", ["sameday"]],
+  ["noshow", ["checkin", "noshow"]],
+  ["payouts", ["payout"]],
+  ["escrow", ["escrow", "refund", "dispute"]],
+  ["payments", ["paystack", "payment"]],
+  ["idchecks", ["kyc", "idcheck"]],
+  ["chat", ["message", "support", "care", "chat"]],
+  ["alerts", ["alert", "notification", "push", "device"]],
+  ["bookings", ["booking"]],
+  ["signin", ["session", "otp", "user"]],
+];
+function brainHandFor(tokens) {
+  const t = tokens || [];
+  for (const [id, words] of BRAIN_FAM) {
+    if (words.some((w) => t.indexOf(w) >= 0) && BRAIN.byId[id]) return id;
+  }
+  return null;
+}
+const brainAid = (id) => "a_" + String(id).replace(/[^a-z0-9]+/gi, "_");
+
+async function brainAuto() {
+  if (Date.now() - (BRAIN.autoAt || 0) < 55000) return;
+  BRAIN.autoAt = Date.now();
+  const t = token();
+  if (!t) return;
+  try {
+    BRAIN.A = await rpc("api_admin_brain", { p_token: t });
+    BRAIN.Aerr = "";
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return;      // the page's own load() handles this
+    BRAIN.A = null;
+    BRAIN.Aerr = (e.status === 404 || /could not find the function|does not exist/i.test(e.message || "")) ? "missing" : (e.message || "failed");
+  }
+  try { brainGrow(); brainRefresh(); brainCards(); } catch (e) { /* the brain must never take the dashboard down */ }
+}
+
+function brainGrow() {
+  const A = BRAIN.A;
+  if (!A) return;
+  const hub = BRAIN.byId.c_part;
+  let added = [];
+  (A.parts || []).forEach((p) => {
+    p.hand = brainHandFor(p.tokens);
+    if (p.hand) return;
+    if (p.gone) return;
+    if (p.kind === "family" && p.baseline) return;           // groups that were there from the start are not drawn one by one
+    const id = brainAid(p.id);
+    if (BRAIN.byId[id]) return;
+    const n = { id, g: "part", name: p.name, page: null, desc: p.about || "", st: "none", line: "", facts: [], val: 4.5, auto: true, aid: p.id };
+    BRAIN.nodes.push(n); BRAIN.byId[id] = n; BRAIN.nbr[id] = [];
+    const link = (a, b, kind) => { BRAIN.links.push({ source: a, target: b, kind }); BRAIN.nbr[a].push(b); BRAIN.nbr[b].push(a); };
+    link("c_part", id, "hub");
+    link(id, "database", "flow");
+    if (BRAIN.orbit && hub && hub.bx != null) {
+      // the picture is already turning: place the new dot near the Parts hub, in the turning frame
+      const a = Math.random() * Math.PI * 2, b = (Math.random() - 0.5) * 1.4;
+      n.bx = hub.bx + 70 * Math.cos(a); n.by = hub.by + 70 * b; n.bz = hub.bz + 70 * Math.sin(a);
+      n.x = n.bx; n.y = n.by; n.z = n.bz;
+    }
+    added.push(n);
+  });
+  if (added.length && BRAIN.g) {
+    BRAIN.g.graphData({ nodes: BRAIN.nodes, links: BRAIN.links });
+    const lay = document.getElementById("brainLabels");
+    added.forEach((n) => {
+      const d = document.createElement("div");
+      d.className = brainLabelClass(n); d.dataset.id = n.id;
+      d.innerHTML = '<i class="bring"></i><span class="t">' + esc(n.name) + "</span>";
+      lay.appendChild(d); BRAIN.els[n.id] = d;
+    });
+  }
+}
+
+/* What each part says, folding what the database found into the dots. Runs after brainCompute. */
+function brainFold(S) {
+  const A = BRAIN.A;
+  if (!A || (BRAIN.D && BRAIN.D.ok === false)) return;
+  const rank = { none: 0, ok: 1, warn: 2, bad: 3 };
+  const worse = (a, b) => (rank[b] > rank[a] ? b : a);
+  const into = {};
+  const slot = (id) => (into[id] = into[id] || { jobs: [], sw: [], fam: [], met: [] });
+  (A.parts || []).forEach((p) => {
+    if (p.gone) return;
+    if (p.hand) { slot(p.hand)[p.kind === "job" ? "jobs" : p.kind === "switch" ? "sw" : "fam"].push(p); return; }
+    const id = brainAid(p.id);
+    if (!BRAIN.byId[id]) return;
+    const when = p.first_seen ? new Date(p.first_seen) : null;
+    S[id] = {
+      s: p.status === "none" ? "ok" : p.status,
+      line: p.line || "",
+      facts: [["Kind", p.kind === "job" ? "A job that runs by itself" : p.kind === "switch" ? "A switch" : "A new group of database functions"]]
+        .concat((p.facts || []).filter((f) => f && f[0] !== "First seen"))
+        .concat(when ? [["First seen", when.toLocaleDateString("en-GB", { timeZone: "Africa/Lagos", day: "numeric", month: "short", year: "numeric" })]] : [])
+        .concat([["Id (for brain_about)", p.id]]),
+    };
+  });
+  (A.metrics || []).forEach((m) => {
+    const h = brainHandFor(m.tokens);
+    if (h) slot(h).met.push(m);
+  });
+  Object.keys(into).forEach((id) => {
+    const cur = S[id];
+    if (!cur) return;
+    const sl = into[id];
+    let s = cur.s, line = cur.line;
+    const facts = (cur.facts || []).slice();
+    const noCheck = /^No live check on this part yet/.test(line || "");
+    sl.jobs.forEach((j) => {
+      facts.push(["Job: " + j.name, (j.line || "") ]);
+      if (j.status === "bad" || j.status === "warn") {
+        s = worse(s, j.status);
+        line = j.name + ": " + (j.line || "") + (line && !noCheck ? " · " + line : "");
+      }
+    });
+    sl.met.forEach((m) => {
+      const usual = m.days >= 5 && m.usual != null ? "usual about " + Math.round(m.usual) : "still learning (" + m.days + " day" + (m.days === 1 ? "" : "s") + ")";
+      facts.push([m.label, "now " + Math.round(m.now) + " · " + usual]);
+      if (m.flagged) {
+        s = worse(s, "warn");
+        line = m.label + ": " + Math.round(m.now) + ", usually about " + Math.round(m.usual) + " (unusually " + m.level + ")" + (line && !noCheck && s !== cur.s ? " · " + line : "");
+      }
+    });
+    sl.sw.forEach((w) => facts.push([w.name, w.line || ""]));
+    if (noCheck && s === cur.s && (sl.jobs.length || sl.met.length)) {
+      const jobsOk = sl.jobs.length && sl.jobs.every((j) => j.status === "ok");
+      line = jobsOk ? "Its scheduled job" + (sl.jobs.length > 1 ? "s are" : " is") + " running fine. No other live check yet."
+                    : "Watching its numbers; nothing unusual. No other live check yet.";
+    }
+    S[id] = { s: s === "none" ? cur.s : s, line, facts };
+  });
+}
+
+/* The colours the page works out for its hand-made dots, handed back so the timeline can remember them. */
+function brainReport() {
+  if (!BRAIN.A || !BRAIN.D || BRAIN.D.ok === false) return;
+  const states = {};
+  BRAIN.nodes.forEach((n) => {
+    if (n.auto || n.core || n.hub || n.g !== "part") return;
+    states[n.id] = { s: n.st === "info" ? "none" : n.st, n: n.name, l: n.line || "" };
+  });
+  const sig = JSON.stringify(Object.keys(states).map((k) => k + states[k].s));
+  if (sig === BRAIN.repSig && Date.now() - (BRAIN.repAt || 0) < 900000) return;
+  BRAIN.repSig = sig; BRAIN.repAt = Date.now();
+  rpc("api_admin_brain_report", { p_token: token(), p_states: states }).catch(() => { /* the history just misses this look */ });
+}
+
+/* Today's note, what is normal, the timeline. */
+function brainCards() {
+  const A = BRAIN.A, note = document.getElementById("brainNote"), nor = document.getElementById("brainNormal"), tl = document.getElementById("brainTimeline");
+  if (!note) return;
+  if (!A) {
+    const msg = BRAIN.Aerr === "missing"
+      ? "The brain cannot grow or learn by itself yet. Run the Supabase query <b>Self-growing company brain</b> once, then reload this page."
+      : BRAIN.Aerr ? "The brain could not read its notes just now (" + esc(BRAIN.Aerr) + ")." : "Loading…";
+    [note, nor, tl].forEach((el) => { el.innerHTML = '<div class="empty">' + msg + "</div>"; });
+    return;
+  }
+  const lag = (iso, long) => new Date(iso).toLocaleString("en-GB", long
+    ? { timeZone: "Africa/Lagos", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }
+    : { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit" });
+  const nt = A.note;
+  note.innerHTML = nt
+    ? '<div class="bsub">Written ' + esc(lag(nt.made_at, true)) + " (Lagos time). A new one is written every morning at 6:30.</div>"
+      + (nt.lines || []).map((l) => '<div class="nl ' + esc(l.k) + '"><i></i><span>' + esc(l.t) + "</span></div>").join("")
+    : '<div class="empty">No note yet.</div>';
+
+  const L = A.learning || {};
+  const ms = (A.metrics || []).slice().sort((a, b) => (b.flagged - a.flagged) || ((b.usual || 0) - (a.usual || 0)));
+  const shown = ms.slice(0, 10);
+  nor.innerHTML = '<div class="bsub">' + num(L.metrics) + " tables are watched, one reading an hour. History so far: " + num(L.days)
+      + " day" + (L.days === 1 ? "" : "s") + ". After 5 days it says what is usual; it needs two odd readings in a row before it says something is unusual.</div>"
+    + (shown.length ? shown.map((m) => {
+        const usual = m.days >= 5 && m.usual != null ? "usually about " + Math.round(m.usual) : "still learning (" + m.days + " of 5 days)";
+        const cls = m.flagged ? "warn" : m.level === "learning" ? "info" : "ok";
+        const word = m.flagged ? " · unusually " + m.level : m.level === "high" || m.level === "low" ? " · " + m.level + ", fine for this one" : "";
+        return '<div class="nl ' + cls + '"><i></i><span><span class="nm2">' + esc(m.label) + '</span><span class="vv">now ' + esc(String(Math.round(m.now))) + " · "
+          + esc(usual) + esc(word) + "</span></span></div>";
+      }).join("") + (ms.length > shown.length ? '<div class="bsub" style="margin-top:8px">and ' + (ms.length - shown.length) + " more being watched.</div>" : "")
+      : '<div class="empty">Nothing is being watched yet.</div>');
+
+  const kindCls = { red: "bad", amber: "warn", recovered: "ok", unusual: "warn", normal: "ok", new_part: "new", table_new: "new", part_back: "new", part_gone: "info", switch_on: "info", switch_off: "info", note: "info" };
+  tl.innerHTML = (A.events || []).length
+    ? '<div class="bsub">What happened, newest first. Dots the page works out itself (like Escrow) are only recorded while this page is open.</div>'
+      + A.events.slice(0, 40).map((e) => '<div class="nl ' + (kindCls[e.kind] || "info") + '"><i></i><span>' + esc(e.text) + '</span><span class="tm">' + esc(lag(e.at, true)) + "</span></div>").join("")
+    : '<div class="empty">Nothing has happened yet.</div>';
+}
+
 function brainRefresh() {
   if (!BRAIN.D) return;
   const S = brainCompute(BRAIN.D);
+  try { brainFold(S); } catch (e) { /* the hand-made dots still show their own checks */ }
   BRAIN.nodes.forEach((n) => {
     const s = S[n.id] || { s: "none", line: "", facts: [] };
     n.st = s.s; n.line = s.line; n.facts = s.facts;
@@ -4107,7 +4336,11 @@ function brainRefresh() {
     "Checked from the dashboard’s own numbers, about every minute while this page is open: the database, bookings, escrow, payouts, "
     + "alerts, care chat and ID checks. The four apps come from a status file"
     + (BRAIN.stores && BRAIN.stores.asOf ? " last updated " + esc(BRAIN.stores.asOf) : " that is not there yet")
-    + ". Card payments, sign-in and the newer features (calls, salon accounts, bans, profile pictures, reminders, same-day booking, no-show rules) have no live check yet, so they stay pink unless the database is down.";
+    + ". It also reads the database’s own list of jobs, switches and features every hour, so new parts appear by themselves and each part’s scheduled jobs and usual numbers are checked"
+    + (BRAIN.A ? " (" + num((BRAIN.A.learning || {}).metrics) + " tables watched, " + num((BRAIN.A.learning || {}).days) + " day(s) of history)" : " (needs the Supabase query Self-growing company brain)")
+    + (BRAIN.A
+      ? ". Parts with nothing to watch yet stay pink unless the database is down."
+      : ". Card payments, sign-in and the newer features (calls, salon accounts, bans, profile pictures, reminders, same-day booking, no-show rules) have no live check yet, so they stay pink unless the database is down.");
 
   brainList();
   BRAIN.nodes.forEach((n) => {
@@ -4120,6 +4353,7 @@ function brainRefresh() {
     BRAIN.g.linkDirectionalParticles(BRAIN.g.linkDirectionalParticles());
   }
   if (BRAIN.sel) brainPanel(BRAIN.sel);
+  try { brainReport(); } catch (e) { /* the history just misses this look */ }
 }
 
 function brainLabelClass(n) {
