@@ -3799,6 +3799,8 @@ const BRAIN_NODES = [
     desc: "Customers can book today as well as the next seven days. Today shows only whole hours at least an hour from now. Live on the website; the customer apps have it from iPhone 1.2.0 and the newest Android build (status as of 2 Nov)." },
   { id: "noshow", g: "part", name: "No-show rules and “I’m here”", page: "finances",
     desc: "If the client has not come 30 minutes after the start, the nail tech taps “Client didn’t come” and Oma checks her phone is at the place. The client’s phone, seen at the place while her app is open or when she taps “I’m here”, counts as her being there, and then the case comes to you instead of paying the tech. The nail tech has the same “I’m here” button, and her tap counts as her being at the place. The button shows from the start of the appointment to 12 hours after. Only a distance is kept, 30 days. The button is live on the website; the four apps have it in test builds only. The two alerts (to the nail tech: client_arrived, to the client: tech_arrived) each tell the other person once, at the first tap at the place; they have a switch in the database (alert_switch). Kamsy said go on 6 Nov and the “Turn on the I’m here alerts” SQL turns them on; this page cannot see the switch, so check alert_switch if unsure. A paid booking nobody scans or reports is still refunded after 12 hours." },
+  { id: "inspo", g: "part", name: "Inspo price requests", page: "bookings",
+    desc: "A client with an inspo sends up to 3 pictures to one nail tech (not a message: nobody types). The nail tech answers with one price and how long it takes, or says she cannot do it. If the client agrees she picks a day and time (at the nail tech's place or a home visit) and has 30 minutes to pay; the usual booking fee, escrow and refunds apply. 24 hours to price, 24 hours to agree. They cannot message or call until she has paid, and an unpaid appointment is never counted as a booking: the nail tech is not told and her bookings list hides it. Pictures are deleted 30 days after the appointment, sooner if the request ends. Status 7 Nov: the database file and the website screens are built and tested; it needs the Supabase query Inspo price requests; the iPhone and Android apps are being built (test builds only); the nail tech alert is OFF until you say go." },
 
   { id: "p_customers", g: "people", name: "Customers", page: "users", desc: "People who book nail techs." },
   { id: "p_techs", g: "people", name: "Nail techs", page: "users", desc: "Everyone who has set up a nail tech profile." },
@@ -3847,6 +3849,8 @@ const BRAIN_FLOWS = [
   ["sameday", "bookings"], ["sameday", "website"], ["sameday", "app_ci"], ["sameday", "app_ca"],
   ["noshow", "bookings"], ["noshow", "escrow"], ["noshow", "payouts"], ["noshow", "alerts"], ["noshow", "database"],
   ["noshow", "website"], ["noshow", "app_ci"], ["noshow", "app_ca"],
+  ["inspo", "bookings"], ["inspo", "escrow"], ["inspo", "alerts"], ["inspo", "database"], ["inspo", "website"],
+  ["inspo", "p_customers"], ["inspo", "p_techs"], ["inspo", "app_ci"], ["inspo", "app_ca"], ["inspo", "app_ti"], ["inspo", "app_ta"],
 ];
 
 const BRAIN = {
@@ -3942,7 +3946,7 @@ function brainCompute(D) {
       : "Nothing waiting",
     [f("Pending", num(kp)), f("Failed", num(kf)), f("Techs verified", num(P.verified)), f("Techs awaiting ID", num(P.awaiting_kyc)),
      dn ? f("Listings that disagree with their owner", num(dn)) : null]);
-  ["calls", "business", "bans", "avatars", "reminders", "sameday", "noshow"].forEach((id) =>
+  ["calls", "business", "bans", "avatars", "reminders", "sameday", "noshow", "inspo"].forEach((id) =>
     stuck(id, "ok", "No live check on this part yet. It shows pink unless the database is down.", []));
   put("website", "ok", "Serving this page right now", [f("Address", location.host)]);
 

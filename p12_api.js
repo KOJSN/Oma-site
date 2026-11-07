@@ -251,6 +251,12 @@ const API = (() => {
     return `${cfg().url}/storage/v1/object/public/portfolio/${path}`;
   }
 
+  // Inspo pictures sent to a nail tech for a price. The bucket is public by an unguessable name.
+  function inspoUrl(path) {
+    if (!live()) return path;
+    return `${cfg().url}/storage/v1/object/public/inspo/${path}`;
+  }
+
   // The bucket defaults to portfolio, so every existing caller is unchanged.
   // Incident videos go to a PRIVATE bucket with no read policy at all — the
   // uploader cannot read her own file back, and the accused can never reach it.
@@ -277,12 +283,12 @@ const API = (() => {
     return path;
   }
 
-  async function storageDelete(path) {
+  async function storageDelete(path, bucket) {
     if (!SESSION) return;
     // Best effort. The ROW is what a listing reads, and it has already gone by
     // the time this runs; a file left behind is a few kilobytes nobody sees.
     try {
-      await fetch(`${cfg().url}/storage/v1/object/portfolio/${path}`, {
+      await fetch(`${cfg().url}/storage/v1/object/${bucket || "portfolio"}/${path}`, {
         method: "DELETE",
         headers: { apikey: cfg().anon, Authorization: `Bearer ${SESSION.access_token}` },
       });
@@ -662,6 +668,8 @@ const API = (() => {
     send:          (bookingId, body)        => live() ? rpc("api_send", { p_booking: bookingId, p_body: body }) : MOCK.send(bookingId, body),
     threads:       ()                       => live() ? rpc("api_threads") : MOCK.threads(),
     readThread:    (bookingId)              => live() ? rpc("api_read", { p_booking: bookingId }) : MOCK.readThread(bookingId),
+    // Inspo price requests (p25_inspo.js): a picture sent to ONE nail tech for a price. Live only.
+    inspo:         (fn, args)               => live() ? rpc(fn, args || {}) : Promise.reject(new Error("Sending an inspo needs the live app and an account.")),
 
     // These two go to edge functions, because they talk to somebody else's API.
     payInit:       (bookingId)              => live() ? edge("pay-init", { booking_id: bookingId }) : MOCK.payInit(bookingId),
@@ -703,7 +711,7 @@ const API = (() => {
     addPhoto:      (serviceId, path, w, h, bytes, own) => live() ? rpc("api_add_service_photo", { p_service: serviceId, p_path: path, p_w: w, p_h: h, p_bytes: bytes, p_own_work: own !== false }) : MOCK.addPhoto(serviceId, path, w, h, bytes, own),
     removePhoto:   (id)                     => live() ? rpc("api_remove_service_photo", { p_id: id }) : MOCK.removePhoto(id),
     reportPhoto:   (id, why)                => live() ? rpc("api_report_photo", { p_id: id, p_why: why || null }) : MOCK.reportPhoto(id, why),
-    photoUrl, storagePut, storageDelete,
+    photoUrl, inspoUrl, storagePut, storageDelete,
 
     // Only the mock has this: it is how the demo pretends money arrived.
     pretendPaid:   (bookingId)              => MOCK.pretendPaid(bookingId),

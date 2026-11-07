@@ -403,6 +403,7 @@ function vTechLive(id) {
       </div>`);
     wireServicePicker();
     fillTechPhotos(id);
+    if (typeof fillInspoCard === "function") fillInspoCard(id);
   });
   return head(PICKED.name || "Services", "Prices are hers, not ours")
     + `<div class="pad" id="verNote" style="margin-top:-4px;margin-bottom:12px" hidden></div>`

@@ -150,7 +150,8 @@ self.addEventListener("notificationclick", (e) => {
     return;
   }
 
-  const to = d.view && d.booking_id ? `#go=${d.view}:${d.booking_id}`
+  const rid = d.booking_id || (d.view === "inspo" ? d.request_id : null);
+  const to = d.view && rid ? `#go=${d.view}:${rid}`
            : d.view ? `#go=${d.view}` : "";
 
   e.waitUntil((async () => {

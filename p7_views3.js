@@ -103,6 +103,8 @@ function vMore() {
       ${row("editme", I.user(), "Profile",
             esc([me.name, me.area].filter(Boolean).join(" · ") || "Add your name and location"))}
       ${row("points", I.trophy(), "Leaderboard", "O points, the board and your code")}
+      ${row("inspos", I.chat(), "Inspo",
+            tech ? "Pictures clients sent you, and your prices" : "Send a picture, get a price")}
       ${row("history", I.scan().replace(/#fff/g, "currentColor"), "Your scans",
             DB.scans.length ? DB.scans.length + " scan" + (DB.scans.length === 1 ? "" : "s") : "No scans yet")}
     </div>

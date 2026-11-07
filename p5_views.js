@@ -445,7 +445,7 @@ function bottomNav() {
   const nv = document.getElementById("nav");
   const tabs = TABS[DB.role] || TABS.customer;
   // A tab bar under an open keyboard is somewhere nobody wants to tap.
-  const onboarding = ["welcome", "role", "signup", "setup", "chat"].includes(ROUTE.v);
+  const onboarding = ["welcome", "role", "signup", "setup", "chat", "inspoask", "inspopick"].includes(ROUTE.v);
   if (!DB.role || onboarding) { nv.classList.add("hidden"); return; }
   nv.classList.remove("hidden");
   nv.innerHTML = tabs.map(t => t.k === "__scan"

@@ -96,6 +96,7 @@ js = "\n".join([
     read("p14_live.js"), read("p15_chat.js"), read("p16_find.js"),
     read("p18_review.js"), read("p19_fee.js"), read("p20_live.js"),
     read("p21_home.js"), read("p22_photos.js"), read("p24_points.js"),
+    read("p25_inspo.js"),
     push, read("p8_wire.js"),
 ])
 
