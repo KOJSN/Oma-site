@@ -110,8 +110,8 @@ function vSalon(id) {
 
     <div class="seehead" style="padding-left:0;padding-right:0"><h3>Who works here</h3></div>
     ${s.list.length ? `<div class="stack gap12">
-      ${s.list.map((x) => `
-        <button class="card row" data-a="tech-open" data-id="${esc(x.id)}">
+      ${openFirst(s.list).map((x) => `
+        <button class="card row${isClosed(x) ? " dim" : ""}" data-a="tech-open" data-id="${esc(x.id)}">
           <div class="avatar sq">${esc(initials(x.business_name))}</div>
           <div style="flex:1;min-width:0;text-align:left">
             <div class="ttl">${esc(x.business_name)}${verifiedBadge(x)}</div>
@@ -119,6 +119,7 @@ function vSalon(id) {
               x.years && x.opens ? " · " : ""}${x.opens ? `${String(x.opens).slice(0,5)}–${String(x.closes).slice(0,5)}` : ""}</div>
             <div style="margin-top:5px">${ratingSlot(x.id)}</div>
             ${x.from_kobo ? `<div class="tiny" style="margin-top:6px">from ${kobo(x.from_kobo)}</div>` : ""}
+            ${closedLine(x)}
           </div>
           ${I.chev()}
         </button>`).join("")}
@@ -133,7 +134,7 @@ function placeRow(r) {
   const bits = [howFar(r.km), r.from_kobo ? "from " + kobo(r.from_kobo) : null]
     .filter(Boolean).join(" · ");
   return `
-  <button class="card row" data-a="salon-open" data-id="${esc(r.id)}">
+  <button class="card row${isClosed(r) ? " dim" : ""}" data-a="salon-open" data-id="${esc(r.id)}">
     <div class="avatar sq" style="background:var(--fill2);color:var(--sub)">
       <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M9 21v-6h6v6"/></svg>
     </div>
@@ -142,6 +143,7 @@ function placeRow(r) {
       <div class="tiny sub">${esc(r.area || "")}${r.area ? " · " : ""}<b>${
         r.techs} nail tech${Number(r.techs) === 1 ? "" : "s"}</b></div>
       ${bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : ""}
+      ${closedLine(r)}
     </div>
     ${I.chev()}
   </button>`;
@@ -214,6 +216,8 @@ async function runFind() {
       (e && e.message) || "That search could not be run just now.")}</div></div>`);
   }
   if (mine !== FSEQ) return;         // she typed again while this was in flight
+  // Techs past their hours stay in the list, dimmed, after the ones who are open.
+  if (!q) list = openFirst(list);
 
   if (!list.length) {
     return findInto(q
