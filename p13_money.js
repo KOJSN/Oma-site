@@ -294,7 +294,7 @@ function verifiedBadge(row, big) {
 
 function techRowLive(t) {
   return `
-  <button class="card row" data-a="tech-open" data-id="${esc(t.id)}">
+  <button class="card row${isClosed(t) ? " dim" : ""}" data-a="tech-open" data-id="${esc(t.id)}">
     <div class="avatar sq">${esc(initials(t.business_name))}</div>
     <div style="flex:1;min-width:0;text-align:left">
       <div class="ttl">${esc(t.business_name)}${verifiedBadge(t)}</div>
@@ -305,6 +305,7 @@ function techRowLive(t) {
           .filter(Boolean).join(" · ");
         return bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : "";
       })()}
+      ${closedLine(t)}
     </div>
     ${I.chev()}
   </button>`;
@@ -369,8 +370,13 @@ function vTechLive(id) {
           NIMC. Her prices and hours are still her own.</div></div>`;
       vn.hidden = false;
     }
+    const oi = OPENINFO[id];
+    const closedNote = oi && !oi.open
+      ? `<div class="note"><div><b>Closed right now.</b> ${opensText(oi.next) ? "She " + esc(opensText(oi.next)) + ". " : ""}You can still book her for a later time.</div></div>`
+      : "";
     fillHost(`
       <div class="pad stack gap12">
+        ${closedNote}
         <div class="rowbetween">
           <div class="tiny sub">Choose what you want done.</div>
           <div>${ratingLine(r)}</div>

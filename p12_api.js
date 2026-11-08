@@ -14,6 +14,44 @@
    means the app works, end to end, on a phone with no backend at all — which
    is also exactly how it behaves today.                                    */
 
+/* Kamsy, 8 Nov 2026: "when a tech has passed her working hours let her still
+   be on the app, but dim, so a customer can still book her for the future".
+   The database now says, on every tech in a list, open_now (true/false) and
+   next_open (when she opens next). A row without open_now is treated as open,
+   so this does nothing until that part of the database is switched on. */
+const OPENINFO = {};
+function noteOpen(rows) {
+  (Array.isArray(rows) ? rows : []).forEach((r) => {
+    if (r && r.id && r.open_now !== undefined && r.open_now !== null)
+      OPENINFO[r.id] = { open: r.open_now !== false, next: r.next_open || null };
+  });
+  return rows;
+}
+function isClosed(t) { return !!t && t.open_now === false; }
+/* "opens tomorrow 9:00 am" in Lagos time, whatever the phone's own clock says. */
+function opensText(next) {
+  if (!next) return "";
+  const d = new Date(next);
+  if (isNaN(d)) return "";
+  const z = { timeZone: "Africa/Lagos" };
+  const day = (x) => x.toLocaleDateString("en-CA", z);
+  const now = new Date();
+  const tom = new Date(now.getTime() + 86400000);
+  const t = d.toLocaleTimeString("en-US", { ...z, hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
+  const w = day(d) === day(now) ? "today" : day(d) === day(tom) ? "tomorrow"
+    : d.toLocaleDateString("en-GB", { ...z, weekday: "short" });
+  return "opens " + w + " " + t;
+}
+function closedLine(t) {
+  if (!isClosed(t)) return "";
+  const o = opensText(t.next_open);
+  return `<div class="tiny closedline">Closed now${o ? " · " + o : ""}. You can still book a later time.</div>`;
+}
+/* Open techs first, closed ones after, each group keeping its own order. */
+function openFirst(rows) {
+  const a = Array.isArray(rows) ? rows : [];
+  return a.filter((t) => !isClosed(t)).concat(a.filter(isClosed));
+}
 const API = (() => {
   const CFG_KEY = "oma-cfg";
   const SESS_KEY = "oma-session";
@@ -567,8 +605,8 @@ const API = (() => {
     // storage nothing here has read back, so overloading it risked colliding
     // with something else already built on it.
     setAreaLocation: (area, lat, lng)       => live() ? rpc("api_set_area_location", { p_area: area, p_lat: lat, p_lng: lng }) : MOCK.setAreaLocation(area, lat, lng),
-    nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.nearby(lat, lng, km),
-    search:        (q, lat, lng)            => live() ? rpc("api_search", { p_q: q || "", p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng }) : MOCK.search(q, lat, lng),
+    nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }).then(noteOpen) : MOCK.nearby(lat, lng, km),
+    search:        (q, lat, lng)            => live() ? rpc("api_search", { p_q: q || "", p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng }).then(noteOpen) : MOCK.search(q, lat, lng),
 
     /* Where a nail tech who has no shop is RIGHT NOW. A salon has an address
        and never touches any of these; see live.sql for why a travelling tech
@@ -580,7 +618,7 @@ const API = (() => {
 
     /* The whole-state map. api_nearby answers "who is within 15 km of me";
        this answers "who does Oma have in Lagos at all". */
-    stateTechs:    (state, lat, lng)        => live() ? rpc("api_state_techs", { p_state: state, p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng, p_limit: 300 }) : MOCK.stateTechs(state, lat, lng),
+    stateTechs:    (state, lat, lng)        => live() ? rpc("api_state_techs", { p_state: state, p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng, p_limit: 300 }).then(noteOpen) : MOCK.stateTechs(state, lat, lng),
     states:        ()                       => live() ? rpc("api_states") : MOCK.states(),
 
     /* She comes to you. The QUOTE is asked of the server, never worked out

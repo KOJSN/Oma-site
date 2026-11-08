@@ -151,13 +151,14 @@ function findRow(t) {
   const bits = [howFar(t.km), t.from_kobo ? "from " + kobo(t.from_kobo) : null]
     .filter(Boolean).join(" · ");
   return `
-  <button class="card row" data-a="tech-open" data-id="${esc(t.id)}">
+  <button class="card row${isClosed(t) ? " dim" : ""}" data-a="tech-open" data-id="${esc(t.id)}">
     <div class="avatar sq">${esc(initials(t.business_name))}</div>
     <div style="flex:1;min-width:0;text-align:left">
       <div class="ttl">${esc(t.business_name)}${verifiedBadge(t)}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
       <div style="margin-top:5px">${ratingSlot(t.id)}</div>
       ${bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : ""}
+      ${closedLine(t)}
       ${matchTag(t.matched)}
     </div>
     ${I.chev()}

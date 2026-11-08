@@ -472,8 +472,13 @@ function vHomeLive() {
       ? await API.stateTechs(MSCOPE.state, pos.guessed ? null : pos.lat,
                              pos.guessed ? null : pos.lng).catch(() => [])
       : pos.guessed ? []
-      : await API.nearby(pos.lat, pos.lng, 15).catch(() => []))
-      .filter((t) => Number.isFinite(+t.lat) && Number.isFinite(+t.lng));
+      : await API.nearby(pos.lat, pos.lng, 15).catch(() => []));
+    /* A travelling tech who is closed has no pin (the database no longer says
+       where she is), but she stays in the list, dimmed, and is bookable for a
+       later time. Open techs come first. A tech with no position that is NOT
+       closed is still dropped, as before. */
+    NEAR = openFirst(NEAR.filter((t) => isClosed(t)
+      || (Number.isFinite(+t.lat) && Number.isFinite(+t.lng))));
     NEXTUP = upcoming(mine).filter((b) => b.status !== "cancelled")[0] || null;
 
     const L = await waitForL(6000);
@@ -544,7 +549,7 @@ function pinIcon(t, on) {
   const circle = t.has_salon === false;
   return L.divIcon({
     className: "",
-    html: `<div class="tpin${on ? " on" : ""}${circle ? " circle" : ""}"><b><span>${esc(initials(t.business_name))}</span></b></div>`,
+    html: `<div class="tpin${on ? " on" : ""}${circle ? " circle" : ""}${isClosed(t) ? " dim" : ""}"><b><span>${esc(initials(t.business_name))}</span></b></div>`,
     iconSize: [n, n],
     iconAnchor: circle ? [n / 2, n / 2] : [n / 2, n],
   });
@@ -553,6 +558,7 @@ function pinIcon(t, on) {
 function drawMap(pos, list) {
   const el = document.getElementById("map");
   if (!el) return;
+  list = list.filter((t) => Number.isFinite(+t.lat) && Number.isFinite(+t.lng));   // pins only for those who have a place
 
   MAP = L.map(el, { zoomControl: false, attributionControl: false });
   L.control.attribution({ position: "topleft" }).addTo(MAP);

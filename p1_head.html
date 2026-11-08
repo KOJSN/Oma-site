@@ -470,6 +470,11 @@ h3{font-size:16px}
   box-shadow:var(--card-shadow);padding:14px;width:100%;display:block;
 }
 .card.tap{cursor:pointer;transition:transform .12s ease}
+/* Past her working hours: still there, still bookable for a later time, softer. */
+.card.dim{opacity:.62}
+.card.dim .avatar{filter:grayscale(.85)}
+.closedline{margin-top:6px;color:var(--sub);font-weight:600}
+.tpin.dim{opacity:.55;filter:grayscale(.85)}
 .card.tap:active{transform:scale(.985)}
 .card.sel{border:2px solid var(--pink);background:var(--tint);
   box-shadow:0 12px 28px -16px rgba(240,81,141,.6)}
