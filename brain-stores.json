@@ -1,22 +1,22 @@
 {
-  "asOf": "2026-11-06",
+  "asOf": "2026-11-08",
   "note": "Written by hand from App Store Connect and Play Console. The company brain shows when it was last checked.",
   "apps": {
     "customer_ios": {
-      "status": "live",
-      "text": "Version 1.2.0 is live on the App Store (checked in App Store Connect on 6 Nov). Version 1.3.0 (build 40) is on TestFlight, not submitted."
+      "status": "review",
+      "text": "Version 1.2.0 is live on the App Store. Version 1.3.0 (build 43: inspo price requests, techs past their hours shown dimmed) was sent to App Review on 8 Nov and is waiting for review; it goes live by itself once Apple approves."
     },
     "customer_android": {
       "status": "live",
-      "text": "Release 131 (1.0.31) was live on 1 Nov. The new countries went to Google review on 3 Nov. Google Play was not rechecked on 6 Nov."
+      "text": "Release 131 (1.0.31) was live on 1 Nov. The inspo and dimming build compiled on 8 Nov but Google refused the upload: Play Console, App content, Foreground service permissions must declare Location for this app first."
     },
     "tech_ios": {
-      "status": "live",
-      "text": "Version 1.2.1 is live on the App Store (checked in App Store Connect on 6 Nov). Version 1.3.0 (build 52) is on TestFlight, not submitted."
+      "status": "review",
+      "text": "Version 1.2.1 is live on the App Store. Version 1.3.0 (build 55: inspo price requests) was sent to App Review on 8 Nov and is waiting for review; it goes live by itself once Apple approves."
     },
     "tech_android": {
       "status": "live",
-      "text": "Release 132 (2.0.32) was live on 1 Nov; release 133 (2.0.33, salon business account) went to Google review on 1 Nov. Google Play was not rechecked on 6 Nov."
+      "text": "Release 132 (2.0.32) was live on 1 Nov. On 8 Nov the inspo build (versionCode 143) is in Play internal testing and saved as a draft production release: it still needs Send for review in Play Console. Google Play was not otherwise rechecked."
     }
   }
 }
