@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /techapp-manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as fead6851ff/tech. -->
+     (start_url /techapp.html) — same fix shape as 18ed6887ad/tech. -->
 <link rel="manifest" href="/techapp-manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -470,6 +470,11 @@ h3{font-size:16px}
   box-shadow:var(--card-shadow);padding:14px;width:100%;display:block;
 }
 .card.tap{cursor:pointer;transition:transform .12s ease}
+/* Past her working hours: still there, still bookable for a later time, softer. */
+.card.dim{opacity:.62}
+.card.dim .avatar{filter:grayscale(.85)}
+.closedline{margin-top:6px;color:var(--sub);font-weight:600}
+.tpin.dim{opacity:.55;filter:grayscale(.85)}
 .card.tap:active{transform:scale(.985)}
 .card.sel{border:2px solid var(--pink);background:var(--tint);
   box-shadow:0 12px 28px -16px rgba(240,81,141,.6)}
@@ -1461,7 +1466,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "fead6851ff";
+const BUILD_ID = "18ed6887ad";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -3722,6 +3727,44 @@ if (typeof module !== "undefined") module.exports = QR;
    means the app works, end to end, on a phone with no backend at all — which
    is also exactly how it behaves today.                                    */
 
+/* Kamsy, 8 Nov 2026: "when a tech has passed her working hours let her still
+   be on the app, but dim, so a customer can still book her for the future".
+   The database now says, on every tech in a list, open_now (true/false) and
+   next_open (when she opens next). A row without open_now is treated as open,
+   so this does nothing until that part of the database is switched on. */
+const OPENINFO = {};
+function noteOpen(rows) {
+  (Array.isArray(rows) ? rows : []).forEach((r) => {
+    if (r && r.id && r.open_now !== undefined && r.open_now !== null)
+      OPENINFO[r.id] = { open: r.open_now !== false, next: r.next_open || null };
+  });
+  return rows;
+}
+function isClosed(t) { return !!t && t.open_now === false; }
+/* "opens tomorrow 9:00 am" in Lagos time, whatever the phone's own clock says. */
+function opensText(next) {
+  if (!next) return "";
+  const d = new Date(next);
+  if (isNaN(d)) return "";
+  const z = { timeZone: "Africa/Lagos" };
+  const day = (x) => x.toLocaleDateString("en-CA", z);
+  const now = new Date();
+  const tom = new Date(now.getTime() + 86400000);
+  const t = d.toLocaleTimeString("en-US", { ...z, hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
+  const w = day(d) === day(now) ? "today" : day(d) === day(tom) ? "tomorrow"
+    : d.toLocaleDateString("en-GB", { ...z, weekday: "short" });
+  return "opens " + w + " " + t;
+}
+function closedLine(t) {
+  if (!isClosed(t)) return "";
+  const o = opensText(t.next_open);
+  return `<div class="tiny closedline">Closed now${o ? " · " + o : ""}. You can still book a later time.</div>`;
+}
+/* Open techs first, closed ones after, each group keeping its own order. */
+function openFirst(rows) {
+  const a = Array.isArray(rows) ? rows : [];
+  return a.filter((t) => !isClosed(t)).concat(a.filter(isClosed));
+}
 const API = (() => {
   const CFG_KEY = "oma-cfg";
   const SESS_KEY = "oma-session";
@@ -4275,8 +4318,8 @@ const API = (() => {
     // storage nothing here has read back, so overloading it risked colliding
     // with something else already built on it.
     setAreaLocation: (area, lat, lng)       => live() ? rpc("api_set_area_location", { p_area: area, p_lat: lat, p_lng: lng }) : MOCK.setAreaLocation(area, lat, lng),
-    nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }) : MOCK.nearby(lat, lng, km),
-    search:        (q, lat, lng)            => live() ? rpc("api_search", { p_q: q || "", p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng }) : MOCK.search(q, lat, lng),
+    nearby:        (lat, lng, km)           => live() ? rpc("api_nearby", { p_lat: lat, p_lng: lng, p_km: km }).then(noteOpen) : MOCK.nearby(lat, lng, km),
+    search:        (q, lat, lng)            => live() ? rpc("api_search", { p_q: q || "", p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng }).then(noteOpen) : MOCK.search(q, lat, lng),
 
     /* Where a nail tech who has no shop is RIGHT NOW. A salon has an address
        and never touches any of these; see live.sql for why a travelling tech
@@ -4288,7 +4331,7 @@ const API = (() => {
 
     /* The whole-state map. api_nearby answers "who is within 15 km of me";
        this answers "who does Oma have in Lagos at all". */
-    stateTechs:    (state, lat, lng)        => live() ? rpc("api_state_techs", { p_state: state, p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng, p_limit: 300 }) : MOCK.stateTechs(state, lat, lng),
+    stateTechs:    (state, lat, lng)        => live() ? rpc("api_state_techs", { p_state: state, p_lat: lat == null ? null : lat, p_lng: lng == null ? null : lng, p_limit: 300 }).then(noteOpen) : MOCK.stateTechs(state, lat, lng),
     states:        ()                       => live() ? rpc("api_states") : MOCK.states(),
 
     /* She comes to you. The QUOTE is asked of the server, never worked out
@@ -8295,7 +8338,7 @@ function verifiedBadge(row, big) {
 
 function techRowLive(t) {
   return `
-  <button class="card row" data-a="tech-open" data-id="${esc(t.id)}">
+  <button class="card row${isClosed(t) ? " dim" : ""}" data-a="tech-open" data-id="${esc(t.id)}">
     <div class="avatar sq">${esc(initials(t.business_name))}</div>
     <div style="flex:1;min-width:0;text-align:left">
       <div class="ttl">${esc(t.business_name)}${verifiedBadge(t)}</div>
@@ -8306,6 +8349,7 @@ function techRowLive(t) {
           .filter(Boolean).join(" · ");
         return bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : "";
       })()}
+      ${closedLine(t)}
     </div>
     ${I.chev()}
   </button>`;
@@ -8370,8 +8414,13 @@ function vTechLive(id) {
           NIMC. Her prices and hours are still her own.</div></div>`;
       vn.hidden = false;
     }
+    const oi = OPENINFO[id];
+    const closedNote = oi && !oi.open
+      ? `<div class="note"><div><b>Closed right now.</b> ${opensText(oi.next) ? "She " + esc(opensText(oi.next)) + ". " : ""}You can still book her for a later time.</div></div>`
+      : "";
     fillHost(`
       <div class="pad stack gap12">
+        ${closedNote}
         <div class="rowbetween">
           <div class="tiny sub">Choose what you want done.</div>
           <div>${ratingLine(r)}</div>
@@ -9842,8 +9891,13 @@ function vHomeLive() {
       ? await API.stateTechs(MSCOPE.state, pos.guessed ? null : pos.lat,
                              pos.guessed ? null : pos.lng).catch(() => [])
       : pos.guessed ? []
-      : await API.nearby(pos.lat, pos.lng, 15).catch(() => []))
-      .filter((t) => Number.isFinite(+t.lat) && Number.isFinite(+t.lng));
+      : await API.nearby(pos.lat, pos.lng, 15).catch(() => []));
+    /* A travelling tech who is closed has no pin (the database no longer says
+       where she is), but she stays in the list, dimmed, and is bookable for a
+       later time. Open techs come first. A tech with no position that is NOT
+       closed is still dropped, as before. */
+    NEAR = openFirst(NEAR.filter((t) => isClosed(t)
+      || (Number.isFinite(+t.lat) && Number.isFinite(+t.lng))));
     NEXTUP = upcoming(mine).filter((b) => b.status !== "cancelled")[0] || null;
 
     const L = await waitForL(6000);
@@ -9914,7 +9968,7 @@ function pinIcon(t, on) {
   const circle = t.has_salon === false;
   return L.divIcon({
     className: "",
-    html: `<div class="tpin${on ? " on" : ""}${circle ? " circle" : ""}"><b><span>${esc(initials(t.business_name))}</span></b></div>`,
+    html: `<div class="tpin${on ? " on" : ""}${circle ? " circle" : ""}${isClosed(t) ? " dim" : ""}"><b><span>${esc(initials(t.business_name))}</span></b></div>`,
     iconSize: [n, n],
     iconAnchor: circle ? [n / 2, n / 2] : [n / 2, n],
   });
@@ -9923,6 +9977,7 @@ function pinIcon(t, on) {
 function drawMap(pos, list) {
   const el = document.getElementById("map");
   if (!el) return;
+  list = list.filter((t) => Number.isFinite(+t.lat) && Number.isFinite(+t.lng));   // pins only for those who have a place
 
   MAP = L.map(el, { zoomControl: false, attributionControl: false });
   L.control.attribution({ position: "topleft" }).addTo(MAP);
@@ -10711,13 +10766,14 @@ function findRow(t) {
   const bits = [howFar(t.km), t.from_kobo ? "from " + kobo(t.from_kobo) : null]
     .filter(Boolean).join(" · ");
   return `
-  <button class="card row" data-a="tech-open" data-id="${esc(t.id)}">
+  <button class="card row${isClosed(t) ? " dim" : ""}" data-a="tech-open" data-id="${esc(t.id)}">
     <div class="avatar sq">${esc(initials(t.business_name))}</div>
     <div style="flex:1;min-width:0;text-align:left">
       <div class="ttl">${esc(t.business_name)}${verifiedBadge(t)}</div>
       <div class="tiny sub">${esc(t.area || "")}${t.years ? ` · ${t.years} yrs` : ""}</div>
       <div style="margin-top:5px">${ratingSlot(t.id)}</div>
       ${bits ? `<div class="tiny" style="margin-top:6px">${bits}</div>` : ""}
+      ${closedLine(t)}
       ${matchTag(t.matched)}
     </div>
     ${I.chev()}
