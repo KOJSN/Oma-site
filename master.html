@@ -595,6 +595,13 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
 .hrow select{width:100%;padding:11px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:14px}
 .hrow select[disabled]{opacity:.55}
 @media(max-width:560px){.hrow{grid-template-columns:1fr}}
+.hrq-row{display:flex;gap:14px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;padding:14px 0}
+.hrq-row + .hrq-row{border-top:1px solid var(--line)}
+.hrq-main{flex:1;min-width:200px;font-size:14.5px}
+.hrq-sub{color:var(--faint);font-size:12.5px;margin-top:3px;line-height:1.45}
+.hrq-act{display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-width:240px}
+.hrq-act input{flex:1;min-width:150px;padding:9px 12px;border-radius:12px;font-size:13.5px}
+.hrq-old{margin-top:12px;padding-top:4px;border-top:1px solid var(--line)}
 .pmodal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;
   background:rgba(10,8,13,.62)}
 .pmodal[hidden]{display:none!important}
@@ -683,7 +690,7 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
         Control</button>
       <button class="navbtn" type="button" data-page="team">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
-        Team</button>
+        Team<span class="nbadge" id="teamBadge" hidden></span></button>
     </nav>
 
     <div class="main">
@@ -773,7 +780,7 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
           </section>
         </div>
 
-        <!-- Messages (department-messages.sql): a group chat for Customer care, Finance and Damage control.
+        <!-- Messages (department-messages.sql): a group chat for Customer care, Damage control and HR.
              You are in all three, and you are the only one who can delete a message. -->
         <div class="page" data-page="messages">
           <section>
@@ -1057,6 +1064,14 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
              ("Admin accounts and departments"). A phrase is made HERE, in this
              browser, shown once, and only its hash reaches the database. -->
         <div class="page" data-page="team">
+          <!-- HR, 10 Nov 2026 — "before he can create an account it has to send a request to oma master".
+               Backed by hr-department.sql ("HR department and Finance retired"). Hidden until that is run. -->
+          <section id="hrqSection" hidden>
+            <div class="lbl">Requests from HR</div>
+            <div class="card" id="hrqBox"><div class="empty">Loading…</div></div>
+            <div id="hrqMsg" role="status"></div>
+            <div class="hint">HR can ask for a new team member but cannot make one. Approve makes the account and shows you the seed phrase here; HR only sees “Approved” and never the words. You can show the words again any time under Admin accounts. Decline tells HR no, with the reason if you type one.</div>
+          </section>
           <section>
             <div class="lbl">Heads of department</div>
             <div class="card" id="headsBox"><div class="empty">Loading…</div></div>
@@ -1077,8 +1092,8 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
                 <label>Departments</label>
                 <div class="dpicks" id="teamDepts">
                   <label class="dpill"><input type="checkbox" value="care"><span>Customer care</span></label>
-                  <label class="dpill"><input type="checkbox" value="finance"><span>Finance</span></label>
                   <label class="dpill"><input type="checkbox" value="damage"><span>Damage control</span></label>
+                  <label class="dpill"><input type="checkbox" value="hr"><span>HR</span></label>
                 </div>
                 <button class="btn" id="teamGo" type="submit" style="margin-top:20px">Create and show seed phrase</button>
               </form>
@@ -1091,8 +1106,8 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
             <div class="lbl">What each department can do</div>
             <div class="card">
               <div class="kv"><span>Customer care</span><b>Reads and answers the live chats from omanails.com.</b></div>
-              <div class="kv"><span>Finance</span><b>Sees the money switches, no-show cases, fee income, refunds and withdrawals. View only: paying, refunding, the switches and the decisions stay with you.</b></div>
               <div class="kv"><span>Damage control</span><b>Mischief reports and reported pictures, Control (list or verify a nail tech), Reports (charts and photos), and the bookings with their chats (view only: no refunds). Gets a phone alert for every new service a tech adds and every paid booking.</b></div>
+              <div class="kv"><span>HR</span><b>Messages (HR's own group) and the Team page, nothing else. Sees everyone on the team, their departments and when they last signed in, never a seed phrase, and cannot switch anyone off or remove them. To add someone, HR sends you a request (care, finance or damage control only; only you can put someone in HR). Nothing is made until you approve it under Requests from HR. You get a phone alert for each request, and HR is alerted when you answer.</b></div>
               <div class="kv"><span>Head of a department</span><b>Sees all of their team's work, hands Customer care chats to agents, and switches the people in their department on or off. Cannot add or remove people, see seed phrases, or touch money.</b></div>
               <div class="kv"><span>Only you</span><b>Dashboard, Users, Bookings and this Team page.</b></div>
             </div>
@@ -2323,6 +2338,7 @@ function show(expires) {
   careLoadList();
   alertsPaint();
   alertsRefresh();
+  hrqLoad();
   goToPage(location.hash.slice(1));
 }
 
@@ -2491,7 +2507,7 @@ alertsPaint();
 /* Tapping an alert opens the right tab: the service worker either opens
    /admin.html#finances or tells an already open page where to go. */
 function goToPage(name) {
-  const gm = /^messages(care|finance|damage)?$/.exec(name || "");
+  const gm = /^messages(care|finance|damage|hr)?$/.exec(name || "");
   if (gm) msgWant = gm[1] || null;                       // an alert from one of the groups: open that one
   const b = /^[a-z]+$/.test(name || "") && document.querySelector('.navbtn[data-page="' + (gm ? "messages" : name) + '"]');
   if (b) b.click();
@@ -3784,9 +3800,9 @@ const BRAIN_NODES = [
   { id: "chat", g: "part", name: "Customer care chat", page: "care",
     desc: "The chat on omanails.com and in the apps that reaches you and your care agents. Each agent has their own private chats; the head of Customer care, if you have appointed one, can read every chat (read only) and hand chats to agents." },
   { id: "team", g: "part", name: "Team and heads of department", page: "team",
-    desc: "Your staff. Each person signs in to the staff page with a seed phrase and works in Customer care, Finance or Damage control. Since 6 Nov you can make one person the head of each department on the Team page. A head sees all of their team's work (in Customer care that is every chat, read only), hands Customer care chats to agents, and switches the people in their department on or off. A head cannot add or remove people, see seed phrases or touch money. Damage control members also get a phone alert for every new service and every paid booking (see Alerts and push). Each department also has a group chat on the Messages page. Sessions: a staff session lasts 8 hours; since 10 Nov a refused call no longer ends it (the page first checks the session with a call every member may make; before that, Damage control was signed out by the Inspo reports card). Needs the Supabase query \"Heads of department\". No live check." },
+    desc: "Your staff. Each person signs in to the staff page with a seed phrase and works in Customer care, Damage control or HR. Finance was retired as a department on 10 Nov: the money screens (withdrawals, refunds, switches) are yours alone. Since 6 Nov you can make one person the head of each department on the Team page. A head sees all of their team's work (in Customer care that is every chat, read only), hands Customer care chats to agents, and switches the people in their department on or off. A head cannot add or remove people, see seed phrases or touch money. Damage control members also get a phone alert for every new service and every paid booking (see Alerts and push). Each department also has a group chat on the Messages page. Sessions: a staff session lasts 8 hours; since 10 Nov a refused call no longer ends it (the page first checks the session with a call every member may make; before that, Damage control was signed out by the Inspo reports card). Since 10 Nov there is a fourth department, HR: it sees only Messages (its own group) and a Team page that lists everyone without seed phrases, and it cannot switch anyone off. HR asks for a new team member (Customer care or Damage control only); nothing is made until you approve under Requests from HR at the top of your Team page, where the seed phrase is made in your browser and shown only to you. You get a phone alert for each request (alerts also need \"Team alerts\"). Needs the Supabase queries \"Heads of department\" and \"HR department and Finance retired\". No live check." },
   { id: "messages", g: "part", name: "Messages (department groups)", page: "messages",
-    desc: "A group chat for each department: Customer care, Finance and Damage control. The people in a department and you can write in their group; text only. Each person gets a phone alert with just the sender's name (\"<name> wrote in the group\"), at most one a minute per group, and never the words that were written. Only you can delete a message; heads and team members cannot. Messages are cleared after 180 days. Needs the Supabase query \"Department messages (a group for each department)\" (phone alerts also need \"Team alerts\"). No live check." },
+    desc: "A group chat for each department: Customer care, Damage control and (since 10 Nov) HR. The people in a department and you can write in their group; text only. Each person gets a phone alert with just the sender's name (\"<name> wrote in the group\"), at most one a minute per group, and never the words that were written. Only you can delete a message; heads and team members cannot. Messages are cleared after 180 days. Needs the Supabase query \"Department messages (a group for each department)\" (phone alerts also need \"Team alerts\"). No live check." },
   { id: "signin", g: "part", name: "Sign-in", page: "users",
     desc: "Accounts and logging in, for customers, techs and the team. Since 6 Nov the web apps keep people signed in through a weak signal, a busy server and several open tabs: only a sign-in that Supabase itself refuses ends it. The Android and iPhone apps have the same fix in test builds only (they sign people out on a failed renewal until they are updated). No live check." },
   { id: "idchecks", g: "part", name: "ID checks", page: "users",
@@ -5322,7 +5338,8 @@ document.addEventListener("visibilitychange", () => {
    of the teams"). Only the owner's session can read them back
    (api_master_staff_phrase, admin-show-phrases.sql). Accounts made before that
    have no words kept; "New seed phrase" fixes one. */
-const TEAM_DEPTS = [["care", "Customer care"], ["finance", "Finance"], ["damage", "Damage control"]];
+const TEAM_DEPTS = [["care", "Customer care"], ["damage", "Damage control"], ["hr", "HR"]];   // Finance was retired as a department on 10 Nov 2026
+const HEAD_DEPTS = TEAM_DEPTS.filter((d) => d[0] !== "hr");     // an HR headship does not exist: HR is not a team with a head
 const PHRASE_WORDS = "abandon ability able about above absent absorb abstract absurd abuse access accident account accuse achieve acid acoustic acquire across act action actor actress actual adapt add addict address adjust admit adult advance advice aerobic affair afford afraid again age agent agree ahead aim air airport aisle alarm album alcohol alert alien all alley allow almost alone alpha already also alter always amateur amazing among amount amused analyst anchor ancient anger angle angry animal ankle announce annual another answer antenna antique anxiety any apart apology appear apple approve april arch arctic area arena argue arm armed armor army around arrange arrest arrive arrow art artefact artist artwork ask aspect assault asset assist assume asthma athlete atom attack attend attitude attract auction audit august aunt author auto autumn average avocado avoid awake aware away awesome awful awkward axis baby bachelor bacon badge bag balance balcony ball bamboo banana banner bar barely bargain barrel base basic basket battle beach bean beauty because become beef before begin behave behind believe below belt bench benefit best betray better between beyond bicycle bid bike bind biology bird birth bitter black blade blame blanket blast bleak bless blind blood blossom blouse blue blur blush board boat body boil bomb bone bonus book boost border boring borrow boss bottom bounce box boy bracket brain brand brass brave bread breeze brick bridge brief bright bring brisk broccoli broken bronze broom brother brown brush bubble buddy budget buffalo build bulb bulk bullet bundle bunker burden burger burst bus business busy butter buyer buzz cabbage cabin cable cactus cage cake call calm camera camp can canal cancel candy cannon canoe canvas canyon capable capital captain car carbon card cargo carpet carry cart case cash casino castle casual cat catalog catch category cattle caught cause caution cave ceiling celery cement census century cereal certain chair chalk champion change chaos chapter charge chase chat cheap check cheese chef cherry chest chicken chief child chimney choice choose chronic chuckle chunk churn cigar cinnamon circle citizen city civil claim clap clarify claw clay clean clerk clever click client cliff climb clinic clip clock clog close cloth cloud clown club clump cluster clutch coach coast coconut code coffee coil coin collect color column combine come comfort comic common company concert conduct confirm congress connect consider control convince cook cool copper copy coral core corn correct cost cotton couch country couple course cousin cover coyote crack cradle craft cram crane crash crater crawl crazy cream credit creek crew cricket crime crisp critic crop cross crouch crowd crucial cruel cruise crumble crunch crush cry crystal cube culture cup cupboard curious current curtain curve cushion custom cute cycle dad damage damp dance danger daring dash daughter dawn day deal debate debris decade december decide decline decorate decrease deer defense define defy degree delay deliver demand demise denial dentist deny depart depend deposit depth deputy derive describe desert design desk despair destroy detail detect develop device devote diagram dial diamond diary dice diesel diet differ digital dignity dilemma dinner dinosaur direct dirt disagree discover disease dish dismiss disorder display distance divert divide divorce dizzy doctor document dog doll dolphin domain donate donkey donor door dose double dove draft dragon drama drastic draw dream dress drift drill drink drip drive drop drum dry duck dumb dune during dust dutch duty dwarf dynamic eager eagle early earn earth easily east easy echo ecology economy edge edit educate effort egg eight either elbow elder electric elegant element elephant elevator elite else embark embody embrace emerge emotion employ empower empty enable enact end endless endorse enemy energy enforce engage engine enhance enjoy enlist enough enrich enroll ensure enter entire entry envelope episode equal equip era erase erode erosion error erupt escape essay essence estate eternal ethics evidence evil evoke evolve exact example excess exchange excite exclude excuse execute exercise exhaust exhibit exile exist exit exotic expand expect expire explain expose express extend extra eye eyebrow fabric face faculty fade faint faith fall false fame family famous fan fancy fantasy farm fashion fat fatal father fatigue fault favorite feature february federal fee feed feel female fence festival fetch fever few fiber fiction field figure file film filter final find fine finger finish fire firm first fiscal fish fit fitness fix flag flame flash flat flavor flee flight flip float flock floor flower fluid flush fly foam focus fog foil fold follow food foot force forest forget fork fortune forum forward fossil foster found fox fragile frame frequent fresh friend fringe frog front frost frown frozen fruit fuel fun funny furnace fury future gadget gain galaxy gallery game gap garage garbage garden garlic garment gas gasp gate gather gauge gaze general genius genre gentle genuine gesture ghost giant gift giggle ginger giraffe girl give glad glance glare glass glide glimpse globe gloom glory glove glow glue goat goddess gold good goose gorilla gospel gossip govern gown grab grace grain grant grape grass gravity great green grid grief grit grocery group grow grunt guard guess guide guilt guitar gun gym habit hair half hammer hamster hand happy harbor hard harsh harvest hat have hawk hazard head health heart heavy hedgehog height hello helmet help hen hero hidden high hill hint hip hire history hobby hockey hold hole holiday hollow home honey hood hope horn horror horse hospital host hotel hour hover hub huge human humble humor hundred hungry hunt hurdle hurry hurt husband hybrid ice icon idea identify idle ignore ill illegal illness image imitate immense immune impact impose improve impulse inch include income increase index indicate indoor industry infant inflict inform inhale inherit initial inject injury inmate inner innocent input inquiry insane insect inside inspire install intact interest into invest invite involve iron island isolate issue item ivory jacket jaguar jar jazz jealous jeans jelly jewel job join joke journey joy judge juice jump jungle junior junk just kangaroo keen keep ketchup key kick kid kidney kind kingdom kiss kit kitchen kite kitten kiwi knee knife knock know lab label labor ladder lady lake lamp language laptop large later latin laugh laundry lava law lawn lawsuit layer lazy leader leaf learn leave lecture left leg legal legend leisure lemon lend length lens leopard lesson letter level liar liberty library license life lift light like limb limit link lion liquid list little live lizard load loan lobster local lock logic lonely long loop lottery loud lounge love loyal lucky luggage lumber lunar lunch luxury lyrics machine mad magic magnet maid mail main major make mammal man manage mandate mango mansion manual maple marble march margin marine market marriage mask mass master match material math matrix matter maximum maze meadow mean measure meat mechanic medal media melody melt member memory mention menu mercy merge merit merry mesh message metal method middle midnight milk million mimic mind minimum minor minute miracle mirror misery miss mistake mix mixed mixture mobile model modify mom moment monitor monkey monster month moon moral more morning mosquito mother motion motor mountain mouse move movie much muffin mule multiply muscle museum mushroom music must mutual myself mystery myth naive name napkin narrow nasty nation nature near neck need negative neglect neither nephew nerve nest net network neutral never news next nice night noble noise nominee noodle normal north nose notable note nothing notice novel now nuclear number nurse nut oak obey object oblige obscure observe obtain obvious occur ocean october odor off offer office often oil okay old olive olympic omit once one onion online only open opera opinion oppose option orange orbit orchard order ordinary organ orient original orphan ostrich other outdoor outer output outside oval oven over own owner oxygen oyster ozone pact paddle page pair palace palm panda panel panic panther paper parade parent park parrot party pass patch path patient patrol pattern pause pave payment peace peanut pear peasant pelican pen penalty pencil people pepper perfect permit person pet phone photo phrase physical piano picnic picture piece pig pigeon pill pilot pink pioneer pipe pistol pitch pizza place planet plastic plate play please pledge pluck plug plunge poem poet point polar pole police pond pony pool popular portion position possible post potato pottery poverty powder power practice praise predict prefer prepare present pretty prevent price pride primary print priority prison private prize problem process produce profit program project promote proof property prosper protect proud provide public pudding pull pulp pulse pumpkin punch pupil puppy purchase purity purpose purse push put puzzle pyramid quality quantum quarter question quick quit quiz quote rabbit raccoon race rack radar radio rail rain raise rally ramp ranch random range rapid rare rate rather raven raw razor ready real reason rebel rebuild recall receive recipe record recycle reduce reflect reform refuse region regret regular reject relax release relief rely remain remember remind remove render renew rent reopen repair repeat replace report require rescue resemble resist resource response result retire retreat return reunion reveal review reward rhythm rib ribbon rice rich ride ridge rifle right rigid ring riot ripple risk ritual rival river road roast robot robust rocket romance roof rookie room rose rotate rough round route royal rubber rude rug rule run runway rural sad saddle sadness safe sail salad salmon salon salt salute same sample sand satisfy satoshi sauce sausage save say scale scan scare scatter scene scheme school science scissors scorpion scout scrap screen script scrub sea search season seat second secret section security seed seek segment select sell seminar senior sense sentence series service session settle setup seven shadow shaft shallow share shed shell sheriff shield shift shine ship shiver shock shoe shoot shop short shoulder shove shrimp shrug shuffle shy sibling sick side siege sight sign silent silk silly silver similar simple since sing siren sister situate six size skate sketch ski skill skin skirt skull slab slam sleep slender slice slide slight slim slogan slot slow slush small smart smile smoke smooth snack snake snap sniff snow soap soccer social sock soda soft solar soldier solid solution solve someone song soon sorry sort soul sound soup source south space spare spatial spawn speak special speed spell spend sphere spice spider spike spin spirit split spoil sponsor spoon sport spot spray spread spring spy square squeeze squirrel stable stadium staff stage stairs stamp stand start state stay steak steel stem step stereo stick still sting stock stomach stone stool story stove strategy street strike strong struggle student stuff stumble style subject submit subway success such sudden suffer sugar suggest suit summer sun sunny sunset super supply supreme sure surface surge surprise surround survey suspect sustain swallow swamp swap swarm swear sweet swift swim swing switch sword symbol symptom syrup system table tackle tag tail talent talk tank tape target task taste tattoo taxi teach team tell ten tenant tennis tent term test text thank that theme then theory there they thing this thought three thrive throw thumb thunder ticket tide tiger tilt timber time tiny tip tired tissue title toast tobacco today toddler toe together toilet token tomato tomorrow tone tongue tonight tool tooth top topic topple torch tornado tortoise toss total tourist toward tower town toy track trade traffic tragic train transfer trap trash travel tray treat tree trend trial tribe trick trigger trim trip trophy trouble truck true truly trumpet trust truth try tube tuition tumble tuna tunnel turkey turn turtle twelve twenty twice twin twist two type typical ugly umbrella unable unaware uncle uncover under undo unfair unfold unhappy uniform unique unit universe unknown unlock until unusual unveil update upgrade uphold upon upper upset urban urge usage use used useful useless usual utility vacant vacuum vague valid valley valve van vanish vapor various vast vault vehicle velvet vendor venture venue verb verify version very vessel veteran viable vibrant vicious victory video view village vintage violin virtual virus visa visit visual vital vivid vocal voice void volcano volume vote voyage wage wagon wait walk wall walnut want warfare warm warrior wash wasp waste water wave way wealth weapon wear weasel weather web wedding weekend weird welcome west wet whale what wheat wheel when where whip whisper wide width wife wild will win window wine wing wink winner winter wire wisdom wise wish witness wolf woman wonder wood wool word work world worry worth wrap wreck wrestle wrist write wrong yard year yellow you young youth zebra zero zone zoo".split(" ");
 let TEAM_ROWS = [];
 
@@ -5360,7 +5377,7 @@ function headsDraw() {
     el.innerHTML = `<div class="empty">Not switched on yet. Run the <b>Heads of department</b> query in the Supabase SQL editor, then open this page again.</div>`;
     return;
   }
-  el.innerHTML = TEAM_DEPTS.map(([k, label]) => {
+  el.innerHTML = HEAD_DEPTS.map(([k, label]) => {
     const cur = HEADS.find((h) => h.dept === k);
     const pool = TEAM_ROWS.filter((r) => (r.depts || []).includes(k) && (r.active || (cur && cur.staff_id === r.id)));
     const opts = `<option value="">No head</option>` + pool.map((r) =>
@@ -5457,7 +5474,104 @@ async function teamLoad() {
   teamDraw();
   await headsLoad();
 }
-document.querySelector('.navbtn[data-page="team"]').addEventListener("click", () => { headsSay("", ""); teamLoad(); });
+document.querySelector('.navbtn[data-page="team"]').addEventListener("click", () => { headsSay("", ""); hrqSay("", ""); teamLoad(); hrqLoad(); });
+
+/* ── Requests from HR, 10 Nov 2026 ───────────────────────────────────────
+   Kamsy: "we need a new department called HR that can see only messages and team but before he
+   can create an account it has to send a request to oma master". HR asks on the staff page; the
+   request waits here. Approve makes the account in the database and the seed phrase is made in
+   THIS browser, exactly as for "Add an admin": it is shown to you, HR only ever sees "Approved".
+   Until "HR department and Finance retired" has been run this box stays hidden. */
+let HRQ = { pending: [], recent: [] }, HRQ_OFF = false;
+const hrqSec = document.getElementById("hrqSection");
+const hrqMsg = document.getElementById("hrqMsg");
+function hrqSay(kind, words) {
+  hrqMsg.className = words ? "msg " + kind : "";
+  hrqMsg.textContent = words || "";
+}
+const hrqDepts = (l) => (l || []).map(teamDeptLabel).join(", ");
+function hrqBadge() {
+  const b = document.getElementById("teamBadge");
+  const n = HRQ.pending.length;
+  b.hidden = !n;
+  b.textContent = n > 99 ? "99+" : String(n);
+}
+function hrqDraw() {
+  hrqSec.hidden = HRQ_OFF;
+  if (HRQ_OFF) return;
+  const pend = HRQ.pending.map((r) => `<div class="hrq-row" data-rid="${esc(r.id)}">
+      <div class="hrq-main"><b>${esc(r.name)}</b> <span class="chip warn">Waiting</span>
+        <div class="hrq-sub">For ${esc(hrqDepts(r.depts))} · asked by ${esc(r.by_name || "someone in HR")} · ${esc(ago(r.created_at))}</div>
+        ${r.note ? `<div class="hrq-sub">${esc(r.note)}</div>` : ""}</div>
+      <div class="hrq-act">
+        <button class="btn sm" type="button" data-hrq="approve">Approve and show seed phrase</button>
+        <input class="hrq-why" maxlength="200" placeholder="Reason for HR (optional)" aria-label="Reason for declining ${esc(r.name)}">
+        <button class="btn sm plain" type="button" data-hrq="decline">Decline</button>
+      </div></div>`).join("");
+  const old = HRQ.recent.map((r) => `<div class="hrq-row"><div class="hrq-main"><b>${esc(r.name)}</b>
+      <span class="chip ${r.status === "approved" ? "ok" : "bad"}">${r.status === "approved" ? "Approved" : "Declined"}</span>
+      <div class="hrq-sub">${esc(hrqDepts(r.depts))} · asked by ${esc(r.by_name || "someone in HR")}${r.decided_at ? " · " + esc(ago(r.decided_at)) : ""}${r.decided_note ? " · " + esc(r.decided_note) : ""}</div></div></div>`).join("");
+  document.getElementById("hrqBox").innerHTML = (pend || '<div class="empty">Nothing is waiting for you.</div>')
+    + (old ? `<div class="hrq-old"><div class="faint" style="font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin:10px 0 0">Answered lately</div>${old}</div>` : "");
+}
+async function hrqLoad() {
+  const t = token();
+  if (!t) return;
+  try {
+    const r = await rpc("api_master_requests", { p_token: t });
+    HRQ = { pending: (r && r.pending) || [], recent: (r && r.recent) || [] };
+    HRQ_OFF = false;
+  } catch (e) {
+    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    if (sqlMissing(e)) { HRQ = { pending: [], recent: [] }; HRQ_OFF = true; }   // not run yet: stay hidden
+    else return;                                                                   // no signal: keep what is on screen
+  }
+  hrqDraw();
+  hrqBadge();
+}
+document.getElementById("hrqBox").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-hrq]");
+  const row = b && b.closest("[data-rid]");
+  if (!row) return;
+  const id = Number(row.dataset.rid);
+  const req = HRQ.pending.find((r) => Number(r.id) === id);
+  const t = token();
+  if (!req) return;
+  if (!t) return lockOut();
+  hrqSay("", "");
+  b.disabled = true;
+  try {
+    if (b.dataset.hrq === "decline") {
+      const why = row.querySelector(".hrq-why").value.trim();
+      const r = await rpc("api_master_request_decline", { p_token: t, p_id: id, p_note: why });
+      if (r && r.ok === false) hrqSay("warn", r.says || "That did not save.");
+      else hrqSay("good", req.name + " was not added. HR has been told.");
+    } else {
+      let done = false;
+      for (let i = 0; i < 3 && !done; i++) {          // a clash is a one-in-trillions fluke; retry anyway
+        const phrase = newPhrase();
+        const r = await rpc("api_master_request_approve", { p_token: t, p_id: id, p_phrase: phrase });
+        if (r && r.ok) {
+          done = true;
+          phraseShow(req.name, phrase);
+          hrqSay("good", req.name + " now has an account. Give them the seed phrase privately. You can show it again under Admin accounts.");
+          teamLoad();
+        } else if (!/already in use/i.test((r && r.says) || "")) {
+          hrqSay("warn", (r && r.says) || "That did not save.");
+          done = true;
+        }
+      }
+      if (!done) hrqSay("bad", "Could not make a phrase that was not already in use. Try again.");
+    }
+  } catch (err) {
+    if (err.status === 401 || /sign in again/i.test(err.message)) return lockOut();
+    hrqSay("bad", err.message);
+  }
+  await hrqLoad();
+});
+setInterval(() => {
+  if (document.visibilityState === "visible" && token() && !HRQ_OFF) hrqLoad();
+}, 60000);
 
 /* The popup */
 let phraseNow = "";
@@ -5535,7 +5649,8 @@ document.getElementById("teamList").addEventListener("click", async (e) => {
   teamSay("", "");
   if (tog) {
     const k = tog.dataset.dtog;
-    const next = row.depts.includes(k) ? row.depts.filter((d) => d !== k) : row.depts.concat(k);
+    const known = row.depts.filter((d) => TEAM_DEPTS.some((t) => t[0] === d));
+    const next = known.includes(k) ? known.filter((d) => d !== k) : known.concat(k);
     if (!next.length) return teamSay("warn", "Keep at least one department, or switch the account off.");
     tog.disabled = true;
     const wasHead = !next.includes(k) && HEADS.some((h) => h.dept === k && h.staff_id === row.id);
@@ -5577,7 +5692,7 @@ document.getElementById("teamList").addEventListener("click", async (e) => {
 
 /* ══ Messages, 6 Nov 2026 ═══════════════════════════════════════════════
    Kamsy: "lets create a group for each department to communicate with each other" ...
-   "the page will be called messages". Customer care, Finance and Damage control each have a
+   "the page will be called messages". Customer care, Damage control and HR each have a
    group: the people in that department, and you. Plain text. Only you can delete a message. A phone
    alert shows only the sender's name. department-messages.sql holds the rules; this only draws them. */
 let MSG_ON = null;                 // null = not asked yet, true = "Department messages" has been run, false = not yet

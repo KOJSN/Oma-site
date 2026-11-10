@@ -373,6 +373,15 @@ td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
 .tm-stats{display:none;color:var(--faint);font-size:12.5px;margin-top:2px}
 @media(max-width:640px){.tm-wide{display:none}.tm-stats{display:block}}
 .tm-note{padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.hr-form{padding:16px}
+.hr-form label:first-child{margin-top:0}
+.hr-depts{display:flex;gap:8px;flex-wrap:wrap}
+.hr-depts label{display:inline-flex;align-items:center;gap:8px;margin:0;padding:9px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--bg);font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer}
+.hr-depts label.on{border-color:var(--pink);background:var(--tint);color:var(--pink)}
+.hr-depts input{width:auto;padding:0;margin:0;border:0;accent-color:var(--pink)}
+.hr-req{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+.hr-req:first-child{border-top:0}
+.hr-req .tm-sub{margin-top:3px}
 .cgl{padding:8px 16px;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);background:var(--fill);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1}
 .cth .cas{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .cth .cas select{padding:8px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:13.5px}
@@ -524,7 +533,7 @@ body.dept-finance .page[data-page="finances"] textarea{display:none!important}
         Messages<span class="nbadge" id="msgBadge" hidden></span></button>
       <button class="navbtn gone" type="button" data-page="team">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        My team</button>
+        <span id="teamNavLbl">My team</span></button>
     </nav>
 
     <div class="main">
@@ -2260,13 +2269,13 @@ document.addEventListener("click", (e) => {
 
 /* ══ departments, 15 Oct 2026 ═══════════════════════════════════════════════
    Kamsy: "when someone gets to the admin landing page they will pick whether
-   they are customer care, finance, damage control (mischief, control,
+   they are customer care, damage control (mischief, control,
    reports)". The master page decides which departments each account has; the
    database refuses every call outside them (staff_ok in admin-accounts.sql).
    This only shapes what is on screen. */
 const DEPTS = {
   care:    { label: "Customer care",  blurb: "Reply to the live chats from omanails.com", pages: ["care"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.1A8.4 8.4 0 1 1 21 11.5Z"/></svg>` },
-  finance: { label: "Finance",        blurb: "Withdrawals, refunds and money switches. View only", pages: ["finances"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19V5l10 14V5M4 9.5h16M4 14.5h16"/></svg>` },
+  hr:      { label: "HR",             blurb: "Messages and the Team page. Ask the owner to add new people", pages: ["team"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>` },
   damage:  { label: "Damage control", blurb: "Mischief reports, Control, Reports and the bookings with their chats", pages: ["mischief", "control", "reports", "bookings"], icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>` },
 };
 let STAFF = null;     // { name, depts, expires_at, head_of } from api_staff_me + api_staff_heads
@@ -2279,7 +2288,7 @@ function showPick() {
   DEPT = null;
   try { sessionStorage.removeItem(DEPT_KEY); } catch (e) { /* fine */ }
   app.style.display = "none";
-  document.body.classList.remove("dept-care", "dept-finance", "dept-damage");
+  document.body.classList.remove("dept-care", "dept-damage", "dept-hr");
   careOff = true;
   const have = (STAFF.depts || []).filter((d) => DEPTS[d]);
   document.getElementById("pickHi").textContent = "Hello, " + (STAFF.name || "");
@@ -2296,20 +2305,21 @@ function enter(d) {
   try { sessionStorage.setItem(DEPT_KEY, d); } catch (e) { /* fine */ }
   pickEl.classList.add("gone");
   app.style.display = "block";
-  document.body.classList.remove("dept-care", "dept-finance", "dept-damage");
+  document.body.classList.remove("dept-care", "dept-damage", "dept-hr");
   document.body.classList.add("dept-" + d);
   const pages = DEPTS[d].pages.concat(MSG_ON ? ["messages"] : [], isHead(d) ? ["team"] : []);
   document.querySelectorAll(".navbtn").forEach((b) => b.classList.toggle("gone", !pages.includes(b.dataset.page)));
   document.getElementById("deptName").textContent = DEPTS[d].label + (isHead(d) ? " · Head" : "");
+  document.getElementById("teamNavLbl").textContent = d === "hr" ? "Team" : "My team";
   document.getElementById("switchDept").classList.toggle("gone", (STAFF.depts || []).filter((x) => DEPTS[x]).length < 2);
   document.getElementById("who").textContent = STAFF.name + " · until " +
     new Date(STAFF.expires_at).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
   careOff = d !== "care";
   const wanted = location.hash.slice(1);
-  const mh = /^messages(care|finance|damage)?$/.exec(wanted);
+  const mh = /^messages(care|damage|hr)?$/.exec(wanted);
   if (mh && mh[1]) msgWant = mh[1];
   const land = mh && pages.includes("messages") ? "messages" : pages.includes(wanted) ? wanted : pages[0];
-  document.querySelector('.navbtn[data-page="' + land + '"]').click();   // Care and Finance load on that click
+  document.querySelector('.navbtn[data-page="' + land + '"]').click();   // Care loads on that click
   if (d === "damage") load();                                           // Reports' charts come from load()
 }
 
@@ -2356,7 +2366,7 @@ async function show(expires) {
   try { want = sessionStorage.getItem(DEPT_KEY); } catch (e) { /* fine */ }
   // Opened from an alert (admin.html#care, #finances, #messagesdamage ...): go straight to the
   // department that page belongs to, if this person has it.
-  const hm = /^messages(care|finance|damage)?$/.exec(location.hash.slice(1));
+  const hm = /^messages(care|damage|hr)?$/.exec(location.hash.slice(1));
   const landed = hm ? (MSG_ON && hm[1] && have.includes(hm[1]) ? hm[1] : null)
                     : have.find((k) => DEPTS[k].pages.includes(location.hash.slice(1)));
   if (landed) enter(landed);
@@ -2534,7 +2544,7 @@ alertsPaint();
    /admin.html#finances or tells an already open page where to go. */
 function goToPage(name) {
   if (!STAFF || !/^[a-z]+$/.test(name || "")) return;
-  const gm = /^messages(care|finance|damage)?$/.exec(name);
+  const gm = /^messages(care|damage|hr)?$/.exec(name);
   if (gm) {                                              // an alert from one of the groups
     if (!MSG_ON || (gm[1] && !(STAFF.depts || []).includes(gm[1]))) return;
     msgWant = gm[1] || null;
@@ -4031,6 +4041,7 @@ function teamDrawMine() {
 async function teamLoadMine() {
   const t = token();
   if (!t || !DEPT) return;
+  if (DEPT === "hr") return hrLoad();
   try {
     TEAMDATA = await rpc("api_staff_team", { p_token: t });
     teamDrawMine();
@@ -4066,6 +4077,141 @@ setInterval(() => {
   if (document.visibilityState === "visible" && token() && teamOnPage()) teamLoadMine();
 }, 30000);
 
+/* ══ HR, 10 Nov 2026 ══════════════════════════════════════════════════════
+   Kamsy: "we need a new department called HR that can see only messages and team but before he
+   can create an account it has to send a request to oma master". HR sees everyone on the team
+   (never a seed phrase), asks for a new person here, and sees the owner's answer. Nothing is
+   made until the owner approves on the master Team page, and the seed phrase is shown only
+   there. The database (hr-department.sql) holds every rule; this only draws it. */
+let HRDATA = null;
+const HR_ASK = ["care", "damage"];     // HR can ask for these; only the owner can put someone in HR (Finance was retired on 10 Nov 2026)
+const hrWords = (list) => (list || []).filter((k) => DEPTS[k]).map(teamLabel).join(", ");   // a department the page no longer has (Finance) is not shown
+const hrMissing = (e) => e && (e.status === 404 || /could not find the function|PGRST202/i.test(e.message || ""));
+
+function hrChip(r) {
+  if (r.status === "approved") return '<span class="chip ok">Approved</span>';
+  if (r.status === "declined") return '<span class="chip bad">Declined</span>';
+  return '<span class="chip warn">Waiting for the owner</span>';
+}
+
+function hrPaint() {
+  const d = HRDATA;
+  if (!d) return;
+  document.getElementById("teamLbl").textContent = "Team";
+  if (!document.getElementById("hrForm")) {
+    teamBox.innerHTML = `
+      <div class="card" style="padding:0"><form class="hr-form" id="hrForm" autocomplete="off">
+        <div style="font-weight:800;margin-bottom:2px">Ask for a new team member</div>
+        <div class="faint" style="font-size:13px;line-height:1.45">Nothing is made yet. The owner gets your request and decides. If it is approved, the owner gives the person their seed phrase.</div>
+        <label for="hrName">Their name</label>
+        <input id="hrName" maxlength="60" placeholder="First name and surname" spellcheck="false">
+        <label>Departments they will work in</label>
+        <div class="hr-depts" id="hrDepts">${HR_ASK.map((k) =>
+          `<label><input type="checkbox" value="${k}">${esc(teamLabel(k))}</label>`).join("")}</div>
+        <label for="hrNote">A note for the owner (optional)</label>
+        <input id="hrNote" maxlength="300" placeholder="Why, or who they are">
+        <button class="btn sm" id="hrSend" type="submit" style="margin-top:16px">Send to the owner</button>
+      </form></div>
+      <div class="lbl" style="margin-top:26px">Requests</div>
+      <div id="hrReqs"></div>
+      <div class="lbl" style="margin-top:26px">Everyone on the team</div>
+      <div id="hrPeople"></div>
+      <div class="hint">You can see who is on the team and what they work in. Switching people on or off, removing people and seed phrases stay with the owner.</div>`;
+  }
+  const reqs = (d.requests || []).filter((r) => r.status !== "cancelled");
+  document.getElementById("hrReqs").innerHTML = reqs.length
+    ? `<div class="card scroll" style="padding:0">${reqs.map((r) => `<div class="hr-req"><div>
+        <b>${esc(r.name)}</b> ${hrChip(r)}
+        <div class="tm-sub">${esc(hrWords(r.depts))}${r.mine ? "" : " · asked by " + esc(r.by_name || "someone in HR")} · ${esc(ago(r.created_at))}</div>
+        ${r.note ? `<div class="tm-sub">${esc(r.note)}</div>` : ""}
+        ${r.status === "declined" && r.decided_note ? `<div class="tm-sub" style="color:var(--bad)">${esc(r.decided_note)}</div>` : ""}
+        ${r.status === "approved" ? '<div class="tm-sub">Their account is made. The owner will give them their seed phrase.</div>' : ""}
+      </div>${r.status === "pending" && r.mine
+        ? `<button class="btn sm plain" type="button" data-hrcancel="${esc(r.id)}">Take back</button>` : ""}</div>`).join("")}</div>`
+    : '<div class="empty">No requests yet.</div>';
+  const rows = (d.people || []).map((m) => {
+    const me = m.id === d.me;
+    return `<tr><td><b>${esc(m.name)}</b>${me ? ' <span class="faint">(you)</span>' : ""}</td>
+      <td>${esc(hrWords(m.depts)) || '<span class="faint">none</span>'}</td>
+      <td>${m.active ? '<span class="chip ok">active</span>' : '<span class="chip no">switched off</span>'}</td>
+      <td class="tm-wide">${m.last_open_at ? esc(ago(m.last_open_at)) : '<span class="faint">never</span>'}</td></tr>`;
+  }).join("");
+  document.getElementById("hrPeople").innerHTML = `<div class="card scroll" style="padding:0">
+    <table><thead><tr><th>Name</th><th>Departments</th><th>Status</th><th class="tm-wide">Last signed in</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="4"><div class="empty">Nobody yet.</div></td></tr>'}</tbody></table></div>`;
+}
+
+async function hrLoad() {
+  const t = token();
+  if (!t || DEPT !== "hr") return;
+  try {
+    HRDATA = await rpc("api_hr_team", { p_token: t });
+    hrPaint();
+  } catch (e) {
+    if (careLost(e)) return lockOut();
+    if (!document.getElementById("hrForm")) {
+      teamBox.innerHTML = `<div class="empty">${hrMissing(e)
+        ? "The HR page is not switched on yet. Ask the owner."
+        : esc(e.message)}</div>`;
+    }
+  }
+}
+
+teamBox.addEventListener("change", (e) => {
+  const c = e.target.closest("#hrDepts input");
+  if (c) c.closest("label").classList.toggle("on", c.checked);
+});
+
+teamBox.addEventListener("submit", async (e) => {
+  if (e.target.id !== "hrForm") return;
+  e.preventDefault();
+  const t = token();
+  if (!t) return lockOut();
+  const name = document.getElementById("hrName").value.trim();
+  const depts = [...document.querySelectorAll("#hrDepts input:checked")].map((x) => x.value);
+  const note = document.getElementById("hrNote").value.trim();
+  if (!name) return teamSay("bad", "Give the person a name.");
+  if (!depts.length) return teamSay("bad", "Pick at least one department.");
+  const btn = document.getElementById("hrSend");
+  btn.disabled = true;
+  teamSay("", "");
+  try {
+    const r = await rpc("api_hr_request", { p_token: t, p_name: name, p_depts: depts, p_note: note });
+    if (r && r.ok === false) {
+      teamSay("bad", r.says || "That did not go through.");
+    } else {
+      document.getElementById("hrName").value = "";
+      document.getElementById("hrNote").value = "";
+      document.querySelectorAll("#hrDepts input").forEach((x) => { x.checked = false; x.closest("label").classList.remove("on"); });
+      teamSay("good", name + " is waiting for the owner. The answer will show under Requests.");
+      await hrLoad();
+    }
+  } catch (err) {
+    if (careLost(err)) return lockOut();
+    teamSay("bad", hrMissing(err) ? "The HR page is not switched on yet. Ask the owner." : err.message);
+  }
+  btn.disabled = false;
+});
+
+teamBox.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-hrcancel]");
+  if (!b) return;
+  const t = token();
+  if (!t) return lockOut();
+  b.disabled = true;
+  teamSay("", "");
+  try {
+    const r = await rpc("api_hr_cancel", { p_token: t, p_id: Number(b.dataset.hrcancel) });
+    if (r && r.ok === false) teamSay("bad", r.says || "That could not be taken back.");
+    else teamSay("good", "Taken back. Nothing was made.");
+    await hrLoad();
+  } catch (err) {
+    if (careLost(err)) return lockOut();
+    teamSay("bad", err.message);
+    b.disabled = false;
+  }
+});
+
 // A new chat is worth noticing within seconds on this page, within half a
 // minute from any other tab; an open conversation refreshes every four. The
 // push to her phone is what covers everything when this page is closed.
@@ -4086,7 +4232,7 @@ document.addEventListener("visibilitychange", () => {
 
 /* ══ Messages, 6 Nov 2026 ═══════════════════════════════════════════════
    Kamsy: "lets create a group for each department to communicate with each other" ...
-   "the page will be called messages". Customer care, Finance and Damage control each have a
+   "the page will be called messages". Customer care, Damage control and HR each have a
    group: the people in that department and the owner. Plain text. A phone alert shows only the
    sender's name. department-messages.sql holds the rules; this only draws them. */
 let MSG_ON = null;                 // true once "Department messages" has been run
