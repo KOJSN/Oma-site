@@ -1837,7 +1837,14 @@ async function loadInspoReports() {
   try {
     drawInspoReports(await rpc("api_admin_inspo_reports", { p_token: t, p_limit: 60 }));
   } catch (e) {
-    if (e.status === 401 || /sign in again/i.test(e.message)) return lockOut();
+    if (e.status === 401 || /sign in again/i.test(e.message)) {
+      // A team member whose session is fine, but the database still only lets the owner read this
+      // (before "Fix Damage control being signed out" has been run): say so, do not sign her out.
+      if (STAFF && await staffStillIn()) {
+        return drawInspoReports(null, "not switched on for Damage control yet. Ask the owner to run \u201cFix Damage control being signed out\u201d in Supabase.");
+      }
+      return lockOut();
+    }
     drawInspoReports(null, sqlMissing(e) ? "" : (e && e.message));
   }
 }
@@ -2553,10 +2560,57 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+/* The database says "sign in again" for two different reasons: the session really has ended, or this
+   one call is something only the owner may do (a database function that lost its Damage control door:
+   that is what happened to Inspo reports on 7 Nov 2026, and every Damage control member was thrown out
+   to the sign-in page as soon as Mischief opened). So before anybody is sent to the sign-in page, ask a
+   question every team member is allowed to ask. Only if THAT is refused too has the session ended. No
+   signal is not an ended session either. */
+async function staffStillIn() {
+  const t = token();
+  if (!t) return false;
+  try { await rpc("api_staff_me", { p_token: t }); return true; }
+  catch (e) { return !(e && (e.status === 401 || /sign in again/i.test(e.message || ""))); }
+}
+
+let lockChecking = false;
 function lockOut(why) {
+  // Nobody signed in yet (or not the staff page): nothing to double-check.
+  if (!STAFF || !token() || TOKEN_KEY !== "oma-staff-token") return signOutNow(why);
+  if (lockChecking) return;
+  lockChecking = true;
+  staffStillIn().then((still) => {
+    lockChecking = false;
+    if (!still) return signOutNow(why);
+    sessionNote("One part of this page is not switched on for your team, so it did not load. "
+      + "You are still signed in. Please tell the owner.");
+  }, () => { lockChecking = false; });
+}
+
+let noteTimer = null;
+function sessionNote(words) {
+  let el = document.getElementById("sessionNote");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "sessionNote";
+    el.setAttribute("role", "status");
+    el.style.cssText = "position:fixed;left:12px;right:12px;bottom:12px;z-index:60;max-width:520px;"
+      + "margin:0 auto;padding:12px 14px;border-radius:12px;background:#1b1b1f;color:#fff;font-size:14px;"
+      + "line-height:1.4;box-shadow:0 6px 24px rgba(0,0,0,.25)";
+    document.body.appendChild(el);
+  }
+  el.textContent = words;
+  el.style.display = "block";
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => { el.style.display = "none"; }, 9000);
+}
+
+function signOutNow(why) {
   try { closeSheet(); } catch (e) { /* sheet code not reached yet */ }
   setToken(null);
   STAFF = null; DEPT = null;
+  const note = document.getElementById("sessionNote");
+  if (note) note.style.display = "none";
   document.getElementById("pick").classList.add("gone");
   app.style.display = "none";
   gate.style.display = "grid";
