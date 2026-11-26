@@ -740,6 +740,7 @@ let ZOOM_PHOTO = null;
 // box shows nothing until the real id comes back, so there is no wrong
 // answer to copy from it.
 let LISTING_LINK = null;
+let LISTING_SLUG = null;      // { slug, canEdit } — the short name in her link (name.omanails.com)
 function vListing() {
   const b = DB.biz;
   // 23 Sep 2026: same fix as vRequests() above — "more", not "role".
@@ -768,16 +769,25 @@ function vListing() {
     </div>
 
     <div class="seehead" style="padding-left:0;padding-right:0"><h3>Your link</h3></div>
-    <div class="card" style="word-break:break-all;font-size:11.5px;color:var(--sub);font-weight:500;line-height:1.5">${link ? esc(link) : "Getting your link…"}</div>
+    <div class="card" style="word-break:break-all;font-size:15px;color:var(--pink);font-weight:800;letter-spacing:-.01em;line-height:1.5">${link ? esc(link.replace(/^https?:\/\//, "")) : "Getting your link…"}</div>
+    ${LISTING_SLUG && LISTING_SLUG.slug && LISTING_SLUG.canEdit ? `
+    <div class="card mt12">
+      <div class="small" style="font-weight:700">Choose your link name</div>
+      <div class="tiny sub" style="margin-top:2px"><b>You can change it only once.</b> Letters, numbers and hyphens, 3 to 30. The one you have now keeps working for anyone who already has it.</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+        <span class="inp" style="flex:1"><input id="slugInp" value="${esc(LISTING_SLUG.slug)}" maxlength="30" autocapitalize="none" autocomplete="off" autocorrect="off" spellcheck="false" inputmode="url"></span>
+        <span class="small sub">.omanails.com</span>
+      </div>
+      <button class="btn sm mt12" data-a="saveSlug">Save link name</button>
+    </div>` : ""}
     <div class="btnrow mt12">
       <button class="btn sm" data-a="shareMine" ${link ? "" : "disabled"}>${I.share()} Share</button>
       <button class="btn sm ghost" data-a="copyLink" ${link ? "" : "disabled"}>Copy</button>
     </div>
     <div class="note mt16">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--pink)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8.2v.1"/></svg>
-      <div>This link <b>is</b> your listing — the whole menu is packed inside it. Anyone who opens
-        it sees you in their app. There is no directory, so a customer who has never met you
-        cannot find you: send it the way you already send your number.</div>
+      <div>Send this link to clients on WhatsApp or Instagram, or put it in your bio. Anyone who
+        opens it sees your prices, your work and your reviews, and can book you.</div>
     </div>
 
     <div class="seehead" style="padding-left:0;padding-right:0"><h3>Services</h3></div>

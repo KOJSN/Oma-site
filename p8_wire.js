@@ -59,9 +59,9 @@ function paint() {
         // just carrying two fetches instead of one.
         setTimeout(() => {
           const photosP = typeof loadMyPhotos === "function" ? loadMyPhotos() : Promise.resolve();
-          const linkP = API.me().then((m) => {
-            const id = m && m.tech && m.tech.id;
-            LISTING_LINK = id ? techLink(id) : null;
+          const linkP = myShareLink().then((x) => {
+            LISTING_LINK = x ? x.link : null;
+            LISTING_SLUG = x ? { slug: x.slug, canEdit: x.canEdit } : null;
           }).catch(() => {});
           Promise.all([photosP, linkP]).then(() => {
             vListing._loading = false;
@@ -1038,15 +1038,29 @@ function pullProfile() {
   if (a === "shareMine" || a === "copyLink") {
     // Her id, not her details. Asking the backend for it also means the link
     // cannot be handed out before she has actually listed herself.
-    return API.me().then((m) => {
-      const id = m && m.tech && m.tech.id;
-      if (!id) return toast("List yourself first — the link comes with the listing.");
-      const link = techLink(id);
-      const name = (m.tech.business_name || "My nails") + " on Oma";
+    return myShareLink().then((x) => {
+      if (!x) return toast("List yourself first — the link comes with the listing.");
+      const link = x.link;
+      const name = x.name + " on Oma";
       if (a === "shareMine" && navigator.share) {
         return navigator.share({ title: name, text: name + "\n" + link }).catch(() => {});
       }
       return copy(link, "Link copied — send it to anyone.");
+    }).catch((e) => toast(e.message));
+  }
+  if (a === "saveSlug") {
+    // She can change her link name once. The server checks everything (taken, kept by Oma, too
+    // short); its message is shown as it is.
+    const inp = document.getElementById("slugInp");
+    const v = inp ? inp.value : "";
+    return API.setSlug(v).then((s) => {
+      LISTING_LINK = s && s.url ? s.url : LISTING_LINK;
+      LISTING_SLUG = { slug: s && s.slug, canEdit: !!(s && s.can_edit) };
+      toast("Your link is now " + (s && s.slug) + ".omanails.com");
+      if (ROUTE.v === "listing") {
+        const v2 = document.getElementById("view");
+        if (v2) v2.innerHTML = vListing();
+      }
     }).catch((e) => toast(e.message));
   }
   if (a === "shareTech") {

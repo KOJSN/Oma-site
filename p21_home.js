@@ -69,6 +69,7 @@ async function loadIdentity() {
 function forgetIdentity() {
   IDENT = null;
   if (typeof LISTING_LINK !== "undefined") LISTING_LINK = null;
+  if (typeof LISTING_SLUG !== "undefined") LISTING_SLUG = null;
 }
 
 let HOME = {
