@@ -408,7 +408,7 @@ function head(title, sub, right) {
     <div style="display:flex;align-items:center;gap:12px">
       <button class="iconbtn" data-a="back" aria-label="Back">${I.back()}</button>
       <div style="flex:1;min-width:0">
-        <div style="font-size:16px;font-weight:800;letter-spacing:-.025em">${esc(title)}</div>
+        <div data-ht style="font-size:16px;font-weight:800;letter-spacing:-.025em">${esc(title)}</div>
         ${sub ? `<div class="tiny sub">${esc(sub)}</div>` : ""}
       </div>
       ${right || ""}

@@ -26,7 +26,7 @@
      correctly by its own rules, to launch the customer app. /manifest.webmanifest
      is stamped per build below — customer gets manifest.webmanifest
      (start_url /app.html), tech gets techapp-manifest.webmanifest
-     (start_url /techapp.html) — same fix shape as dd9695e384/customer. -->
+     (start_url /techapp.html) — same fix shape as b35c8a756f/customer. -->
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1466,7 +1466,7 @@ const RULES = {"version":"0.1.0","updated":"2026-08-24","notes":["Shipped as dat
    value into site/sw.js, so "is the phone running what I just uploaded" stops
    being a guess: Settings shows this, the first line of /sw.js shows the same
    value, and they only agree when both files were uploaded together. */
-const BUILD_ID = "dd9695e384";
+const BUILD_ID = "b35c8a756f";
 
 /* 22 Sep 2026, Kamsy: "release the tech app separately first." Same bundle,
    same p*.js files, same everything — build.py substitutes this to "tech"
@@ -4313,6 +4313,9 @@ const API = (() => {
     // Kamsy, 26 Nov 2026: a tech's link reads name.omanails.com (tech-link-names.sql).
     mySlug:        ()                       => live() ? rpc("api_my_slug")          : Promise.resolve(null),
     setSlug:       (s)                      => live() ? rpc("api_set_slug", { p_slug: s }) : Promise.reject(new Error("Sign in to change your link name.")),
+    // Her business name, for the heading when somebody opens her link cold
+    // (no list row was tapped, so the page has not been told her name).
+    techName:      (id)                     => live() ? rpc("api_tech_name", { p_tech: id }) : Promise.resolve(null),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
     // The Location row's icon (p8_wire.js, "profile-locate"). A dedicated
     // function and dedicated columns — see location.sql — rather than
@@ -6407,7 +6410,7 @@ function head(title, sub, right) {
     <div style="display:flex;align-items:center;gap:12px">
       <button class="iconbtn" data-a="back" aria-label="Back">${I.back()}</button>
       <div style="flex:1;min-width:0">
-        <div style="font-size:16px;font-weight:800;letter-spacing:-.025em">${esc(title)}</div>
+        <div data-ht style="font-size:16px;font-weight:800;letter-spacing:-.025em">${esc(title)}</div>
         ${sub ? `<div class="tiny sub">${esc(sub)}</div>` : ""}
       </div>
       ${right || ""}
@@ -8423,16 +8426,25 @@ function vTechLive(id) {
     // The reviews are asked for beside the services rather than after them:
     // this is the screen where somebody decides whether to book, so the score
     // should arrive with the prices, not a beat later.
-    const [list, revs, rate, terms] = await Promise.all([
+    const [list, revs, rate, terms, nm] = await Promise.all([
       API.services(id),
       API.techReviews(id, 8).catch(() => []),
       API.ratings([id]).catch(() => []),
       // Whether she travels. Asked here so the next screen can offer "she
       // comes to me" only when it is a real option.
       API.homeTerms(id).catch(() => null),
+      // Only needed when her link was opened cold and no list row told us her
+      // name; otherwise it is skipped. Never fatal: the heading just stays
+      // "Services" if this cannot be answered.
+      PICKED.name ? null : API.techName(id).catch(() => null),
     ]);
     const r = (rate || []).find((x) => x.tech_id === id);
     PICKED = { techId: id, name: PICKED.name, ids: [], at: null, terms, mins: 0, busy: [], hours: null };
+    if (nm && nm.name && !PICKED.name) {
+      PICKED.name = String(nm.name);
+      const ht = document.querySelector("[data-ht]");
+      if (ht && LOADFOR === VIEWN) ht.textContent = PICKED.name;
+    }
     resetHome();
     // The ID check is optional for a tech now, so this is said only about one
     // who passed it, and only once the server has told us so.
@@ -15348,6 +15360,9 @@ function openTechLink() {
   try { history.replaceState(null, "", location.pathname + location.search); }
   catch (e) { /* file:// */ }
   STACK.length = 0;
+  // Another tech's name may still be sitting there from earlier; the heading
+  // is filled in from the database for this one.
+  if (PICKED.techId !== id) PICKED.name = "";
   ROUTE = { v: "techlive", a: id };
   paint();
   return true;

@@ -349,16 +349,25 @@ function vTechLive(id) {
     // The reviews are asked for beside the services rather than after them:
     // this is the screen where somebody decides whether to book, so the score
     // should arrive with the prices, not a beat later.
-    const [list, revs, rate, terms] = await Promise.all([
+    const [list, revs, rate, terms, nm] = await Promise.all([
       API.services(id),
       API.techReviews(id, 8).catch(() => []),
       API.ratings([id]).catch(() => []),
       // Whether she travels. Asked here so the next screen can offer "she
       // comes to me" only when it is a real option.
       API.homeTerms(id).catch(() => null),
+      // Only needed when her link was opened cold and no list row told us her
+      // name; otherwise it is skipped. Never fatal: the heading just stays
+      // "Services" if this cannot be answered.
+      PICKED.name ? null : API.techName(id).catch(() => null),
     ]);
     const r = (rate || []).find((x) => x.tech_id === id);
     PICKED = { techId: id, name: PICKED.name, ids: [], at: null, terms, mins: 0, busy: [], hours: null };
+    if (nm && nm.name && !PICKED.name) {
+      PICKED.name = String(nm.name);
+      const ht = document.querySelector("[data-ht]");
+      if (ht && LOADFOR === VIEWN) ht.textContent = PICKED.name;
+    }
     resetHome();
     // The ID check is optional for a tech now, so this is said only about one
     // who passed it, and only once the server has told us so.

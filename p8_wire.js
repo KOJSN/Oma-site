@@ -1752,6 +1752,9 @@ function openTechLink() {
   try { history.replaceState(null, "", location.pathname + location.search); }
   catch (e) { /* file:// */ }
   STACK.length = 0;
+  // Another tech's name may still be sitting there from earlier; the heading
+  // is filled in from the database for this one.
+  if (PICKED.techId !== id) PICKED.name = "";
   ROUTE = { v: "techlive", a: id };
   paint();
   return true;
