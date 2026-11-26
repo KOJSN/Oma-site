@@ -130,6 +130,23 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 function techLink(id) {
   return location.origin + location.pathname + "#tech=" + id;
 }
+/* Kamsy, 26 Nov 2026: "it will show them omanails.com and I do not want that, I want
+   [techs name].omanails". A tech's link is now glossedbysonia.omanails.com. The name comes from the
+   database (api_my_slug). If that SQL has not been run yet, or the call fails, the old long link
+   still works, and it always points at the customer app (app.html), never the tech app. */
+function prettyLink(slug, id) {
+  return slug ? "https://" + slug + ".omanails.com" : "https://omanails.com/app.html#tech=" + id;
+}
+function myShareLink() {
+  return API.me().then((m) => {
+    const id = m && m.tech && m.tech.id;
+    if (!id) return null;
+    const name = m.tech.business_name || "My nails";
+    return API.mySlug().then((s) => ({
+      id, name, slug: s && s.slug, canEdit: !!(s && s.can_edit), link: prettyLink(s && s.slug, id),
+    })).catch(() => ({ id, name, slug: null, canEdit: false, link: prettyLink(null, id) }));
+  });
+}
 function techIdFromHash() {
   const m = (location.hash || "").match(/[#&]tech=([^&]+)/);
   return m && UUID.test(m[1]) ? m[1] : null;

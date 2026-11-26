@@ -597,6 +597,9 @@ const API = (() => {
     setSignupPlace: (lat, lng)              => live() ? rpc("api_set_signup_place", { p_lat: lat, p_lng: lng }) : MOCK.setSignupPlace(lat, lng),
 
     me:            ()                       => live() ? rpc("api_me")               : MOCK.me(),
+    // Kamsy, 26 Nov 2026: a tech's link reads name.omanails.com (tech-link-names.sql).
+    mySlug:        ()                       => live() ? rpc("api_my_slug")          : Promise.resolve(null),
+    setSlug:       (s)                      => live() ? rpc("api_set_slug", { p_slug: s }) : Promise.reject(new Error("Sign in to change your link name.")),
     saveProfile:   (name, area, lat, lng)   => live() ? rpc("api_save_profile", { p_name: name, p_area: area, p_lat: lat, p_lng: lng }) : MOCK.saveProfile(name, area, lat, lng),
     // The Location row's icon (p8_wire.js, "profile-locate"). A dedicated
     // function and dedicated columns — see location.sql — rather than
